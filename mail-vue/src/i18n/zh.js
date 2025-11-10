@@ -307,6 +307,7 @@ const zh = {
     emailText: '邮件文本',
     emailPrefix: '邮箱前缀',
     atLeast: '至少',
-    character: '位'
+    character: '位',
+    randomGenerateName: '随机生成英文名前缀'
 }
 export default zh

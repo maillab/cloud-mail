@@ -307,7 +307,8 @@ const en = {
     emailText: 'Email Text',
     emailPrefix: 'Email Prefix',
     atLeast: 'At Least',
-    character: ''
+    character: '',
+    randomGenerateName: 'Randomly Generate Name Prefix'
 }
 
 export default en

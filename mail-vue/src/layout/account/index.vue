@@ -77,6 +77,11 @@
     <el-dialog v-model="showAdd" :title="$t('addAccount')">
       <div class="container">
         <el-input v-model="addForm.email" ref="addRef" type="text" :placeholder="$t('emailAccount')" autocomplete="off">
+          <template #prepend>
+            <el-tooltip :content="$t('randomGenerateName')" placement="top">
+              <el-button @click="generateRandomName" :icon="RefreshIcon" />
+            </el-tooltip>
+          </template>
           <template #append>
             <div @click.stop="openSelect">
               <el-select
@@ -126,7 +131,7 @@
 </template>
 <script setup>
 import {Icon} from "@iconify/vue";
-import {nextTick, reactive, ref, watch} from "vue";
+import {nextTick, reactive, ref, watch, h} from "vue";
 import {accountList, accountAdd, accountDelete, accountSetName} from "@/request/account.js";
 import {sleep} from "@/utils/time-utils.js"
 import {isEmail} from "@/utils/verify-utils.js";
@@ -135,6 +140,8 @@ import {useAccountStore} from "@/store/account.js";
 import {useUserStore} from "@/store/user.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
+import {uniqueNamesGenerator, names} from 'unique-names-generator';
+import {Refresh} from '@element-plus/icons-vue';
 
 const {t} = useI18n();
 const userStore = useUserStore();
@@ -170,6 +177,7 @@ const queryParams = {
 }
 
 const mySelect = ref()
+const RefreshIcon = Refresh
 
 if (hasPerm('account:query')) {
   getAccountList()
@@ -182,6 +190,51 @@ watch(() => accountStore.changeUserAccountName, () => {
 
 const openSelect = () => {
   mySelect.value.toggleMenu()
+}
+
+// 生成随机英文名前缀
+function generateRandomName() {
+  const minLength = settingStore.settings.minEmailPrefix || 0
+  let generatedName = ''
+  let attempts = 0
+  const maxAttempts = 10
+
+  while (attempts < maxAttempts) {
+    // 生成两个随机英文名
+    const firstName = uniqueNamesGenerator({
+      dictionaries: [names],
+      length: 1,
+      style: 'capital'
+    })
+
+    const secondName = uniqueNamesGenerator({
+      dictionaries: [names],
+      length: 1,
+      style: 'capital'
+    })
+
+    generatedName = firstName + secondName
+
+    // 检查是否满足最小长度要求
+    if (minLength === 0 || generatedName.length >= minLength) {
+      addForm.email = generatedName
+      return
+    }
+
+    attempts++
+  }
+
+  // 如果尝试多次仍不满足要求，仍然使用最后生成的名字
+  addForm.email = generatedName
+
+  // 如果还是不满足最小长度，提示用户
+  if (minLength > 0 && generatedName.length < minLength) {
+    ElMessage({
+      message: t('minEmailPrefix', {msg: minLength}),
+      type: 'warning',
+      plain: true,
+    })
+  }
 }
 
 window.onTurnstileError = (e) => {
