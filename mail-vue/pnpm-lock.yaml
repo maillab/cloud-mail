@@ -50,6 +50,9 @@ importers:
       pinia-plugin-persistedstate:
         specifier: ^4.2.0
         version: 4.5.0(pinia@3.0.3(vue@3.5.20))
+      unique-names-generator:
+        specifier: ^4.7.1
+        version: 4.7.1
       vue:
         specifier: ^3.5.13
         version: 3.5.20
@@ -2280,6 +2283,10 @@ packages:
   unimport@4.2.0:
     resolution: {integrity: sha512-mYVtA0nmzrysnYnyb3ALMbByJ+Maosee2+WyE0puXl+Xm2bUwPorPaaeZt0ETfuroPOtG8jj1g/qeFZ6buFnag==}
     engines: {node: '>=18.12.0'}
+
+  unique-names-generator@4.7.1:
+    resolution: {integrity: sha512-lMx9dX+KRmG8sq6gulYYpKWZc9RlGsgBR6aoO8Qsm3qvkSJ+3rAymr+TnV8EDMrIrwuFJ4kruzMWM/OpYzPoow==}
+    engines: {node: '>=8'}
 
   unique-string@2.0.0:
     resolution: {integrity: sha512-uNaeirEPvpZWSgzwsPGtU2zVSTrn/8L5q/IexZmH0eH6SA73CmAA5U4GwORTxQAZs95TAXLNqeLoPPNO5gZfWg==}
@@ -4913,6 +4920,8 @@ snapshots:
       tinyglobby: 0.2.14
       unplugin: 2.3.10
       unplugin-utils: 0.2.5
+
+  unique-names-generator@4.7.1: {}
 
   unique-string@2.0.0:
     dependencies:
