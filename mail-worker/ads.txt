@@ -1,0 +1,3 @@
+# ads.txt 文件 - https://ygyang.uk/
+# Google AdSense 授权信息
+google.com, pub-2519025983341297, DIRECT, f08c47fec0942fa0
