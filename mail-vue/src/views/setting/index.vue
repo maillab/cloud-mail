@@ -54,7 +54,9 @@
           <div v-if="userStore.user.oauthId" class="github-info" @click="showUnbindConfirm">
             <el-avatar :src="userStore.user.githubAvatar" :size="30" style="margin-right: 10px" />
             <span class="github-username">{{ userStore.user.githubUsername }}</span>
-            <el-icon class="unbind-icon"><el-icon-mingcute:delete-fill /></el-icon>
+            <el-icon class="unbind-icon">
+              <Icon icon="mingcute:delete-fill" width="16" height="16" />
+            </el-icon>
           </div>
           <el-button v-else type="primary" @click="bindGithub">
             <el-avatar src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" :size="18" style="margin-right: 10px" />{{$t('bindGithub')}}
@@ -89,6 +91,7 @@ import {accountSetName} from "@/request/account.js"
 import {useAccountStore} from "@/store/account.js"
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
+import {Icon} from "@iconify/vue";
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
