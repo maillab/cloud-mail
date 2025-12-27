@@ -100,7 +100,7 @@ const accountService = {
 	},
 
 	selectByEmailIncludeDel(c, email) {
-		return orm(c).select().from(account).where(sql`${account.email} COLLATE NOCASE = ${email}`).get();
+		return orm(c).select().from(account).where(eq(account.email, email)).get();
 	},
 
 	list(c, params, userId) {

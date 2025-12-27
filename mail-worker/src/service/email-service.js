@@ -644,24 +644,24 @@ const emailService = {
 		}
 
 		if (userEmail) {
-			conditions.push(sql`${user.email} COLLATE NOCASE LIKE ${userEmail + '%'}`);
+			conditions.push(sql`${user.email} COLLATE NOCASE LIKE ${userEmail} || '%'`);
 		}
 
 		if (accountEmail) {
 			conditions.push(
 				or(
-					sql`${email.toEmail} COLLATE NOCASE LIKE ${accountEmail + '%'}`,
-					sql`${email.sendEmail} COLLATE NOCASE LIKE ${accountEmail + '%'}`,
+					sql`${email.toEmail} COLLATE NOCASE LIKE ${accountEmail} || '%'`,
+					sql`${email.sendEmail} COLLATE NOCASE LIKE ${accountEmail} || '%'`,
 				)
 			)
 		}
 
 		if (name) {
-			conditions.push(sql`${email.name} COLLATE NOCASE LIKE ${name + '%'}`);
+			conditions.push(sql`${email.name} COLLATE NOCASE LIKE ${name} || '%'`);
 		}
 
 		if (subject) {
-			conditions.push(sql`${email.subject} COLLATE NOCASE LIKE ${subject + '%'}`);
+			conditions.push(sql`${email.subject} COLLATE NOCASE LIKE ${subject} || '%'`);
 		}
 
 		conditions.push(ne(email.status, emailConst.status.SAVING));

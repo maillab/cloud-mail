@@ -302,13 +302,23 @@ async function oauthGetUser() {
       }
 
       saveToken(data.token);
-    }).catch(() => {
+    }).catch((error) => {
+      console.error('OAuth login failed:', error)
       oauthLoading.value = false
+      ElMessage({
+        message: t('loginFailMsg'),
+        type: 'error',
+        duration: 4000,
+        plain: true,
+      })
     })
   }
 
-  const cleanUrl = window.location.origin + window.location.pathname
-  window.history.replaceState({}, '', cleanUrl)
+  // 只有在有code参数时才清理URL，避免影响正常的页面访问
+  if (code) {
+    const cleanUrl = window.location.origin + window.location.pathname
+    window.history.replaceState({}, '', cleanUrl)
+  }
 }
 
 function bind() {
