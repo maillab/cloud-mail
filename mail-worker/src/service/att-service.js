@@ -13,6 +13,11 @@ import settingService from "./setting-service";
 const attService = {
 
 	async addAtt(c, attachments) {
+		// 计算新附件总大小
+		const newAttachmentsSize = attachments.reduce((total, attachment) => total + attachment.size, 0);
+		
+		// 检查并清理旧附件
+		await this.checkAndCleanOldAttachments(c, newAttachmentsSize);
 
 		for (let attachment of attachments) {
 
@@ -129,6 +134,7 @@ const attService = {
 	async saveSendAtt(c, attList, userId, accountId, emailId) {
 
 		const attDataList = [];
+		let newAttachmentsSize = 0;
 
 		for (let att of attList) {
 			att.buff = fileUtils.base64ToUint8Array(att.content);
@@ -136,11 +142,15 @@ const attService = {
 			const attData = { userId, accountId, emailId };
 			attData.key = att.key;
 			attData.size = att.buff.length;
+			newAttachmentsSize += att.buff.length;
 			attData.filename = att.filename;
 			attData.mimeType = att.type;
 			attData.type = attConst.type.ATT;
 			attDataList.push(attData);
 		}
+
+		// 检查并清理旧附件
+		await this.checkAndCleanOldAttachments(c, newAttachmentsSize);
 
 		await orm(c).insert(att).values(attDataList).run();
 
@@ -154,6 +164,11 @@ const attService = {
 	},
 
 	async saveArticleAtt(c, attDataList, userId, accountId, emailId) {
+		// 计算新附件总大小
+		const newAttachmentsSize = attDataList.reduce((total, attData) => total + attData.size, 0);
+		
+		// 检查并清理旧附件
+		await this.checkAndCleanOldAttachments(c, newAttachmentsSize);
 
 		for (let attData of attDataList) {
 			attData.userId = userId;
@@ -243,6 +258,62 @@ const attService = {
 			return []
 		}
 		return orm(c).select().from(att).where(inArray(att.key, keys)).orderBy(desc(att.attId)).groupBy(att.key).all();
+	},
+
+	async getTotalSize(c) {
+		const result = await c.env.db.prepare('SELECT SUM(size) as totalSize FROM attachments').run();
+		return result.results[0]?.totalSize || 0;
+	},
+
+	async checkAndCleanOldAttachments(c, newAttachmentSize = 0) {
+		const setting = await settingService.query(c);
+		const { r2MaxSize } = setting;
+		let totalSize = await this.getTotalSize(c);
+		
+		if (totalSize + newAttachmentSize <= r2MaxSize) {
+			return;
+		}
+		
+		// 需要删除的大小
+		const needDeleteSize = (totalSize + newAttachmentSize) - r2MaxSize;
+		let deletedSize = 0;
+		
+		// 获取最旧的附件，按创建时间排序
+		const oldAttachments = await c.env.db.prepare(
+			'SELECT att_id, key, size FROM attachments ORDER BY create_time ASC'
+		).all();
+		
+		for (const attachment of oldAttachments) {
+			if (deletedSize >= needDeleteSize) {
+				break;
+			}
+			
+			// 删除R2中的文件
+			await r2Service.delete(c, attachment.key);
+			
+			// 从数据库中删除
+			await c.env.db.prepare('DELETE FROM attachments WHERE att_id = ?').bind(attachment.att_id).run();
+			
+			deletedSize += attachment.size;
+		}
+	},
+
+	async cleanExpiredAttachments(c) {
+		const setting = await settingService.query(c);
+		const { r2FileExpireDays } = setting;
+		
+		// 获取所有过期的附件
+		const expiredAttachments = await c.env.db.prepare(
+			"SELECT att_id, key FROM attachments WHERE create_time < DATETIME('now', ? || ' days')"
+		).bind(-r2FileExpireDays).all();
+		
+		for (const attachment of expiredAttachments.results) {
+			// 删除R2中的文件
+			await r2Service.delete(c, attachment.key);
+			
+			// 从数据库中删除
+			await c.env.db.prepare('DELETE FROM attachments WHERE att_id = ?').bind(attachment.att_id).run();
+		}
 	}
 };
 

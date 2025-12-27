@@ -17,6 +17,7 @@ const user = sqliteTable('user', {
 	sort: text('sort').default(0),
 	sendCount: text('send_count').default(0),
 	regKeyId: integer('reg_key_id').default(0).notNull(),
+	emailAutoDeleteDays: integer('email_auto_delete_days').default(30).notNull(),
 	isDel: integer('is_del').default(0).notNull()
 });
 export default user

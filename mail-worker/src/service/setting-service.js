@@ -58,6 +58,20 @@ const settingService = {
 		setting.linuxdoCallbackUrl = c.env.linuxdo_callback_url;
 		setting.linuxdoSwitch = linuxdoSwitch;
 
+		let githubSwitch = c.env.github_switch;
+
+		if (typeof githubSwitch === 'string' && githubSwitch === 'true') {
+			githubSwitch = true
+		} else if (githubSwitch === true) {
+			githubSwitch = true
+		} else {
+			githubSwitch = false
+		}
+
+		setting.githubClientId = c.env.github_client_id;
+		setting.githubCallbackUrl = c.env.github_callback_url;
+		setting.githubSwitch = githubSwitch;
+
 		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
 
 		c.set?.('setting', setting);
@@ -214,6 +228,9 @@ const settingService = {
 			linuxdoClientId: settingRow.linuxdoClientId,
 			linuxdoCallbackUrl: settingRow.linuxdoCallbackUrl,
 			linuxdoSwitch: settingRow.linuxdoSwitch,
+			githubClientId: settingRow.githubClientId,
+			githubCallbackUrl: settingRow.githubCallbackUrl,
+			githubSwitch: settingRow.githubSwitch,
 			minEmailPrefix: settingRow.minEmailPrefix
 		};
 	}

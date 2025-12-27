@@ -29,6 +29,40 @@
           <el-button type="primary" @click="pwdShow = true">{{$t('changePwdBtn')}}</el-button>
         </div>
       </div>
+      <div class="item">
+        <div>{{$t('emailAutoDelete')}}</div>
+        <div>
+          <el-tooltip effect="dark" :content="$t('emailAutoDeleteDesc')">
+            <el-input-number 
+              v-model="emailAutoDeleteDays" 
+              @change="handleSetEmailAutoDeleteDays" 
+              :min="1" 
+              :max="30" 
+              :precision="0" 
+              style="width: 150px"
+            >
+              <template #suffix>
+                <span>{{ $t('dayUnit') }}</span>
+              </template>
+            </el-input-number>
+          </el-tooltip>
+        </div>
+      </div>
+      <div class="item">
+        <div>{{$t('githubBinding')}}</div>
+        <div>
+          <div v-if="userStore.user.oauthId" class="github-info" @click="showUnbindConfirm">
+            <el-avatar :src="userStore.user.githubAvatar" :size="30" style="margin-right: 10px" />
+            <span class="github-username">{{ userStore.user.githubUsername }}</span>
+            <el-icon class="unbind-icon">
+              <Icon icon="mingcute:delete-fill" width="16" height="16" />
+            </el-icon>
+          </div>
+          <el-button v-else type="primary" @click="bindGithub">
+            <el-avatar src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" :size="18" style="margin-right: 10px" />{{$t('bindGithub')}}
+          </el-button>
+        </div>
+      </div>
     </div>
     <div class="del-email" v-perm="'my:delete'">
       <div class="title">{{$t('deleteUser')}}</div>
@@ -49,20 +83,37 @@
   </div>
 </template>
 <script setup>
-import {reactive, ref, defineOptions} from 'vue'
-import {resetPassword, userDelete} from "@/request/my.js";
-import {useUserStore} from "@/store/user.js";
-import router from "@/router/index.js";
-import {accountSetName} from "@/request/account.js";
-import {useAccountStore} from "@/store/account.js";
+import {reactive, ref, defineOptions, onMounted} from 'vue'
+import {resetPassword, userDelete, setEmailAutoDeleteDays, unbindGithub as unbindGithubApi} from "@/request/my.js"
+import {useUserStore} from "@/store/user.js"
+import router from "@/router/index.js"
+import {accountSetName} from "@/request/account.js"
+import {useAccountStore} from "@/store/account.js"
 import {useI18n} from "vue-i18n";
+import {useSettingStore} from "@/store/setting.js";
+import {Icon} from "@iconify/vue";
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
 const userStore = useUserStore();
+const settingStore = useSettingStore();
 const setPwdLoading = ref(false)
 const setNameShow = ref(false)
 const accountName = ref(null)
+const emailAutoDeleteDays = ref(30)
+const setEmailAutoDeleteLoading = ref(false)
+const unbindGithubLoading = ref(false)
+
+// 显示解绑确认对话框
+const showUnbindConfirm = () => {
+  ElMessageBox.confirm(t('unbindGithubConfirm'), {
+    confirmButtonText: t('confirm'),
+    cancelButtonText: t('cancel'),
+    type: 'warning'
+  }).then(() => {
+    handleUnbindGithub()
+  })
+}
 
 defineOptions({
   name: 'setting'
@@ -130,6 +181,61 @@ const deleteConfirm = () => {
     })
   })
 }
+
+// 设置邮件自动删除天数
+const handleSetEmailAutoDeleteDays = () => {
+  setEmailAutoDeleteLoading.value = true
+  setEmailAutoDeleteDays(emailAutoDeleteDays.value).then(() => {
+    ElMessage({
+      message: t('saveSuccessMsg'),
+      type: 'success',
+      plain: true,
+    })
+    setEmailAutoDeleteLoading.value = false
+  }).catch(() => {
+    setEmailAutoDeleteLoading.value = false
+  })
+}
+
+// 绑定GitHub账号
+const bindGithub = () => {
+  const clientId = settingStore.settings.githubClientId
+  const redirectUri = encodeURIComponent(settingStore.settings.githubCallbackUrl)
+  window.location.href =
+      `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=user:email`
+}
+
+// 解绑GitHub账号
+const handleUnbindGithub = () => {
+  ElMessageBox.confirm(t('unbindGithubConfirm'), {
+    confirmButtonText: t('confirm'),
+    cancelButtonText: t('cancel'),
+    type: 'warning'
+  }).then(() => {
+    unbindGithubLoading.value = true
+    unbindGithubApi().then(() => {
+      ElMessage({
+        message: t('unbindSuccessMsg'),
+        type: 'success',
+        plain: true,
+      })
+      userStore.user.oauthId = null
+      unbindGithubLoading.value = false
+    }).catch(() => {
+      unbindGithubLoading.value = false
+    })
+  })
+}
+
+// 组件挂载时获取用户信息，包括邮件自动删除设置
+onMounted(() => {
+  // 从用户信息中获取邮件自动删除设置
+  if (userStore.user.emailAutoDeleteDays) {
+    emailAutoDeleteDays.value = userStore.user.emailAutoDeleteDays
+  } else {
+    emailAutoDeleteDays.value = 30
+  }
+})
 
 
 function submitPwd() {

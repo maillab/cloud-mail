@@ -233,6 +233,57 @@
             </div>
           </div>
 
+          <!-- R2 Storage Setting Card -->
+          <div class="settings-card">
+            <div class="card-title">{{ $t('r2StorageSetting') }}</div>
+            <div class="card-content">
+              <div class="setting-item">
+                <div>
+                  <span>{{ $t('r2MaxSize') }}</span>
+                  <el-tooltip effect="dark" :content="$t('r2MaxSizeDesc')">
+                    <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+                  </el-tooltip>
+                </div>
+                <div>
+                  <el-input-number 
+                    v-model="r2MaxSize" 
+                    @change="r2MaxSizeChange" 
+                    :min="1" 
+                    :max="1000" 
+                    :precision="0" 
+                    style="width: 150px"
+                  >
+                    <template #suffix>
+                      <span>{{ $t('gbUnit') }}</span>
+                    </template>
+                  </el-input-number>
+                </div>
+              </div>
+              <div class="setting-item">
+                <div>
+                  <span>{{ $t('r2FileExpireDays') }}</span>
+                  <el-tooltip effect="dark" :content="$t('r2FileExpireDaysDesc')">
+                    <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+                  </el-tooltip>
+                </div>
+                <div>
+                  <el-input-number 
+                    v-model="r2FileExpireDays" 
+                    @change="r2FileExpireDaysChange" 
+                    :min="1" 
+                    :max="365" 
+                    :precision="0" 
+                    style="width: 150px"
+                  >
+                    <template #suffix>
+                      <span>{{ $t('dayUnit') }}</span>
+                    </template>
+                  </el-input-number>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="settings-card">
             <div class="card-title">{{ $t('emailPush') }}</div>
             <div class="card-content">
@@ -323,6 +374,28 @@
                   <span> {{ setting.secretKey }} </span>
                   <el-button class="opt-button" size="small" type="primary" @click="turnstileShow = true">
                     <Icon icon="lsicon:edit-outline" width="16" height="16"/>
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Log Settings Card -->
+          <div class="settings-card">
+            <div class="card-title">日志设置</div>
+            <div class="card-content">
+              <div class="setting-item">
+                <div><span>显示详细日志</span></div>
+                <div>
+                  <el-switch @change="logLevelChange" :active-value="0" :inactive-value="1"
+                             v-model="detailedLog"/>
+                </div>
+              </div>
+              <div class="setting-item">
+                <div><span>查看日志</span></div>
+                <div>
+                  <el-button class="opt-button" size="small" type="primary" @click="openLogViewer">
+                    <Icon icon="material-symbols:view-list-rounded" width="18" height="18"/>
                   </el-button>
                 </div>
               </div>
@@ -728,9 +801,201 @@
         </div>
         <el-button type="primary" style="width: 100%;" :loading="settingLoading" @click="saveEmailPrefix">{{ $t('save') }}</el-button>
       </el-dialog>
+      
+      <!-- 日志查看器对话框 -->
+      <el-dialog v-model="logViewerShow" :title="'日志查看器'" width="90%" height="80vh" class="log-viewer-dialog">
+        <div class="log-viewer-header">
+          <div class="log-filter">
+            <el-input 
+              v-model="logFilter.keyword" 
+              placeholder="搜索日志" 
+              clearable 
+              prefix-icon="material-symbols:search"
+              style="width: 200px; margin-right: 10px;"
+            />
+            <el-select 
+              v-model="logFilter.level" 
+              placeholder="日志级别" 
+              clearable
+              style="width: 120px; margin-right: 10px;"
+            >
+              <el-option label="所有" value="" />
+              <el-option label="调试" value="debug" />
+              <el-option label="信息" value="info" />
+              <el-option label="警告" value="warn" />
+              <el-option label="错误" value="error" />
+            </el-select>
+            <el-select 
+              v-model="logFilter.type" 
+              placeholder="事件类型" 
+              clearable
+              style="width: 120px; margin-right: 10px;"
+            >
+              <el-option label="所有" value="" />
+              <el-option label="用户" value="user" />
+              <el-option label="系统" value="system" />
+              <el-option label="错误" value="error" />
+              <el-option label="性能" value="performance" />
+            </el-select>
+            <el-button 
+              type="primary" 
+              size="small" 
+              @click="clearAllLogs"
+              style="margin-right: 10px;"
+            >
+              清空日志
+            </el-button>
+            <el-button 
+              type="success" 
+              size="small" 
+              @click="refreshLogs"
+            >
+              刷新
+            </el-button>
+          </div>
+          <div class="log-info">
+            <span>共 {{ filteredLogs.length }} 条日志</span>
+          </div>
+        </div>
+        <div class="log-viewer-body">
+          <el-table 
+            :data="filteredLogs" 
+            height="60vh" 
+            border 
+            stripe 
+            :default-sort="{prop: 'timestamp', order: 'descending'}"
+          >
+            <el-table-column 
+              prop="timestamp" 
+              label="时间" 
+              width="220"
+              sortable
+              :formatter="formatTimestamp"
+            />
+            <el-table-column 
+              prop="level" 
+              label="级别" 
+              width="100"
+              sortable
+              :formatter="formatLogLevel"
+            />
+            <el-table-column 
+              prop="type" 
+              label="类型" 
+              width="100"
+              sortable
+              :formatter="formatLogType"
+            />
+            <el-table-column 
+              prop="message" 
+              label="描述" 
+              show-overflow-tooltip
+            />
+            <el-table-column 
+              label="详情" 
+              width="80"
+            >
+              <template #default="scope">
+                <el-button 
+                  type="text" 
+                  size="small" 
+                  @click="showLogDetail(scope.row)"
+                >
+                  详情
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-dialog>
+      
+      <!-- 日志详情对话框 -->
+      <el-dialog v-model="logDetailShow" :title="'日志详情'" width="600px">
+        <div v-if="selectedLog" class="log-detail">
+          <div class="log-detail-item">
+            <span class="label">时间：</span>
+            <span class="value">{{ formatTimestamp(selectedLog) }}</span>
+          </div>
+          <div class="log-detail-item">
+            <span class="label">级别：</span>
+            <span class="value">{{ formatLogLevel(selectedLog) }}</span>
+          </div>
+          <div class="log-detail-item">
+            <span class="label">类型：</span>
+            <span class="value">{{ formatLogType(selectedLog) }}</span>
+          </div>
+          <div class="log-detail-item">
+            <span class="label">描述：</span>
+            <span class="value">{{ selectedLog.message }}</span>
+          </div>
+          <div v-if="Object.keys(selectedLog).length > 4" class="log-detail-item">
+            <span class="label">额外信息：</span>
+            <pre class="value">{{ JSON.stringify(selectedLog, (key, value) => {
+              if (key === 'timestamp' || key === 'level' || key === 'type' || key === 'message') {
+                return undefined;
+              }
+              return value;
+            }, 2) }}</pre>
+          </div>
+        </div>
+      </el-dialog>
     </el-scrollbar>
   </div>
 </template>
+
+<style scoped>
+.log-viewer-dialog {
+  .log-viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ebeef5;
+  }
+  
+  .log-filter {
+    display: flex;
+    align-items: center;
+  }
+  
+  .log-info {
+    font-size: 14px;
+    color: #606266;
+  }
+  
+  .log-viewer-body {
+    overflow: hidden;
+  }
+  
+  .log-detail {
+    .log-detail-item {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: flex-start;
+    }
+    
+    .label {
+      font-weight: bold;
+      width: 80px;
+      flex-shrink: 0;
+    }
+    
+    .value {
+      flex: 1;
+      word-break: break-word;
+    }
+    
+    pre.value {
+      margin: 0;
+      padding: 10px;
+      background-color: #f5f7fa;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+  }
+}
+</style>
 
 <script setup>
 import {computed, defineOptions, reactive, ref} from "vue";
@@ -739,6 +1004,7 @@ import {useSettingStore} from "@/store/setting.js";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
 import {useAccountStore} from "@/store/account.js";
+import {useLogStore} from "@/store/log.js";
 import {Icon} from "@iconify/vue";
 import {cvtR2Url} from "@/utils/convert.js";
 import {storeToRefs} from "pinia";
@@ -775,6 +1041,7 @@ const emailPrefixShow = ref(false)
 const showResendList = ref(false)
 const settingStore = useSettingStore();
 const uiStore = useUiStore();
+const logStore = useLogStore();
 const {settings: setting} = storeToRefs(settingStore);
 const editTitle = ref('')
 const settingLoading = ref(false)
@@ -788,10 +1055,29 @@ let backgroundFile = {}
 const showSetBackground = ref(false)
 let regVerifyCount = ref(1)
 let addVerifyCount = ref(1)
+let r2MaxSize = ref(10)
+let r2FileExpireDays = ref(7)
 let backup = '{}'
 const addS3Show = ref(false)
 const addVerifyCountShow = ref(false)
 const regVerifyCountShow = ref(false)
+// 日志设置相关
+const detailedLog = ref(logStore.detailedLog ? 0 : 1)
+const logViewerShow = ref(false)
+const logDetailShow = ref(false)
+const selectedLog = ref(null)
+const logFilter = reactive({
+  keyword: '',
+  level: '',
+  type: '',
+  sortBy: 'time',
+  sortOrder: 'desc'
+})
+
+// 计算属性，获取过滤后的日志
+const filteredLogs = computed(() => {
+  return logStore.getFilteredLogs(logFilter)
+})
 const resendTokenForm = reactive({
   domain: '',
   token: '',
@@ -860,12 +1146,18 @@ getSettings()
 getUpdate()
 
 function getSettings() {
+  // 记录系统设置页面加载
+  logStore.log('info', 'system', '系统设置页面开始加载')
+  
   settingQuery().then(settingData => {
     setting.value = settingData
     settingStore.domainList = settingData.domainList;
     resendTokenForm.domain = setting.value.domainList[0]
     loginOpacity.value = setting.value.loginOpacity
     minEmailPrefix.value = setting.value.minEmailPrefix
+    // 初始化R2存储设置，转换为GB和天
+    r2MaxSize.value = Math.round((setting.value.r2MaxSize || 10737418240) / 1073741824)
+    r2FileExpireDays.value = setting.value.r2FileExpireDays || 7
     firstLoading.value = false
     backgroundUrl.value = setting.value.background?.startsWith('http') ? setting.value.background : ''
     editTitle.value = setting.value.title
@@ -875,7 +1167,35 @@ function getSettings() {
     resetNoticeForm()
     resetAddS3Form()
     resetEmailPrefix()
+    
+    // 记录系统设置页面加载完成
+    logStore.log('info', 'system', '系统设置页面加载完成', {
+      settingCount: Object.keys(settingData).length
+    })
+    // 记录debug级别日志，只有在详细日志模式下才会显示
+    logStore.log('debug', 'system', '系统设置详细数据', {
+      data: {
+        domainListCount: settingData.domainList?.length || 0,
+        hasBackground: !!settingData.background,
+        hasR2Config: !!settingData.r2Domain
+      }
+    })
+  }).catch(error => {
+    // 记录错误日志
+    logStore.log('error', 'system', '系统设置页面加载失败', {
+      error: error.message
+    })
   })
+}
+
+function r2MaxSizeChange() {
+  const form = { r2MaxSize: r2MaxSize.value * 1073741824 }
+  editSetting(form)
+}
+
+function r2FileExpireDaysChange() {
+  const form = { r2FileExpireDays: r2FileExpireDays.value }
+  editSetting(form)
 }
 
 
@@ -1292,6 +1612,114 @@ function jump(href) {
   doc.href = href
   doc.target = '_blank'
   doc.click()
+}
+
+/**
+ * 日志级别切换
+ */
+function logLevelChange() {
+  const isDetailed = detailedLog.value === 0
+  logStore.setDetailedLog(isDetailed)
+  logStore.log('info', 'system', `日志级别已${isDetailed ? '开启' : '关闭'}详细日志`)
+  ElMessage({
+    message: `日志级别已${isDetailed ? '开启' : '关闭'}详细日志`,
+    type: "success",
+    plain: true
+  })
+}
+
+/**
+ * 打开日志查看器
+ */
+function openLogViewer() {
+  logViewerShow.value = true
+}
+
+/**
+ * 格式化时间戳
+ * @param {object} row - 日志行数据
+ * @returns {string} 格式化后的时间字符串
+ */
+function formatTimestamp(row) {
+  const date = new Date(row.timestamp)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    millisecond: '3-digit'
+  })
+}
+
+/**
+ * 格式化日志级别
+ * @param {object} row - 日志行数据
+ * @returns {string} 格式化后的日志级别
+ */
+function formatLogLevel(row) {
+  const levelMap = {
+    debug: '调试',
+    info: '信息',
+    warn: '警告',
+    error: '错误'
+  }
+  return levelMap[row.level] || row.level
+}
+
+/**
+ * 格式化日志类型
+ * @param {object} row - 日志行数据
+ * @returns {string} 格式化后的日志类型
+ */
+function formatLogType(row) {
+  const typeMap = {
+    user: '用户',
+    system: '系统',
+    error: '错误',
+    performance: '性能'
+  }
+  return typeMap[row.type] || row.type
+}
+
+/**
+ * 显示日志详情
+ * @param {object} log - 日志对象
+ */
+function showLogDetail(log) {
+  selectedLog.value = log
+  logDetailShow.value = true
+}
+
+/**
+ * 清空所有日志
+ */
+function clearAllLogs() {
+  ElMessageBox.confirm('确定要清空所有日志吗？', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    logStore.clearLogs()
+    ElMessage({
+      message: '日志已清空',
+      type: "success",
+      plain: true
+    })
+  })
+}
+
+/**
+ * 刷新日志
+ */
+function refreshLogs() {
+  // 日志是实时更新的，这里只需要触发视图更新即可
+  ElMessage({
+    message: '日志已刷新',
+    type: "success",
+    plain: true
+  })
 }
 
 function editSetting(settingForm, refreshStatus = true) {
@@ -1821,7 +2249,3 @@ form .el-button {
 
 </style>
 
-<style>
-.el-popper.is-dark {
-}
-</style>

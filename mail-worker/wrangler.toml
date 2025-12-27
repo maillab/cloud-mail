@@ -6,18 +6,18 @@ keep_vars = true
 [observability]
 enabled = true
 
-#[[d1_databases]]
-#binding = "db"			#d1数据库绑定名默认不可修改
-#database_name = ""		#d1数据库名字
-#database_id = ""		#d1数据库id
+[[d1_databases]]
+binding = "db"			#d1数据库绑定名默认不可修改
+database_name = "cnmailcn"		#d1数据库名字
+database_id = "9e755ce9-d779-4afe-af61-20996946cf16"		#d1数据库id
 
-#[[kv_namespaces]]
-#binding = "kv"			#kv绑定名默认不可修改
-#id = ""					#kv数据库id
+[[kv_namespaces]]
+binding = "kv"			#kv绑定名默认不可修改
+id = "a2693f55110b49f088671539b2aa723a"					#kv数据库id
 
-#[[r2_buckets]]
-#binding = "r2"			#r2对象存储绑定名默认不可修改
-#bucket_name = ""		#r2对象存储桶的名字
+[[r2_buckets]]
+binding = "r2"			#r2对象存储绑定名默认不可修改
+bucket_name = "cnmailcn"		#r2对象存储桶的名字
 
 [assets]
 binding = "assets"		#静态资源绑定名默认不可修改
@@ -28,12 +28,18 @@ run_worker_first = true
 [triggers]
 crons = ["0 16 * * *"]	#定时任务每天晚上12点执行
 
+[vars]
+# GitHub OAuth配置
+github_client_id = "Ov23liP79wjMD2paS2ga"
+github_client_secret = "88d76e7b2806ca383ae4df1129d690c27a99d514"
+github_switch = "true"
+github_callback_url = "https://mail.ygyang.uk/oauth/github/callback"
 
-#[vars]
-#orm_log = false
-#domain = []				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
-#admin = ""				#管理员的邮箱	示例: admin@example.com
-#jwt_secret = ""			#jwt令牌的密钥,随便填一串字符串
+# 系统配置
+orm_log = false
+domain = ["ygyang.uk","cnmailcn.dpdns.org","ygyang.us.kg","cnygyang.dpdns.org","xiaoqie.dpdns.org","substracker.dpdns.org","ygyang.ip-ddns.com","admin.admin"]				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
+admin = "admin@admin.admin"				#管理员的邮箱	示例: admin@example.com
+jwt_secret = "Z7f!xPq8mV@L2bC$r9X&N1t"			#jwt令牌的密钥,随便填一串字符串
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"

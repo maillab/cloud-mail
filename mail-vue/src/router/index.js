@@ -60,6 +60,11 @@ const routes = [
         component: () => import('@/views/login/index.vue')
     },
     {
+        path: '/github/callback',
+        name: 'githubCallback',
+        component: () => import('@/views/login/index.vue')
+    },
+    {
         path: '/test',
         name: 'test',
         component: () => import('@/views/test/index.vue')

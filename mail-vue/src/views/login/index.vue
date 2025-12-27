@@ -47,6 +47,9 @@
           <el-button class="btn" v-if="settingStore.settings.linuxdoSwitch"  style="margin-top: 10px"  @click="linuxDoLogin">
             <el-avatar src="/image/linuxdo.webp" :size="18" style="margin-right: 10px" />LinuxDo
           </el-button>
+          <el-button class="btn" v-if="settingStore.settings.githubSwitch"  style="margin-top: 10px"  @click="githubLogin">
+            <el-avatar src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" :size="18" style="margin-right: 10px" />GitHub
+          </el-button>
         </div>
         <div v-show="show !== 'login'">
           <el-input class="email-input" v-model="registerForm.email" type="text" :placeholder="$t('emailAccount')"
@@ -131,6 +134,23 @@
             </div>
           </template>
         </el-input>
+        
+        <!-- 邮箱建议显示区域 -->
+        <div v-if="showEmailSuggestions && emailSuggestions.length > 0" class="email-suggestions">
+          <div class="suggestion-title">{{ $t('emailSuggestions') }}</div>
+          <div class="suggestion-list">
+            <div 
+              v-for="(suggestion, index) in emailSuggestions" 
+              :key="index"
+              :class="['suggestion-item', { 'recommended': index === 0 }]"
+              @click="selectEmailSuggestion(suggestion)"
+            >
+              <span class="suggestion-email">{{ suggestion }}</span>
+              <span v-if="index === 0" class="recommended-tag">{{ $t('recommended') }}</span>
+            </div>
+          </div>
+        </div>
+        
         <el-input v-if="settingStore.settings.regKey === 0" v-model="bindForm.code" :placeholder="$t('regKey')"
                   type="text" autocomplete="off"/>
         <el-input v-if="settingStore.settings.regKey === 2" v-model="bindForm.code"
@@ -161,7 +181,7 @@ import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
-import {oauthBindUser, oauthLinuxDoLogin} from "@/request/ouath.js";
+import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin} from "@/request/ouath.js";
 
 const {t} = useI18n();
 const accountStore = useAccountStore();
@@ -179,6 +199,11 @@ const bindForm = reactive({
   oauthUserId: '',
   code: ''
 })
+
+// 邮箱建议相关状态
+const emailSuggestions = ref([]);
+const showEmailSuggestions = ref(false);
+const recommendedEmail = ref('');
 
 const form = reactive({
   email: '',
@@ -257,25 +282,55 @@ function linuxDoLogin() {
       `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email`
 }
 
-linuxDoGetUser();
+function githubLogin() {
+  const clientId = settingStore.settings.githubClientId
+  const redirectUri = encodeURIComponent(settingStore.settings.githubCallbackUrl)
+  window.location.href =
+      `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=user:email&provider=github`
+}
 
-async function linuxDoGetUser() {
+oauthGetUser();
 
+async function oauthGetUser() {
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
+  const pathname = window.location.pathname
+  // 根据URL路径判断provider
+  const provider = pathname.includes('github') ? 'github' : 'linuxdo'
 
   if (code) {
-
     oauthLoading.value = true
-    oauthLinuxDoLogin(code).then(data => {
-
+    let oauthLoginPromise
+    
+    if (provider === 'github') {
+      oauthLoginPromise = oauthGithubLogin(code)
+    } else {
+      oauthLoginPromise = oauthLinuxDoLogin(code)
+    }
+    
+    oauthLoginPromise.then(data => {
       bindForm.oauthUserId = data.userInfo.oauthUserId;
 
       if (!data.token) {
+        // 设置默认邮箱
+        if (data.defaultEmail) {
+          bindForm.email = data.defaultEmail;
+        }
+        
+        // 处理邮箱建议
+        if (data.emailSuggestions && data.emailSuggestions.length > 0) {
+          emailSuggestions.value = data.emailSuggestions;
+          recommendedEmail.value = data.emailSuggestions[0];
+          showEmailSuggestions.value = true;
+        } else {
+          emailSuggestions.value = [];
+          showEmailSuggestions.value = false;
+        }
+        
         showBindForm.value = true
         oauthLoading.value = false
         ElMessage({
-          message: '请注册绑定一个邮箱',
+          message: t('pleaseBindEmail'),
           type: 'warning',
           duration: 4000,
           plain: true,
@@ -284,13 +339,37 @@ async function linuxDoGetUser() {
       }
 
       saveToken(data.token);
-    }).catch(() => {
+    }).catch((error) => {
+      console.error('OAuth login failed:', error)
       oauthLoading.value = false
+      ElMessage({
+        message: t('loginFailMsg'),
+        type: 'error',
+        duration: 4000,
+        plain: true,
+      })
     })
   }
 
-  const cleanUrl = window.location.origin + window.location.pathname
-  window.history.replaceState({}, '', cleanUrl)
+  // 只有在有code参数时才清理URL，避免影响正常的页面访问
+  if (code) {
+    const cleanUrl = window.location.origin + window.location.pathname
+    window.history.replaceState({}, '', cleanUrl)
+  }
+}
+
+// 选择邮箱建议
+function selectEmailSuggestion(email) {
+  // 解析邮箱，获取用户名和域名
+  const [username, domain] = email.split('@');
+  bindForm.email = username;
+  // 设置对应的后缀
+  const domainIndex = domainList.findIndex(d => d === '@' + domain);
+  if (domainIndex !== -1) {
+    suffix.value = domainList[domainIndex];
+  }
+  // 选择后隐藏建议列表
+  showEmailSuggestions.value = false;
 }
 
 function bind() {
@@ -523,11 +602,32 @@ function submitRegister() {
     verifyToken = ''
     settingStore.settings.regVerifyOpen = regVerifyOpen
     verifyShow.value = false
-    ElMessage({
-      message: t('regSuccessMsg'),
-      type: 'success',
-      plain: true,
-    })
+    
+    // 注册成功后，询问是否绑定GitHub
+    if (settingStore.settings.githubSwitch) {
+      ElMessageBox.confirm(t('bindGithubAfterReg'), t('regSuccessMsg'), {
+        confirmButtonText: t('confirm'),
+        cancelButtonText: t('cancel'),
+        type: 'info'
+      }).then(() => {
+        // 绑定GitHub
+        githubLogin()
+      }).catch(() => {
+        // 不绑定，显示成功提示
+        ElMessage({
+          message: t('regSuccessMsg'),
+          type: 'success',
+          plain: true,
+        })
+      })
+    } else {
+      // GitHub开关未开启，直接显示成功提示
+      ElMessage({
+        message: t('regSuccessMsg'),
+        type: 'success',
+        plain: true,
+      })
+    }
   }).catch(res => {
 
     registerLoading.value = false
@@ -666,10 +766,62 @@ function submitRegister() {
 }
 
 .bind-container {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 15px;
-}
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 15px;
+	}
+
+	.email-suggestions {
+		background-color: var(--el-bg-color);
+		border: 1px solid var(--el-border-color-light);
+		border-radius: 6px;
+		padding: 10px;
+	}
+
+	.suggestion-title {
+		font-size: 14px;
+		font-weight: bold;
+		margin-bottom: 8px;
+		color: var(--el-text-color-primary);
+	}
+
+	.suggestion-list {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+	}
+
+	.suggestion-item {
+		padding: 8px 12px;
+		border-radius: 4px;
+		cursor: pointer;
+		font-size: 14px;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		transition: all 0.2s;
+	}
+
+	.suggestion-item:hover {
+		background-color: var(--el-color-primary-light-9);
+	}
+
+	.suggestion-item.recommended {
+		background-color: var(--el-color-primary-light-10);
+		border: 1px solid var(--el-color-primary-light-5);
+	}
+
+	.recommended-tag {
+		font-size: 12px;
+		color: var(--el-color-primary);
+		background-color: var(--el-color-primary-light-9);
+		padding: 2px 6px;
+		border-radius: 3px;
+	}
+
+	.suggestion-email {
+		color: var(--el-text-color-primary);
+	}
 
 .setting-icon {
   position: relative;
