@@ -286,7 +286,7 @@ function githubLogin() {
   const clientId = settingStore.settings.githubClientId
   const redirectUri = encodeURIComponent(settingStore.settings.githubCallbackUrl)
   window.location.href =
-      `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=user:email&provider=github`
+      `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=user:email`
 }
 
 oauthGetUser();

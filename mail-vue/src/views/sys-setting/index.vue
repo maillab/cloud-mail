@@ -803,7 +803,7 @@
       </el-dialog>
       
       <!-- 日志查看器对话框 -->
-      <el-dialog v-model="logViewerShow" :title="'日志查看器'" width="90%" height="80vh" class="log-viewer-dialog">
+      <el-dialog v-model="logViewerShow" :title="'日志查看器'" width="90%" height="80vh" class="log-viewer-dialog" :fullscreen="false">
         <div class="log-viewer-header">
           <div class="log-filter">
             <el-input 
@@ -811,13 +811,13 @@
               placeholder="搜索日志" 
               clearable 
               prefix-icon="material-symbols:search"
-              style="width: 200px; margin-right: 10px;"
+              style="max-width: 200px; width: 100%; margin-right: 10px; flex: 1; min-width: 150px;"
             />
             <el-select 
               v-model="logFilter.level" 
               placeholder="日志级别" 
               clearable
-              style="width: 120px; margin-right: 10px;"
+              style="max-width: 120px; width: 100%; margin-right: 10px; min-width: 100px;"
             >
               <el-option label="所有" value="" />
               <el-option label="调试" value="debug" />
@@ -829,7 +829,7 @@
               v-model="logFilter.type" 
               placeholder="事件类型" 
               clearable
-              style="width: 120px; margin-right: 10px;"
+              style="max-width: 120px; width: 100%; margin-right: 10px; min-width: 100px;"
             >
               <el-option label="所有" value="" />
               <el-option label="用户" value="user" />
@@ -849,8 +849,25 @@
               type="success" 
               size="small" 
               @click="refreshLogs"
+              style="margin-right: 10px;"
             >
               刷新
+            </el-button>
+            <el-select 
+              v-model="logExportFormat" 
+              placeholder="导出格式" 
+              clearable
+              style="max-width: 120px; width: 100%; margin-right: 10px; min-width: 100px;"
+            >
+              <el-option label="CSV" value="csv" />
+              <el-option label="TXT" value="txt" />
+            </el-select>
+            <el-button 
+              type="success" 
+              size="small" 
+              @click="exportLogs"
+            >
+              导出日志
             </el-button>
           </div>
           <div class="log-info">
@@ -864,25 +881,26 @@
             border 
             stripe 
             :default-sort="{prop: 'timestamp', order: 'descending'}"
+            style="width: 100%;"
           >
             <el-table-column 
               prop="timestamp" 
               label="时间" 
-              width="220"
+              min-width="180"
               sortable
               :formatter="formatTimestamp"
             />
             <el-table-column 
               prop="level" 
               label="级别" 
-              width="100"
+              min-width="80"
               sortable
               :formatter="formatLogLevel"
             />
             <el-table-column 
               prop="type" 
               label="类型" 
-              width="100"
+              min-width="80"
               sortable
               :formatter="formatLogType"
             />
@@ -890,10 +908,13 @@
               prop="message" 
               label="描述" 
               show-overflow-tooltip
+              min-width="200"
+              flex="1"
             />
             <el-table-column 
               label="详情" 
-              width="80"
+              min-width="60"
+              fixed="right"
             >
               <template #default="scope">
                 <el-button 
@@ -952,20 +973,67 @@
     margin-bottom: 15px;
     padding-bottom: 10px;
     border-bottom: 1px solid #ebeef5;
+    flex-wrap: wrap;
+    gap: 10px;
   }
   
   .log-filter {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex: 1;
+    min-width: 300px;
   }
   
   .log-info {
     font-size: 14px;
     color: #606266;
+    min-width: 100px;
+    text-align: right;
   }
   
   .log-viewer-body {
-    overflow: hidden;
+    overflow: auto;
+    max-height: calc(80vh - 100px);
+  }
+  
+  /* 响应式设计 */
+  @media (max-width: 768px) {
+    .log-viewer-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    
+    .log-filter {
+      min-width: auto;
+      flex-wrap: wrap;
+    }
+    
+    .log-info {
+      text-align: left;
+    }
+    
+    .el-table {
+      font-size: 12px;
+    }
+    
+    .el-table-column {
+      min-width: 60px !important;
+    }
+  }
+  
+  @media (max-width: 1200px) {
+    .log-filter {
+      gap: 5px;
+    }
+    
+    .el-input,
+    .el-select {
+      margin-right: 5px !important;
+      margin-bottom: 5px;
+    }
   }
   
   .log-detail {
@@ -973,17 +1041,20 @@
       margin-bottom: 10px;
       display: flex;
       align-items: flex-start;
+      flex-wrap: wrap;
     }
     
     .label {
       font-weight: bold;
       width: 80px;
       flex-shrink: 0;
+      margin-right: 10px;
     }
     
     .value {
       flex: 1;
       word-break: break-word;
+      min-width: 200px;
     }
     
     pre.value {
@@ -992,6 +1063,7 @@
       background-color: #f5f7fa;
       border-radius: 4px;
       overflow-x: auto;
+      font-size: 12px;
     }
   }
 }
@@ -1066,6 +1138,7 @@ const detailedLog = ref(logStore.detailedLog ? 0 : 1)
 const logViewerShow = ref(false)
 const logDetailShow = ref(false)
 const selectedLog = ref(null)
+const logExportFormat = ref('csv') // 日志导出格式，默认CSV
 const logFilter = reactive({
   keyword: '',
   level: '',
@@ -1144,6 +1217,9 @@ const tgMsgLabelWidth = computed(() => locale.value === 'en' ? '120px' : '100px'
 
 getSettings()
 getUpdate()
+
+// 初始化日志自动清理机制
+logStore.initAutoCleanup()
 
 function getSettings() {
   // 记录系统设置页面加载
@@ -1717,6 +1793,69 @@ function refreshLogs() {
   // 日志是实时更新的，这里只需要触发视图更新即可
   ElMessage({
     message: '日志已刷新',
+    type: "success",
+    plain: true
+  })
+}
+
+/**
+ * 导出日志
+ */
+function exportLogs() {
+  const logs = filteredLogs.value
+  if (logs.length === 0) {
+    ElMessage({
+      message: '没有可导出的日志',
+      type: "warning",
+      plain: true
+    })
+    return
+  }
+  
+  let content = ''
+  let filename = ''
+  
+  if (logExportFormat.value === 'csv') {
+    // 导出为CSV格式
+    content = '时间,级别,类型,描述\n'
+    logs.forEach(log => {
+      const time = formatTimestamp(log)
+      const level = formatLogLevel(log)
+      const type = formatLogType(log)
+      const message = log.message.replace(/"/g, '""') // 转义双引号
+      content += `"${time}","${level}","${type}","${message}"\n`
+    })
+    filename = `logs_${new Date().toISOString().slice(0, 10)}.csv`
+  } else {
+    // 导出为TXT格式
+    logs.forEach(log => {
+      const time = formatTimestamp(log)
+      const level = formatLogLevel(log)
+      const type = formatLogType(log)
+      content += `${time} [${level}] [${type}] ${log.message}\n`
+    })
+    filename = `logs_${new Date().toISOString().slice(0, 10)}.txt`
+  }
+  
+  // 创建下载链接并触发下载
+  const blob = new Blob([content], { type: logExportFormat.value === 'csv' ? 'text/csv;charset=utf-8;' : 'text/plain;charset=utf-8;' })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  link.setAttribute('href', url)
+  link.setAttribute('download', filename)
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  
+  // 记录日志导出操作
+  logStore.log('info', 'system', '日志已导出', {
+    format: logExportFormat.value,
+    count: logs.length
+  })
+  
+  ElMessage({
+    message: `日志已导出，共 ${logs.length} 条`,
     type: "success",
     plain: true
   })

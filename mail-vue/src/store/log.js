@@ -7,9 +7,46 @@ export const useLogStore = defineStore('log', {
         // 日志级别控制，true为详细日志，false为普通日志
         detailedLog: false,
         // 日志最大数量，防止内存占用过高
-        maxLogCount: 1000
+        maxLogCount: 1000,
+        // 自动清理定时器
+        cleanupTimer: null
     }),
     actions: {
+        /**
+         * 初始化日志自动清理机制
+         */
+        initAutoCleanup() {
+            // 每5分钟检查一次，删除超过30分钟的日志
+            this.cleanupTimer = setInterval(() => {
+                this.cleanupOldLogs()
+            }, 5 * 60 * 1000) // 5分钟
+            
+            // 立即执行一次清理
+            this.cleanupOldLogs()
+        },
+        
+        /**
+         * 清理超过指定时间的日志
+         * @param {number} minutes - 保留多少分钟内的日志，默认30分钟
+         */
+        cleanupOldLogs(minutes = 30) {
+            const now = new Date().getTime()
+            const cutoffTime = now - minutes * 60 * 1000
+            
+            // 过滤出不超过指定时间的日志
+            const oldLength = this.logs.length
+            this.logs = this.logs.filter(log => {
+                const logTime = new Date(log.timestamp).getTime()
+                return logTime >= cutoffTime
+            })
+            
+            const deletedCount = oldLength - this.logs.length
+            if (deletedCount > 0) {
+                // 记录清理操作
+                this.log('info', 'system', `自动清理日志，删除了 ${deletedCount} 条超过 ${minutes} 分钟的日志`)
+            }
+        },
+        
         /**
          * 记录日志
          * @param {string} level - 日志级别：debug, info, warn, error
