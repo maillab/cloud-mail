@@ -171,6 +171,14 @@ const settingService = {
 	async websiteConfig(c) {
 
 		const settingRow = await this.get(c, true);
+		let domainList = [];
+		try {
+			domainList = JSON.parse(settingRow.domainList);
+		} catch (e) {
+			if (settingRow.domainList && typeof settingRow.domainList === 'string') {
+				domainList = settingRow.domainList.split(',').map(d => d.trim()).filter(d => d);
+			}
+		}
 
 		return {
 			register: settingRow.register,
@@ -185,7 +193,7 @@ const settingService = {
 			siteKey: settingRow.siteKey,
 			background: settingRow.background,
 			loginOpacity: settingRow.loginOpacity,
-			domainList: settingRow.loginDomain === 1 ? settingRow.domainList : [],
+			domainList: settingRow.loginDomain === 1 ? domainList : [],
 			regKey: settingRow.regKey,
 			regVerifyOpen: settingRow.regVerifyOpen,
 			addVerifyOpen: settingRow.addVerifyOpen,
@@ -201,7 +209,8 @@ const settingService = {
 			linuxdoClientId: settingRow.linuxdoClientId,
 			linuxdoCallbackUrl: settingRow.linuxdoCallbackUrl,
 			linuxdoSwitch: settingRow.linuxdoSwitch,
-			minEmailPrefix: settingRow.minEmailPrefix
+			minEmailPrefix: settingRow.minEmailPrefix,
+			footer: settingRow.footer
 		};
 	}
 };
