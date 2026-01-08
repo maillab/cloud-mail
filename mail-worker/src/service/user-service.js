@@ -16,8 +16,9 @@ import saltHashUtils from '../utils/crypto-utils';
 import constant from '../const/constant';
 import { t } from '../i18n/i18n'
 import reqUtils from '../utils/req-utils';
-import {oauth} from "../entity/oauth";
+import { oauth } from "../entity/oauth";
 import oauthService from "./oauth-service";
+import settingService from "./setting-service";
 
 const userService = {
 
@@ -170,7 +171,7 @@ const userService = {
 			emailService.selectUserEmailCountList(c, userIds, emailConst.type.SEND, isDel.DELETE),
 			accountService.selectUserAccountCountList(c, userIds),
 			accountService.selectUserAccountCountList(c, userIds, isDel.DELETE),
-			roleService.selectByIdsHasPermKey(c, types,'email:send')
+			roleService.selectByIdsHasPermKey(c, types, 'email:send')
 		]);
 
 		const receiveMap = Object.fromEntries(emailCounts.map(item => [item.userId, item.count]));
@@ -223,7 +224,7 @@ const userService = {
 
 		const activeIp = reqUtils.getIp(c);
 
-		const {os, browser, device} = reqUtils.getUserAgent(c);
+		const { os, browser, device } = reqUtils.getUserAgent(c);
 
 		const params = {
 			os,
@@ -303,7 +304,8 @@ const userService = {
 
 		const { email, type, password } = params;
 
-		if (!c.env.domain.includes(emailUtils.getDomain(email))) {
+		const { domainList } = await settingService.query(c);
+		if (!domainList.includes('@' + emailUtils.getDomain(email))) {
 			throw new BizError(t('notEmailDomain'));
 		}
 
@@ -365,7 +367,7 @@ const userService = {
 
 	listByRegKeyId(c, regKeyId) {
 		return orm(c)
-			.select({email: user.email,createTime: user.createTime})
+			.select({ email: user.email, createTime: user.createTime })
 			.from(user)
 			.where(eq(user.regKeyId, regKeyId))
 			.orderBy(desc(user.userId))

@@ -120,6 +120,15 @@
                   </div>
                 </div>
               </div>
+              <div class="setting-item">
+                <div class="title-item"><span>Footer</span></div>
+                <div class="email-title">
+                  <span>{{ setting.footer || 'None' }}</span>
+                  <el-button class="opt-button" size="small" type="primary" @click="editFooterShow = true">
+                    <Icon icon="lsicon:edit-outline" width="16" height="16"/>
+                  </el-button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -411,6 +420,12 @@
         <form>
           <el-input type="text" :placeholder="$t('websiteTitle')" v-model="editTitle"/>
           <el-button type="primary" :loading="settingLoading" @click="saveTitle">{{ $t('save') }}</el-button>
+        </form>
+      </el-dialog>
+      <el-dialog v-model="editFooterShow" title="Change Footer" width="340" @closed="editFooter = setting.footer">
+        <form>
+          <el-input type="textarea" :rows="3" placeholder="Footer (HTML supported)" v-model="editFooter"/>
+          <el-button type="primary" :loading="settingLoading" @click="saveFooter">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
       <el-dialog v-model="resendTokenFormShow" :title="$t('resendToken')" width="340" @closed="cleanResendTokenForm">
@@ -764,6 +779,7 @@ const localUpShow = ref(false)
 const accountStore = useAccountStore();
 const userStore = useUserStore();
 const editTitleShow = ref(false)
+const editFooterShow = ref(false)
 const resendTokenFormShow = ref(false)
 const r2DomainShow = ref(false)
 const turnstileShow = ref(false)
@@ -777,6 +793,7 @@ const settingStore = useSettingStore();
 const uiStore = useUiStore();
 const {settings: setting} = storeToRefs(settingStore);
 const editTitle = ref('')
+const editFooter = ref('')
 const settingLoading = ref(false)
 const clearS3Loading = ref(false)
 const r2DomainInput = ref('')

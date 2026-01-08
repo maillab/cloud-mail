@@ -309,6 +309,7 @@ const zh = {
     character: '位',
     mustNotContain: '禁止包含',
     mustNotContainDesc: '输入多个值用,分开',
-    setSuccess: '设置成功'
+    setSuccess: '设置成功',
+    scrollToBottom: '滚动到底部'
 }
 export default zh
