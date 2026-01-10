@@ -309,7 +309,8 @@ const en = {
     character: '',
     mustNotContain: 'Must Not Contain',
     mustNotContainDesc: 'Separate with commas',
-    setSuccess: 'Settings saved successfully'
+    setSuccess: 'Settings saved successfully',
+    scrollToBottom: 'Scroll to Bottom'
 }
 
 export default en
