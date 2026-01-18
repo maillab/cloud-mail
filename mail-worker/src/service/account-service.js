@@ -156,7 +156,7 @@ const accountService = {
 	},
 
 	async insert(c, params) {
-		await orm(c).insert(account).values({ ...params }).returning();
+		await orm(c).insert(account).values({ ...params }).returning().get();
 	},
 
 	async insertList(c, list) {
