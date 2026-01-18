@@ -210,3 +210,23 @@ html[data-theme-to="light"]::view-transition-old(root) {
     from { clip-path: circle(var(--vt-end-radius, 0px) at var(--vt-x) var(--vt-y)); }
     to   { clip-path: circle(0px at var(--vt-x) var(--vt-y)); }
 }
+
+a[href*="github.com/maillab/cloud-mail"],
+a[href*="maillab/cloud-mail"],
+a.github,
+a[class*="github"],
+body > a[href*="github"]:last-child,
+.fixed-bottom-right-github,
+[style*="position: fixed"][style*="bottom"][style*="right"] a[href*="github"],
+footer a[href*="github"],
+body > div > a[href*="maillab"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
