@@ -1,18 +1,19 @@
 import KvConst from '../const/kv-const';
 import setting from '../entity/setting';
 import orm from '../entity/orm';
-import {verifyRecordType} from '../const/entity-const';
+import { verifyRecordType } from '../const/entity-const';
 import fileUtils from '../utils/file-utils';
 import r2Service from './r2-service';
 import constant from '../const/constant';
 import BizError from '../error/biz-error';
-import {t} from '../i18n/i18n'
+import { t } from '../i18n/i18n'
 import verifyRecordService from './verify-record-service';
 
 const settingService = {
 
 	async refresh(c) {
 		const settingRow = await orm(c).select().from(setting).get();
+		if (!settingRow) return;
 		settingRow.resendTokens = JSON.parse(settingRow.resendTokens);
 		c.set('setting', settingRow);
 		await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
@@ -134,7 +135,7 @@ const settingService = {
 		}
 
 		if (background) {
-			await r2Service.delete(c,background)
+			await r2Service.delete(c, background)
 			await orm(c).update(setting).set({ background: '' }).run();
 			await this.refresh(c)
 		}
@@ -170,6 +171,14 @@ const settingService = {
 	async websiteConfig(c) {
 
 		const settingRow = await this.get(c, true);
+		let domainList = [];
+		try {
+			domainList = JSON.parse(settingRow.domainList);
+		} catch (e) {
+			if (settingRow.domainList && typeof settingRow.domainList === 'string') {
+				domainList = settingRow.domainList.split(',').map(d => d.trim()).filter(d => d);
+			}
+		}
 
 		return {
 			register: settingRow.register,
@@ -184,7 +193,7 @@ const settingService = {
 			siteKey: settingRow.siteKey,
 			background: settingRow.background,
 			loginOpacity: settingRow.loginOpacity,
-			domainList: settingRow.domainList,
+			domainList: settingRow.loginDomain === 1 ? domainList : [],
 			regKey: settingRow.regKey,
 			regVerifyOpen: settingRow.regVerifyOpen,
 			addVerifyOpen: settingRow.addVerifyOpen,
@@ -200,7 +209,8 @@ const settingService = {
 			linuxdoClientId: settingRow.linuxdoClientId,
 			linuxdoCallbackUrl: settingRow.linuxdoCallbackUrl,
 			linuxdoSwitch: settingRow.linuxdoSwitch,
-			minEmailPrefix: settingRow.minEmailPrefix
+			minEmailPrefix: settingRow.minEmailPrefix,
+			footer: settingRow.footer
 		};
 	}
 };
