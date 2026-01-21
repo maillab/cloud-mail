@@ -181,7 +181,7 @@ jobs:
             exit 1
           fi
           
-          HTTP_CODE=$(curl -s -w "%{http_code}" -o response.txt "$WORKER_URL/api/init/${JWT_SECRET}")
+          HTTP_CODE=$(curl -sL -w "%{http_code}" -o response.txt "$WORKER_URL/api/init/${JWT_SECRET}")
           RESPONSE_BODY=$(cat response.txt)
 
           if [ "$RESPONSE_BODY" = "success" ]; then
@@ -198,7 +198,7 @@ jobs:
           
           WORKER_URL="${CUSTOM_DOMAIN:-${{ steps.deploy.outputs.worker_url }}}"
 
-          HTTP_CODE=$(curl -s -w "%{http_code}" -o response.txt \
+          HTTP_CODE=$(curl -sL -w "%{http_code}" -o response.txt \
             -X POST \
             -H "Content-Type: application/json" \
             -d "{\"domainList\": $DOMAIN,\"accountId\":\"$CLOUDFLARE_ACCOUNT_ID\",\"token\":\"$CLOUDFLARE_API_TOKEN\",\"workerName\":\"$NAME\"}" \
