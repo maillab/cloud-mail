@@ -11,6 +11,7 @@
       <div class="header-left" :style="'padding-left:' + actionLeft">
 
         <slot name="first"></slot>
+        <Icon class="icon" icon="mdi:arrow-down-bold-box-outline" width="20" height="20" @click="scrollToBottom" :title="$t('scrollToBottom')"/>
         <Icon class="icon reload" icon="ion:reload" width="18" height="18" @click="refresh"/>
         <Icon v-perm="'email:delete'" class="icon delete" icon="uiw:delete" width="16" height="16"
               v-if="getSelectedMailsIds().length > 0"
@@ -659,6 +660,13 @@ function refreshList() {
 
 function loadData() {
   getEmailList()
+}
+
+function scrollToBottom() {
+  const wrap = scrollbarRef.value?.wrapRef;
+  if (wrap) {
+    scrollbarRef.value.setScrollTop(wrap.scrollHeight);
+  }
 }
 
 </script>
