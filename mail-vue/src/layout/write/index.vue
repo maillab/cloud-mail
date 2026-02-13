@@ -20,7 +20,8 @@
             <div class="item-title" >{{ $t('recipient') }}</div>
             <el-select
                 ref="mySelect"
-                class="select"
+                class="write-select"
+                popper-class="write-select"
                 :show-arrow="false"
                 :no-match-text="' '"
                 :no-data-text="' '"
@@ -604,14 +605,14 @@ function close() {
 
 </script>
 <style>
-.el-select-dropdown__list {
+.write-select .el-select-dropdown__list {
   padding: 4px 4px !important;
 }
-.el-select-dropdown__item {
+.write-select .el-select-dropdown__item {
   padding: 0 10px 0 10px;
 }
 
-.el-select-dropdown {
+.write-select .el-select-dropdown {
   min-width: 0 !important;
 }
 </style>
@@ -768,7 +769,7 @@ function close() {
   color: var(--regular-text-color)
 }
 
-.select {
+.write-select {
   position: absolute;
   width: 300px;
   left: 60px;
