@@ -140,8 +140,8 @@
         </el-button>
       </div>
     </el-dialog>
-    <a class="site" href="https://abyn.xyz">
-      <Icon icon="mingcute:earth_3_line" color="#09244B" width="20" height="20" />
+    <a class="github" href="https://abyn.xyz">
+      <Icon icon="mingcute:earth_3_line" color="#1890ff" width="20" height="20" />
     </a>
   </div>
 </template>
