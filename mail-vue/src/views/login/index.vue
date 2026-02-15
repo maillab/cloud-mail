@@ -140,9 +140,6 @@
         </el-button>
       </div>
     </el-dialog>
-    <a class="github" href="https://github.com/abyn365/cloud-mail">
-      <Icon icon="mingcute:github-line" color="#1890ff" width="20" height="20" />
-    </a>
   </div>
 </template>
 
