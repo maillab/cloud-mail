@@ -132,7 +132,7 @@ const id = {
     hasAccount: 'Sudah punya akun? \u200B',
     regSwitch: 'Daftar',
     loginSwitch: 'Masuk',
-    needAccess: 'Butuh akses? Hubungi admin&#64;abyn.xyz atau Telegram &#64;byybtw untuk mendapatkan akun atau kode undangan.',
+    needAccess: 'Butuh akses? Hubungi <a href="mailto:admin&#64;abyn.xyz" style="color: #409EFF; text-decoration: underline;">admin&#64;abyn.xyz</a> atau Telegram <a href="https://t.me/byybtw" target="_blank" style="color: #409EFF; text-decoration: underline;">&#64;byybtw</a> untuk mendapatkan akun atau kode undangan.',
     websiteSetting: 'Website',
     websiteReg: 'Pendaftaran',
     loginDomain: 'Domain Kotak Masuk',

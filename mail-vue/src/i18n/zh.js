@@ -132,7 +132,7 @@ const zh = {
     hasAccount: '已有账号?',
     regSwitch: '创建账号',
     loginSwitch: '去登录',
-    needAccess: '需要访问权限? 请联系 admin&#64;abyn.xyz 或 Telegram &#64;byybtw 获取账号或邀请码。',
+    needAccess: '需要访问权限? 请联系 <a href="mailto:admin&#64;abyn.xyz" style="color: #409EFF; text-decoration: underline;">admin&#64;abyn.xyz</a> 或 Telegram <a href="https://t.me/byybtw" target="_blank" style="color: #409EFF; text-decoration: underline;">&#64;byybtw</a> 获取账号或邀请码。',
     websiteSetting: '网站设置',
     websiteReg: '用户注册',
     loginDomain: '登录框域名',

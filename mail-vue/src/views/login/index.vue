@@ -641,6 +641,17 @@ function submitRegister() {
     @media (max-width: 767px) {
       font-size: 12px;
     }
+
+    :deep(a) {
+      color: var(--el-color-primary);
+      text-decoration: underline;
+      transition: opacity 0.2s;
+      font-weight: 500;
+      
+      &:hover {
+        opacity: 0.8;
+      }
+    }
   }
 
   .switch {
