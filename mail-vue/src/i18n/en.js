@@ -125,7 +125,7 @@ const en = {
     loginBtn: 'Sign in',
     regBtn: 'Sign up',
     loginTitle: 'Sign in to your account to access email',
-    regTitle: 'Sign up for an account to use email',
+    regTitle: "Need access? Email admin@abyn.xyz to obtain an account or invite code.",
     confirmPwd: 'Confirm password',
     regKeyOptional: 'Invite code (Optional)',
     noAccount: 'Don\'t have an account? \u200B',
