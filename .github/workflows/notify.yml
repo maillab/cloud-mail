@@ -5,7 +5,7 @@ on:
     workflows: ["Deploy", "Build", "CI"]
     types: [completed]
 
-  workflow_dispatch:   # ← manual trigger dari GitHub UI
+  workflow_dispatch:
     inputs:
       message:
         description: "Optional custom message"
@@ -16,7 +16,8 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Send manual trigger info
+
+      - name: Manual trigger notification
         if: github.event_name == 'workflow_dispatch'
         run: |
           MESSAGE="🧪 Manual workflow trigger
@@ -25,14 +26,11 @@ Repo: ${{ github.repository }}
 Actor: ${{ github.actor }}
 Message: ${{ github.event.inputs.message }}"
 
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage \
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"chat_id\": \"${{ secrets.CHAT_ID }}\",
-              \"text\": \"$MESSAGE\"
-            }"
+            -d "{\"chat_id\":\"${{ secrets.CHAT_ID }}\",\"text\":\"$MESSAGE\"}"
 
-      - name: Workflow run notification
+      - name: Deployment result notification
         if: github.event_name == 'workflow_run'
         run: |
           STATUS="${{ github.event.workflow_run.conclusion }}"
@@ -48,9 +46,6 @@ Status: $STATUS
 
 $URL"
 
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage \
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"chat_id\": \"${{ secrets.CHAT_ID }}\",
-              \"text\": \"$MESSAGE\"
-            }"
+            -d "{\"chat_id\":\"${{ secrets.CHAT_ID }}\",\"text\":\"$MESSAGE\"}"
