@@ -8,7 +8,14 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 import { eq } from 'drizzle-orm';
 import jwtUtils from '../utils/jwt-utils';
-import emailMsgTemplate from '../template/email-msg';
+import emailMsgTemplate, { 
+	loginMsgTemplate, 
+	registerMsgTemplate, 
+	sendEmailMsgTemplate,
+	deleteEmailMsgTemplate,
+	addAddressMsgTemplate,
+	deleteAddressMsgTemplate
+} from '../template/email-msg';
 import emailTextTemplate from '../template/email-text';
 import emailHtmlTemplate from '../template/email-html';
 import verifyUtils from '../utils/verify-utils';
@@ -43,9 +50,46 @@ const telegramService = {
 
 	},
 
+	// Fungsi helper untuk mengirim pesan ke Telegram
+	async sendTelegramMessage(c, message) {
+		const { tgBotToken, tgChatId } = await settingService.query(c);
+
+		if (!tgBotToken || !tgChatId) {
+			return;
+		}
+
+		const tgChatIds = tgChatId.split(',');
+
+		await Promise.all(tgChatIds.map(async chatId => {
+			try {
+				const res = await fetch(`https://api.telegram.org/bot${tgBotToken}/sendMessage`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						chat_id: chatId.trim(),
+						parse_mode: 'HTML',
+						text: message
+					})
+				});
+				if (!res.ok) {
+					console.error(`Failed to send Telegram notification status: ${res.status} response: ${await res.text()}`);
+				}
+			} catch (e) {
+				console.error(`Failed to send Telegram notification:`, e.message);
+			}
+		}));
+	},
+
+	// Notifikasi untuk penerimaan email (existing)
 	async sendEmailToBot(c, email) {
 
 		const { tgBotToken, tgChatId, customDomain, tgMsgTo, tgMsgFrom, tgMsgText } = await settingService.query(c);
+
+		if (!tgBotToken || !tgChatId) {
+			return;
+		}
 
 		const tgChatIds = tgChatId.split(',');
 
@@ -61,7 +105,7 @@ const telegramService = {
 						'Content-Type': 'application/json'
 					},
 					body: JSON.stringify({
-						chat_id: chatId,
+						chat_id: chatId.trim(),
 						parse_mode: 'HTML',
 						text: emailMsgTemplate(email, tgMsgTo, tgMsgFrom, tgMsgText),
 						reply_markup: {
@@ -77,13 +121,49 @@ const telegramService = {
 					})
 				});
 				if (!res.ok) {
-					console.error(`转发 Telegram 失败 status: ${res.status} response: ${await res.text()}`);
+					console.error(`Failed to forward to Telegram status: ${res.status} response: ${await res.text()}`);
 				}
 			} catch (e) {
-				console.error(`转发 Telegram 失败:`, e.message);
+				console.error(`Failed to forward to Telegram:`, e.message);
 			}
 		}));
 
+	},
+
+	// Notifikasi untuk login
+	async sendLoginNotification(c, userInfo) {
+		const message = loginMsgTemplate(userInfo);
+		await this.sendTelegramMessage(c, message);
+	},
+
+	// Notifikasi untuk registrasi
+	async sendRegisterNotification(c, userInfo, accountCount) {
+		const message = registerMsgTemplate(userInfo, accountCount);
+		await this.sendTelegramMessage(c, message);
+	},
+
+	// Notifikasi untuk pengiriman email
+	async sendEmailSentNotification(c, emailInfo, userInfo) {
+		const message = sendEmailMsgTemplate(emailInfo, userInfo);
+		await this.sendTelegramMessage(c, message);
+	},
+
+	// Notifikasi untuk penghapusan email
+	async sendEmailDeleteNotification(c, emailIds, userInfo) {
+		const message = deleteEmailMsgTemplate(emailIds, userInfo);
+		await this.sendTelegramMessage(c, message);
+	},
+
+	// Notifikasi untuk penambahan address
+	async sendAddAddressNotification(c, addressInfo, userInfo, totalAddresses) {
+		const message = addAddressMsgTemplate(addressInfo, userInfo, totalAddresses);
+		await this.sendTelegramMessage(c, message);
+	},
+
+	// Notifikasi untuk penghapusan address
+	async sendDeleteAddressNotification(c, addressEmail, userInfo, remainingAddresses) {
+		const message = deleteAddressMsgTemplate(addressEmail, userInfo, remainingAddresses);
+		await this.sendTelegramMessage(c, message);
 	}
 
 }

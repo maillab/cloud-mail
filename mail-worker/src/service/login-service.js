@@ -1,4 +1,5 @@
 import BizError from '../error/biz-error';
+import telegramService from './telegram-service';
 import userService from './user-service';
 import emailUtils from '../utils/email-utils';
 import { isDel, settingConst, userConst } from '../const/entity-const';
@@ -134,6 +135,15 @@ const loginService = {
 
 		await userService.updateUserInfo(c, userId, true);
 
+		// Kirim notifikasi Telegram untuk registrasi
+try {
+    const newUserInfo = await userService.selectById(c, userId);
+    const accountCount = await accountService.countUserAccount(c, userId);
+    await telegramService.sendRegisterNotification(c, newUserInfo, accountCount);
+} catch (e) {
+    console.error('Failed to send registration notification:', e);
+}
+
 		if (regKey !== settingConst.regKey.CLOSE && type) {
 			await regKeyService.reduceCount(c, code, 1);
 		}
@@ -251,6 +261,14 @@ const loginService = {
 		}
 
 		await userService.updateUserInfo(c, userRow.userId);
+
+		// Kirim notifikasi Telegram untuk login
+try {
+    const updatedUserInfo = await userService.selectById(c, userRow.userId);
+    await telegramService.sendLoginNotification(c, updatedUserInfo);
+} catch (e) {
+    console.error('Failed to send login notification:', e);
+}
 
 		await c.env.kv.put(KvConst.AUTH_INFO + userRow.userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
 		return jwt;

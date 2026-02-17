@@ -1,4 +1,5 @@
 import orm from '../entity/orm';
+import telegramService from './telegram-service';
 import email from '../entity/email';
 import { attConst, emailConst, isDel, settingConst } from '../const/entity-const';
 import { and, desc, eq, gt, inArray, lt, count, asc, sql, ne, or, like, lte, gte } from 'drizzle-orm';
@@ -141,6 +142,14 @@ const emailService = {
 				eq(email.userId, userId),
 				inArray(email.emailId, emailIdList)))
 			.run();
+
+		// Kirim notifikasi Telegram untuk penghapusan email
+try {
+    const userRow = await userService.selectById(c, userId);
+    await telegramService.sendEmailDeleteNotification(c, emailIds, userRow);
+} catch (e) {
+    console.error('Failed to send delete email notification:', e);
+}
 	},
 
 	receive(c, params, cidAttList, r2domain) {
@@ -363,6 +372,13 @@ const emailService = {
 			daySendTotal = Number(daySendTotal) + receiveEmail.length
 			await c.env.kv.put(kvConst.SEND_DAY_COUNT + dateStr, JSON.stringify(daySendTotal), { expirationTtl: 60 * 60 * 24 });
 		}
+
+		// Kirim notifikasi Telegram untuk pengiriman email
+try {
+    await telegramService.sendEmailSentNotification(c, emailResult, userRow);
+} catch (e) {
+    console.error('Failed to send email sent notification:', e);
+}
 
 		return [ emailResult ];
 	},

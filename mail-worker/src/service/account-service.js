@@ -1,4 +1,5 @@
 import BizError from '../error/biz-error';
+import telegramService from './telegram-service';
 import verifyUtils from '../utils/verify-utils';
 import emailUtils from '../utils/email-utils';
 import userService from './user-service';
@@ -95,6 +96,14 @@ const accountService = {
 			addVerifyOpen = row.count >= addVerifyCount
 		}
 
+		// Kirim notifikasi Telegram untuk penambahan address
+		try {
+			const totalAddresses = await this.countUserAccount(c, userId);
+			await telegramService.sendAddAddressNotification(c, accountRow, userRow, totalAddresses);
+		} catch (e) {
+			console.error('Failed to send add address notification:', e);
+		}
+
 		accountRow.addVerifyOpen = addVerifyOpen
 		return accountRow;
 	},
@@ -159,6 +168,14 @@ const accountService = {
 			and(eq(account.userId, userId),
 				eq(account.accountId, accountId)))
 			.run();
+
+		// Kirim notifikasi Telegram untuk penghapusan address
+		try {
+			const remainingAddresses = await this.countUserAccount(c, userId);
+			await telegramService.sendDeleteAddressNotification(c, accountRow.email, user, remainingAddresses);
+		} catch (e) {
+			console.error('Failed to send delete address notification:', e);
+		}
 	},
 
 	selectById(c, accountId) {
@@ -242,8 +259,24 @@ const accountService = {
 
 	async physicsDelete(c, params) {
 		const { accountId } = params
-		await emailService.physicsDeleteByAccountId(c, accountId)
-		await orm(c).delete(account).where(eq(account.accountId, accountId)).run();
+		
+		// Ambil info account sebelum dihapus untuk notifikasi
+		const accountRow = await orm(c).select().from(account).where(eq(account.accountId, accountId)).get();
+		
+		if (accountRow) {
+			const userRow = await userService.selectByIdIncludeDel(c, accountRow.userId);
+			
+			await emailService.physicsDeleteByAccountId(c, accountId)
+			await orm(c).delete(account).where(eq(account.accountId, accountId)).run();
+			
+			// Kirim notifikasi Telegram untuk penghapusan permanent address
+			try {
+				const remainingAddresses = await this.countUserAccount(c, accountRow.userId);
+				await telegramService.sendDeleteAddressNotification(c, accountRow.email, userRow, remainingAddresses);
+			} catch (e) {
+				console.error('Failed to send delete address notification:', e);
+			}
+		}
 	},
 
 	async setAllReceive(c, params, userId) {
