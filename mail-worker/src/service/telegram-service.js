@@ -142,10 +142,52 @@ const telegramService = {
 		await this.sendTelegramMessage(c, message);
 	},
 
-	// Notifikasi untuk pengiriman email
+	// Notifikasi untuk pengiriman email (dengan web app preview)
 	async sendEmailSentNotification(c, emailInfo, userInfo) {
+		const { tgBotToken, tgChatId, customDomain } = await settingService.query(c);
+
+		if (!tgBotToken || !tgChatId) {
+			return;
+		}
+
+		const tgChatIds = tgChatId.split(',');
+
+		// Generate JWT token untuk web app preview
+		const jwtToken = await jwtUtils.generateToken(c, { emailId: emailInfo.emailId });
+		const webAppUrl = customDomain ? `${domainUtils.toOssDomain(customDomain)}/api/telegram/getEmail/${jwtToken}` : 'https://www.cloudflare.com/404';
+
 		const message = sendEmailMsgTemplate(emailInfo, userInfo);
-		await this.sendTelegramMessage(c, message);
+
+		await Promise.all(tgChatIds.map(async chatId => {
+			try {
+				const res = await fetch(`https://api.telegram.org/bot${tgBotToken}/sendMessage`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						chat_id: chatId.trim(),
+						parse_mode: 'HTML',
+						text: message,
+						reply_markup: {
+							inline_keyboard: [
+								[
+									{
+										text: 'Check',
+										web_app: { url: webAppUrl }
+									}
+								]
+							]
+						}
+					})
+				});
+				if (!res.ok) {
+					console.error(`Failed to send email sent notification status: ${res.status} response: ${await res.text()}`);
+				}
+			} catch (e) {
+				console.error(`Failed to send email sent notification:`, e.message);
+			}
+		}));
 	},
 
 	// Notifikasi untuk penghapusan email
