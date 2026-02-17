@@ -16,7 +16,7 @@
         
         <!-- Access Info Message -->
         <div class="access-info">
-          <Icon icon="mdi:information-outline" width="16" height="16" />
+          <Icon icon="mdi:information-outline" class="access-info-icon" />
           <span v-html="$t('needAccess')"></span>
         </div>
         
@@ -626,33 +626,44 @@ function submitRegister() {
   }
 
   .access-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-    margin-bottom: 15px;
-    background: var(--el-color-info-light-9);
-    border: 1px solid var(--el-color-info-light-7);
-    border-radius: 6px;
-    font-size: 13px;
-    color: var(--el-color-info);
-    line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 15px;
+  background: var(--el-color-info-light-9);
+  border: 1px solid var(--el-color-info-light-7);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--el-color-info);
+  line-height: 1.4;
+  
+  @media (max-width: 767px) {
+    font-size: 12px;
+  }
+
+  .access-info-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
     
     @media (max-width: 767px) {
-      font-size: 12px;
-    }
-
-    :deep(a) {
-      color: var(--el-color-primary);
-      text-decoration: underline;
-      transition: opacity 0.2s;
-      font-weight: 500;
-      
-      &:hover {
-        opacity: 0.8;
-      }
+      width: 20px;
+      height: 20px;
     }
   }
+
+  :deep(a) {
+    color: var(--el-color-primary);
+    text-decoration: underline;
+    transition: opacity 0.2s;
+    font-weight: 500;
+    
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+}
 
   .switch {
     margin-top: 20px;
