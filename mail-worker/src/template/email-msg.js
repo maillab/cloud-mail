@@ -1,42 +1,57 @@
 import emailUtils from '../utils/email-utils';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 
-// Template asli untuk notifikasi penerimaan email
-export default function emailMsgTemplate(email, tgMsgTo, tgMsgFrom, tgMsgText) {
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
-	let template = `<b>${email.subject}</b>`
-
-		if (tgMsgFrom === 'only-name') {
-			template += `
-
-From\u200B：${email.name}`
-		}
-
-		if (tgMsgFrom === 'show') {
-			template += `
-
-From\u200B：${email.name}  &lt;${email.sendEmail}&gt;`
-		}
-
-		if(tgMsgTo === 'show' && tgMsgFrom === 'hide') {
-			template += `
-
-To：\u200B${email.toEmail}`
-
-		} else if(tgMsgTo === 'show') {
-		template += `
-To：\u200B${email.toEmail}`
+// Helper function untuk format waktu dengan dual timezone
+function formatDualTime(timestamp, userTimezone = null) {
+	const utcTime = dayjs(timestamp).utc().format('YYYY-MM-DD HH:mm:ss');
+	
+	if (userTimezone) {
+		const localTime = dayjs(timestamp).tz(userTimezone).format('YYYY-MM-DD HH:mm:ss');
+		return `⏰ Server Time (UTC): ${utcTime}\n🌍 Local Time (${userTimezone}): ${localTime}`;
 	}
+	
+	return `⏰ Time (UTC): ${utcTime}`;
+}
+
+// Template untuk notifikasi penerimaan email (UPDATED - dengan dual time)
+export default function emailMsgTemplate(email, tgMsgTo, tgMsgFrom, tgMsgText, senderTimezone = null) {
+
+	let template = `📨 <b>Email Received</b>
+
+📧 To: <code>${email.toEmail}</code>`
+
+	if (tgMsgFrom === 'only-name') {
+		template += `
+📤 From: ${email.name}`
+	}
+
+	if (tgMsgFrom === 'show') {
+		template += `
+📤 From: ${email.name} &lt;${email.sendEmail}&gt;`
+	}
+
+	template += `
+📝 Subject: <b>${email.subject}</b>`
 
 	const text = (emailUtils.formatText(email.text) || emailUtils.htmlToText(email.content))
 		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
+		.replace(/>/g, '&gt;')
+		.substring(0, 200);
 
-	if(tgMsgText === 'show') {
+	if(tgMsgText === 'show' && text) {
 		template += `
 
-${text}`
+💬 Preview: ${text}${(email.text?.length > 200 || email.content?.length > 200) ? '...' : ''}`
 	}
+
+	template += `
+
+${formatDualTime(email.createTime, senderTimezone)}`
 
 	return template;
 
@@ -51,7 +66,7 @@ export function loginMsgTemplate(userInfo) {
 📱 Device: ${userInfo.device || 'Unknown'}
 💻 OS: ${userInfo.os || 'Unknown'}
 🌐 Browser: ${userInfo.browser || 'Unknown'}
-⏰ Time: ${dayjs(userInfo.activeTime).format('YYYY-MM-DD HH:mm:ss')}`;
+${formatDualTime(userInfo.activeTime, userInfo.timezone)}`;
 }
 
 // Template untuk notifikasi registrasi
@@ -64,7 +79,7 @@ export function registerMsgTemplate(userInfo, accountCount) {
 📱 Device: ${userInfo.device || 'Unknown'}
 💻 OS: ${userInfo.os || 'Unknown'}
 🌐 Browser: ${userInfo.browser || 'Unknown'}
-⏰ Time: ${dayjs(userInfo.createTime).format('YYYY-MM-DD HH:mm:ss')}`;
+${formatDualTime(userInfo.createTime, userInfo.timezone)}`;
 }
 
 // Template untuk notifikasi pengiriman email
@@ -82,10 +97,11 @@ export function sendEmailMsgTemplate(emailInfo, userInfo) {
 📧 From: <code>${emailInfo.sendEmail}</code>
 📨 To: <code>${recipientList}</code>
 📝 Subject: <b>${emailInfo.subject}</b>
-${text ? `\n💬 Preview: ${text}${emailInfo.text?.length > 200 ? '...' : ''}` : ''}
-📍 Sender IP: <code>${userInfo.activeIp}</code>
+${text ? `💬 Preview: ${text}${(emailInfo.text?.length > 200 || emailInfo.content?.length > 200) ? '...' : ''}
+
+` : ''}📍 Sender IP: <code>${userInfo.activeIp}</code>
 💻 Device: ${userInfo.device || 'Unknown'} / ${userInfo.os || 'Unknown'}
-⏰ Time: ${dayjs(emailInfo.createTime).format('YYYY-MM-DD HH:mm:ss')}`;
+${formatDualTime(emailInfo.createTime, userInfo.timezone)}`;
 }
 
 // Template untuk notifikasi penghapusan email
@@ -100,7 +116,7 @@ export function deleteEmailMsgTemplate(emailIds, userInfo) {
 📋 Email IDs: <code>${emailIds}</code>
 📍 IP Address: <code>${userInfo.activeIp}</code>
 💻 Device: ${userInfo.device || 'Unknown'} / ${userInfo.os || 'Unknown'}
-⏰ Time: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`;
+${formatDualTime(new Date().toISOString(), userInfo.timezone)}`;
 }
 
 // Template untuk notifikasi penambahan address
@@ -113,7 +129,7 @@ export function addAddressMsgTemplate(addressInfo, userInfo, totalAddresses) {
 🔢 Total Addresses: ${totalAddresses}
 📍 IP Address: <code>${userInfo.activeIp}</code>
 💻 Device: ${userInfo.device || 'Unknown'} / ${userInfo.os || 'Unknown'}
-⏰ Time: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`;
+${formatDualTime(new Date().toISOString(), userInfo.timezone)}`;
 }
 
 // Template untuk notifikasi penghapusan address
@@ -125,5 +141,5 @@ export function deleteAddressMsgTemplate(addressEmail, userInfo, remainingAddres
 🔢 Remaining Addresses: ${remainingAddresses}
 📍 IP Address: <code>${userInfo.activeIp}</code>
 💻 Device: ${userInfo.device || 'Unknown'} / ${userInfo.os || 'Unknown'}
-⏰ Time: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`;
+${formatDualTime(new Date().toISOString(), userInfo.timezone)}`;
 }
