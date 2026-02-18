@@ -32,13 +32,9 @@ function formatRoleInfo(roleInfo) {
 	// Tambahkan info send limit jika ada
 	if (roleInfo.sendCount !== undefined && roleInfo.sendCount !== null) {
 		if (roleInfo.sendType === 'day') {
-			roleText += roleInfo.sendCount > 0
-				? `\n📊 Send Limit: ${roleInfo.sendCount} emails/day`
-				: `\n📊 Send Limit: Unlimited`;
+			roleText += `\n📊 Send Limit: ${roleInfo.sendCount} emails/day`;
 		} else if (roleInfo.sendType === 'count') {
-			roleText += roleInfo.sendCount > 0
-				? `\n📊 Send Limit: ${roleInfo.sendCount} emails total`
-				: `\n📊 Send Limit: Unlimited`;
+			roleText += `\n📊 Send Limit: ${roleInfo.sendCount} emails total`;
 		} else if (roleInfo.sendType === 'ban') {
 			roleText += `\n🚫 Send Status: Banned`;
 		} else if (roleInfo.sendType === 'internal') {
@@ -47,10 +43,8 @@ function formatRoleInfo(roleInfo) {
 	}
 	
 	// Tambahkan info account limit jika ada
-	if (roleInfo.accountCount !== undefined && roleInfo.accountCount !== null) {
-		roleText += roleInfo.accountCount > 0
-			? `\n📬 Address Limit: ${roleInfo.accountCount}`
-			: `\n📬 Address Limit: Unlimited`;
+	if (roleInfo.accountCount !== undefined && roleInfo.accountCount > 0) {
+		roleText += `\n📬 Address Limit: ${roleInfo.accountCount}`;
 	}
 	
 	return roleText;
@@ -220,13 +214,9 @@ export function roleChangeMsgTemplate(userInfo, oldRole, newRole, changedBy) {
 
 <b>Role Update:</b>
 ❌ Old Role: <b>${oldRole.name}</b>
-${oldRole.sendType === 'day' || oldRole.sendType === 'count'
-		? `   ├ Send Limit: ${oldRole.sendCount > 0 ? `${oldRole.sendCount}${oldRole.sendType === 'day' ? '/day' : ' total'}` : 'Unlimited'}\n`
-		: ''}${oldRole.accountCount !== undefined && oldRole.accountCount !== null ? `   └ Address Limit: ${oldRole.accountCount > 0 ? oldRole.accountCount : 'Unlimited'}\n` : ''}
+${oldRole.sendCount ? `   ├ Send Limit: ${oldRole.sendCount}${oldRole.sendType === 'day' ? '/day' : ' total'}\n` : ''}${oldRole.accountCount ? `   └ Address Limit: ${oldRole.accountCount}\n` : ''}
 ✅ New Role: <b>${newRole.name}</b>
-${newRole.sendType === 'day' || newRole.sendType === 'count'
-		? `   ├ Send Limit: ${newRole.sendCount > 0 ? `${newRole.sendCount}${newRole.sendType === 'day' ? '/day' : ' total'}` : 'Unlimited'}\n`
-		: ''}${newRole.accountCount !== undefined && newRole.accountCount !== null ? `   └ Address Limit: ${newRole.accountCount > 0 ? newRole.accountCount : 'Unlimited'}\n` : ''}
+${newRole.sendCount ? `   ├ Send Limit: ${newRole.sendCount}${newRole.sendType === 'day' ? '/day' : ' total'}\n` : ''}${newRole.accountCount ? `   └ Address Limit: ${newRole.accountCount}\n` : ''}
 👨‍💼 Changed By: <code>${changedBy.email}</code>${formatRoleInfo(changedBy.role)}
 💻 Device: ${changedBy.device || 'Unknown'} / ${changedBy.os || 'Unknown'}
 ${formatDualTime(new Date().toISOString(), changedBy.timezone)}`;

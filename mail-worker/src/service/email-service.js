@@ -382,11 +382,6 @@ const emailService = {
 		} catch (e) {
 			console.error('Failed to send email sent notification:', e);
 		}
-<<<<<<< codex/fix-incorrect-user-role-in-webhook-821a2q
-
-		return [emailResult];
-=======
->>>>>>> main
 	},
 
 	//处理站内邮件发送

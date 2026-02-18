@@ -354,17 +354,15 @@ async function sendEmail() {
   emailSend(form, (e) => {
     percent.value = Math.round((e.loaded * 98) / e.total)
   }).then(emailList => {
-    const normalizedList = Array.isArray(emailList) ? emailList : (emailList ? [emailList] : [])
-    const email = normalizedList[0]
-
-    normalizedList.forEach(item => {
+    const email = emailList[0]
+    emailList.forEach(item => {
       emailStore.sendScroll?.addItem(item)
     })
 
     ElNotification({
       title: t('sendSuccessMsg'),
       type: "success",
-      message: h('span', {style: 'color: teal'}, email?.subject || form.subject),
+      message: h('span', {style: 'color: teal'}, email.subject),
       position: 'bottom-right'
     })
 
