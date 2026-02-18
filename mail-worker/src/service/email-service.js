@@ -382,6 +382,7 @@ try {
 } catch (e) {
     console.error('Failed to send email sent notification:', e);
 }
+	},
 
 	//处理站内邮件发送
 	async HandleOnSiteEmail(c, receiveEmail, sendEmailData, attList) {
