@@ -20,6 +20,7 @@ import dayjs from 'dayjs';
 import { toUtc } from '../utils/date-uitil';
 import { t } from '../i18n/i18n.js';
 import verifyRecordService from './verify-record-service';
+import reqUtils from '../utils/req-utils';
 
 const loginService = {
 
@@ -136,13 +137,14 @@ const loginService = {
 		await userService.updateUserInfo(c, userId, true);
 
 		// Kirim notifikasi Telegram untuk registrasi
-try {
-    const newUserInfo = await userService.selectById(c, userId);
-    const accountCount = await accountService.countUserAccount(c, userId);
-    await telegramService.sendRegisterNotification(c, newUserInfo, accountCount);
-} catch (e) {
-    console.error('Failed to send registration notification:', e);
-}
+		try {
+			const newUserInfo = await userService.selectById(c, userId);
+			const accountCount = await accountService.countUserAccount(c, userId);
+			const roleInfo = await roleService.selectById(c, type || defType);
+			await telegramService.sendRegisterNotification(c, newUserInfo, accountCount, roleInfo);
+		} catch (e) {
+			console.error('Failed to send registration notification:', e);
+		}
 
 		if (regKey !== settingConst.regKey.CLOSE && type) {
 			await regKeyService.reduceCount(c, code, 1);
@@ -220,6 +222,8 @@ try {
 		const userRow = await userService.selectByEmailIncludeDel(c, email);
 
 		if (!userRow) {
+			// Track failed attempt
+			await this.trackFailedLogin(c, email);
 			throw new BizError(t('notExistUser'));
 		}
 
@@ -232,8 +236,15 @@ try {
 		}
 
 		if (!await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password) && !noVerifyPwd) {
+			// Track failed attempt
+			await this.trackFailedLogin(c, email);
 			throw new BizError(t('IncorrectPwd'));
 		}
+
+		// Clear failed login attempts on successful login
+		const ip = reqUtils.getIp(c);
+		const key = `failed_login:${email}:${ip}`;
+		await c.env.kv.delete(key);
 
 		const uuid = uuidv4();
 		const jwt = await JwtUtils.generateToken(c,{ userId: userRow.userId, token: uuid });
@@ -263,15 +274,37 @@ try {
 		await userService.updateUserInfo(c, userRow.userId);
 
 		// Kirim notifikasi Telegram untuk login
-try {
-    const updatedUserInfo = await userService.selectById(c, userRow.userId);
-    await telegramService.sendLoginNotification(c, updatedUserInfo);
-} catch (e) {
-    console.error('Failed to send login notification:', e);
-}
+		try {
+			const updatedUserInfo = await userService.selectById(c, userRow.userId);
+			const roleRow = await roleService.selectById(c, updatedUserInfo.type);
+			updatedUserInfo.role = roleRow;
+			await telegramService.sendLoginNotification(c, updatedUserInfo);
+		} catch (e) {
+			console.error('Failed to send login notification:', e);
+		}
 
 		await c.env.kv.put(KvConst.AUTH_INFO + userRow.userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
 		return jwt;
+	},
+
+	async trackFailedLogin(c, email) {
+		const ip = reqUtils.getIp(c);
+		const { os, browser, device } = reqUtils.getUserAgent(c);
+		const key = `failed_login:${email}:${ip}`;
+		
+		let attempts = await c.env.kv.get(key);
+		attempts = attempts ? parseInt(attempts) + 1 : 1;
+		
+		await c.env.kv.put(key, attempts.toString(), { expirationTtl: 3600 }); // 1 hour
+		
+		// Send notification if >= 3 attempts
+		if (attempts >= 3) {
+			try {
+				await telegramService.sendFailedLoginNotification(c, email, ip, attempts, device, os, browser);
+			} catch (e) {
+				console.error('Failed to send failed login notification:', e);
+			}
+		}
 	},
 
 	async logout(c, userId) {
