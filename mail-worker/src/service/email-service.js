@@ -150,7 +150,7 @@ try {
     await telegramService.sendEmailDeleteNotification(c, emailIds, userRow);
 } catch (e) {
     console.error('Failed to send delete email notification:', e);
-},
+}
 
 	receive(c, params, cidAttList, r2domain) {
 		params.content = this.imgReplace(params.content, cidAttList, r2domain)
