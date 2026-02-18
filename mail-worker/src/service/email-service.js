@@ -145,11 +145,12 @@ const emailService = {
 		// Kirim notifikasi Telegram untuk penghapusan email
 try {
     const userRow = await userService.selectById(c, userId);
+    const roleRow = await roleService.selectById(c, userRow.type);
+    userRow.role = roleRow;
     await telegramService.sendEmailDeleteNotification(c, emailIds, userRow);
 } catch (e) {
     console.error('Failed to send delete email notification:', e);
-}
-	},
+},
 
 	receive(c, params, cidAttList, r2domain) {
 		params.content = this.imgReplace(params.content, cidAttList, r2domain)
@@ -374,13 +375,12 @@ try {
 
 		// Kirim notifikasi Telegram untuk pengiriman email
 try {
+    const roleRow = await roleService.selectById(c, userRow.type);
+    userRow.role = roleRow;
     await telegramService.sendEmailSentNotification(c, emailResult, userRow);
 } catch (e) {
     console.error('Failed to send email sent notification:', e);
-}
-
-		return [ emailResult ];
-	},
+},
 
 	//处理站内邮件发送
 	async HandleOnSiteEmail(c, receiveEmail, sendEmailData, attList) {
