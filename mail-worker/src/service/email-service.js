@@ -143,15 +143,15 @@ const emailService = {
 			.run();
 
 		// Kirim notifikasi Telegram untuk penghapusan email
-try {
-    const userRow = await userService.selectById(c, userId);
-    const roleRow = await roleService.selectById(c, userRow.type);
-    userRow.role = roleRow;
-    await telegramService.sendEmailDeleteNotification(c, emailIds, userRow);
-} catch (e) {
-    console.error('Failed to send delete email notification:', e);
-}
-},
+		try {
+			const userRow = await userService.selectById(c, userId);
+			const roleRow = await userService.selectEffectiveRole(c, userRow);
+			userRow.role = roleRow;
+			await telegramService.sendEmailDeleteNotification(c, emailIds, userRow);
+		} catch (e) {
+			console.error('Failed to send delete email notification:', e);
+		}
+	},
 
 	receive(c, params, cidAttList, r2domain) {
 		params.content = this.imgReplace(params.content, cidAttList, r2domain)
@@ -183,7 +183,7 @@ try {
 		}
 
 		const userRow = await userService.selectById(c, userId);
-		const roleRow = await roleService.selectById(c, userRow.type);
+		const roleRow = await userService.selectEffectiveRole(c, userRow);
 
 		//判断接收方是不是全部为站内邮箱
 		const allInternal = receiveEmail.every(email => {
@@ -375,13 +375,13 @@ try {
 		}
 
 		// Kirim notifikasi Telegram untuk pengiriman email
-try {
-    const roleRow = await roleService.selectById(c, userRow.type);
-    userRow.role = roleRow;
-    await telegramService.sendEmailSentNotification(c, emailResult, userRow);
-} catch (e) {
-    console.error('Failed to send email sent notification:', e);
-}
+		try {
+			const roleRow = await userService.selectEffectiveRole(c, userRow);
+			userRow.role = roleRow;
+			await telegramService.sendEmailSentNotification(c, emailResult, userRow);
+		} catch (e) {
+			console.error('Failed to send email sent notification:', e);
+		}
 	},
 
 	//处理站内邮件发送

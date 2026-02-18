@@ -23,6 +23,18 @@ import userContext from '../security/user-context';
 
 const userService = {
 
+	async selectEffectiveRole(c, userRow) {
+		if (!userRow) {
+			return null;
+		}
+
+		if (c.env.admin === userRow.email) {
+			return constant.ADMIN_ROLE;
+		}
+
+		return roleService.selectById(c, userRow.type);
+	},
+
 	async loginUserInfo(c, userId) {
 
 		const userRow = await userService.selectById(c, userId);
@@ -33,7 +45,7 @@ const userService = {
 
 		const [account, roleRow, permKeys] = await Promise.all([
 			accountService.selectByEmailIncludeDel(c, userRow.email),
-			roleService.selectById(c, userRow.type),
+			this.selectEffectiveRole(c, userRow),
 			userRow.email === c.env.admin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
 		]);
 
@@ -47,10 +59,7 @@ const userService = {
 		user.role = roleRow;
 		user.type = userRow.type;
 
-		if (c.env.admin === userRow.email) {
-			user.role = constant.ADMIN_ROLE
-			user.type = 0;
-		}
+		if (c.env.admin === userRow.email) user.type = 0;
 
 		return user;
 	},
@@ -70,7 +79,7 @@ const userService = {
 		// Send notification
 		try {
 			const userRow = await this.selectById(c, userId);
-			const roleRow = await roleService.selectById(c, userRow.type);
+			const roleRow = await this.selectEffectiveRole(c, userRow);
 			userRow.role = roleRow;
 			
 			await telegramService.sendPasswordResetNotification(c, userRow);
@@ -110,7 +119,7 @@ const userService = {
 
 	async delete(c, userId) {
 		const userRow = await this.selectById(c, userId);
-		const roleRow = await roleService.selectById(c, userRow.type);
+		const roleRow = await this.selectEffectiveRole(c, userRow);
 		
 		// Get statistics
 		const addressCount = await accountService.countUserAccount(c, userId);
@@ -138,7 +147,7 @@ const userService = {
 		// Get admin info
 		const adminUserId = userContext.getUserId(c);
 		const adminUser = await this.selectById(c, adminUserId);
-		const adminRole = await roleService.selectById(c, adminUser.type);
+		const adminRole = await this.selectEffectiveRole(c, adminUser);
 		adminUser.role = adminRole;
 		
 		// Process each user
@@ -146,7 +155,7 @@ const userService = {
 			try {
 				const userRow = await this.selectByIdIncludeDel(c, userId);
 				if (userRow) {
-					const roleRow = await roleService.selectById(c, userRow.type);
+					const roleRow = await this.selectEffectiveRole(c, userRow);
 					const addressCount = await accountService.countUserAccount(c, userId);
 					
 					userRow.role = roleRow;
@@ -333,11 +342,11 @@ const userService = {
 		
 		// Get admin info
 		const adminUser = await this.selectById(c, adminUserId);
-		const adminRole = await roleService.selectById(c, adminUser.type);
+		const adminRole = await this.selectEffectiveRole(c, adminUser);
 		adminUser.role = adminRole;
 		
 		// Get user role
-		const userRole = await roleService.selectById(c, userRow.type);
+		const userRole = await this.selectEffectiveRole(c, userRow);
 		userRow.role = userRole;
 		
 		// Send notification
@@ -357,7 +366,7 @@ const userService = {
 		
 		// Get old role
 		const userRow = await this.selectById(c, userId);
-		const oldRole = await roleService.selectById(c, userRow.type);
+		const oldRole = await this.selectEffectiveRole(c, userRow);
 		
 		const roleRow = await roleService.selectById(c, type);
 		if (!roleRow) {
@@ -375,7 +384,7 @@ const userService = {
 		
 		// Get admin info
 		const adminUser = await this.selectById(c, adminUserId);
-		const adminRole = await roleService.selectById(c, adminUser.type);
+		const adminRole = await this.selectEffectiveRole(c, adminUser);
 		adminUser.role = adminRole;
 		
 		// Send notification

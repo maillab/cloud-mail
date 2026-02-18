@@ -59,7 +59,7 @@ const accountService = {
 		}
 
 		const userRow = await userService.selectById(c, userId);
-		const roleRow = await roleService.selectById(c, userRow.type);
+		const roleRow = await userService.selectEffectiveRole(c, userRow);
 
 		if (userRow.email !== c.env.admin) {
 
@@ -99,7 +99,7 @@ const accountService = {
 		// Kirim notifikasi Telegram untuk penambahan address
 		try {
 			const totalAddresses = await this.countUserAccount(c, userId);
-			const roleInfo = await roleService.selectById(c, userRow.type);
+			const roleInfo = await userService.selectEffectiveRole(c, userRow);
 			userRow.role = roleInfo;
 			await telegramService.sendAddAddressNotification(c, accountRow, userRow, totalAddresses);
 		} catch (e) {
@@ -174,7 +174,7 @@ const accountService = {
 		// Kirim notifikasi Telegram untuk penghapusan address
 		try {
 			const remainingAddresses = await this.countUserAccount(c, userId);
-			const roleRow = await roleService.selectById(c, user.type);
+			const roleRow = await userService.selectEffectiveRole(c, user);
 			user.role = roleRow;
 			await telegramService.sendDeleteAddressNotification(c, accountRow.email, user, remainingAddresses);
 		} catch (e) {
@@ -276,7 +276,7 @@ const accountService = {
 			// Kirim notifikasi Telegram untuk penghapusan permanent address
 			try {
 				const remainingAddresses = await this.countUserAccount(c, accountRow.userId);
-				const roleRow = await roleService.selectById(c, userRow.type);
+				const roleRow = await userService.selectEffectiveRole(c, userRow);
 				userRow.role = roleRow;
 				await telegramService.sendDeleteAddressNotification(c, accountRow.email, userRow, remainingAddresses);
 			} catch (e) {

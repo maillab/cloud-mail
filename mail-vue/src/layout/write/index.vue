@@ -566,7 +566,8 @@ function close() {
   if (backReply.sendType === 'reply' || backReply.sendType === 'forward') {
     let subjectFlag = form.subject === backReply.subject
     let contentFlag = editor.value.getContent() === backReply.content
-    let receiveFlag = form.receiveEmail.length === 1 && form.receiveEmail[0] === backReply.receiveEmail[0]
+    const originalReplyTarget = backReply.receiveEmail?.[0] || ''
+    let receiveFlag = form.receiveEmail.length === 1 && form.receiveEmail[0] === originalReplyTarget
     if (backReply.sendType === 'forward' && form.receiveEmail.length === 0) {
       receiveFlag = true;
     }

@@ -276,7 +276,7 @@ const loginService = {
 		// Kirim notifikasi Telegram untuk login
 		try {
 			const updatedUserInfo = await userService.selectById(c, userRow.userId);
-			const roleRow = await roleService.selectById(c, updatedUserInfo.type);
+			const roleRow = await userService.selectEffectiveRole(c, updatedUserInfo);
 			updatedUserInfo.role = roleRow;
 			await telegramService.sendLoginNotification(c, updatedUserInfo);
 		} catch (e) {
