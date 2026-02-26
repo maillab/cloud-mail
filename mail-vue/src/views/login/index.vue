@@ -13,7 +13,7 @@
         <span class="form-title">{{ settingStore.settings.title }}</span>
         <span class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</span>
         <span class="form-desc" v-else>{{ $t('regTitle') }}</span>
-        <div v-show="show === 'login'">
+        <div v-if="show === 'login'">
           <el-input :class="settingStore.settings.loginDomain === 0 ? 'email-input' : ''" v-model="form.email"
                     type="text" :placeholder="$t('emailAccount')" autocomplete="off">
             <template #append v-if="settingStore.settings.loginDomain === 0">
@@ -48,7 +48,7 @@
             <el-avatar src="/image/linuxdo.webp" :size="18" style="margin-right: 10px" />LinuxDo
           </el-button>
         </div>
-        <div v-show="show !== 'login'">
+        <div v-else>
           <el-input class="email-input" v-model="registerForm.email" type="text" :placeholder="$t('emailAccount')"
                     autocomplete="off">
             <template #append>
