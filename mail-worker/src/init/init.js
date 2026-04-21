@@ -40,6 +40,7 @@ const dbInit = {
 			['v2.7', this.v2_7DB],
 			['v2.8', this.v2_8DB],
 			['v2.9', this.v2_9DB],
+			['v3.0', this.v3_0DB],
 		];
 
 		const errors = [];
@@ -95,6 +96,10 @@ const dbInit = {
 		} catch (e) {
 			console.warn(`跳过字段：${e.message}`);
 		}
+	},
+
+	async v3_0DB(c) {
+		await c.env.db.prepare(`ALTER TABLE account ADD COLUMN forward_email TEXT NOT NULL DEFAULT '';`).run();
 	},
 
 	async v2_8DB(c) {

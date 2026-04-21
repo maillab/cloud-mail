@@ -31,6 +31,16 @@
       </div>
     </div>
     <div class="del-email" v-perm="'my:delete'">
+      <div class="title">{{$t('forwardEmail') || 'Email Forwarding'}}</div>
+      <div style="color: var(--regular-text-color);">
+        {{$t('forwardEmailDesc') || 'Forward incoming emails to an external address. Separate multiple with commas.'}}
+      </div>
+      <div class="forward-input">
+        <el-input v-model="forwardEmail" placeholder="user@example.com" />
+        <el-button type="primary" :loading="forwardLoading" @click="saveForwardEmail">{{$t('save')}}</el-button>
+      </div>
+    </div>
+    <div class="del-email" v-perm="'my:delete'">
       <div class="title">{{$t('deleteUser')}}</div>
       <div style="color: var(--regular-text-color);">
         {{$t('delAccountMsg')}}
@@ -53,7 +63,7 @@ import {reactive, ref, defineOptions} from 'vue'
 import {resetPassword, userDelete} from "@/request/my.js";
 import {useUserStore} from "@/store/user.js";
 import router from "@/router/index.js";
-import {accountSetName} from "@/request/account.js";
+import {accountSetName, accountSetForwardEmail} from "@/request/account.js";
 import {useAccountStore} from "@/store/account.js";
 import {useI18n} from "vue-i18n";
 
@@ -63,10 +73,19 @@ const userStore = useUserStore();
 const setPwdLoading = ref(false)
 const setNameShow = ref(false)
 const accountName = ref(null)
+const forwardEmail = ref(userStore.user?.account?.forwardEmail || '')
+const forwardLoading = ref(false)
 
 defineOptions({
   name: 'setting'
 })
+
+function saveForwardEmail() {
+  forwardLoading.value = true
+  accountSetForwardEmail(userStore.user.account.accountId, forwardEmail.value).then(() => {
+    ElMessage({ message: t('saveSuccessMsg'), type: 'success', plain: true })
+  }).catch(() => {}).finally(() => { forwardLoading.value = false })
+}
 
 function showSetName() {
   accountName.value = userStore.user.name
@@ -254,6 +273,12 @@ function submitPwd() {
     display: flex;
     flex-direction: column;
     gap: 20px;
+
+    .forward-input {
+      display: flex;
+      gap: 10px;
+      max-width: 500px;
+    }
   }
 }
 </style>

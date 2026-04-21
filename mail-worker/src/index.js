@@ -5,6 +5,7 @@ import verifyRecordService from './service/verify-record-service';
 import emailService from './service/email-service';
 import kvObjService from './service/kv-obj-service';
 import oauthService from "./service/oauth-service";
+import r2Service from './service/r2-service';
 export default {
 	 async fetch(req, env, ctx) {
 
@@ -17,7 +18,23 @@ export default {
 		}
 
 		 if (['/static/','/attachments/'].some(p => url.pathname.startsWith(p))) {
-			 return await kvObjService.toObjResp( { env }, url.pathname.substring(1));
+			 const key = url.pathname.substring(1);
+			 const c = { env };
+			 const storageType = await r2Service.storageType(c);
+
+			 if (storageType === 'R2') {
+				 const obj = await env.r2.get(key);
+				 if (!obj) return new Response('Not Found', { status: 404 });
+				 return new Response(obj.body, {
+					 headers: {
+						 'Content-Type': obj.httpMetadata?.contentType || 'application/octet-stream',
+						 'Content-Disposition': obj.httpMetadata?.contentDisposition || '',
+						 'Cache-Control': obj.httpMetadata?.cacheControl || 'public, max-age=86400'
+					 }
+				 });
+			 }
+
+			 return await kvObjService.toObjResp(c, key);
 		 }
 
 		return env.assets.fetch(req);

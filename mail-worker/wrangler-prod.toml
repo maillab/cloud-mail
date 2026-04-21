@@ -1,0 +1,49 @@
+name = "cloud-mail"
+main = "src/index.js"
+compatibility_date = "2025-06-04"
+keep_vars = true
+account_id = "c807d419a1bf8b4c708033f75d8c797e"
+
+[observability]
+enabled = true
+
+
+[[d1_databases]]
+binding = "db"
+database_name = "cloud-mail-wnam"
+database_id = "609fc518-f244-4184-ad80-da6a0a6c2662"
+
+[[kv_namespaces]]
+binding = "kv"
+id = "a7f3c44d3cba42e3a6226b2a06e79405"
+
+[[r2_buckets]]
+binding = "r2"
+bucket_name = "cloud-mail"
+
+[assets]
+binding = "assets"
+directory = "./dist"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+[triggers]
+crons = ["0 16 * * *"]
+
+[[email_routing]]
+enabled = true
+
+[[routes]]
+pattern = "mail.ccvass.biz/*"
+zone_name = "ccvass.biz"
+
+[vars]
+orm_log = false
+domain = ["ccvass.biz"]
+admin = "admin@ccvass.biz"
+jwt_secret = "99CJTq3ufrCLimTnHBNPNgFqWPLPek5u9TMiRZyC0k"
+init_secret = "nnJI0AgioewoYGsY5ZPsmF5TEjQfLV0LDqw0zQZMc"
+allowed_origins = ["https://mail.ccvass.biz"]
+
+[build]
+command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"

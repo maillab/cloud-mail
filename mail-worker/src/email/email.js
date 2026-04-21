@@ -165,6 +165,18 @@ export async function email(message, env, ctx) {
 
 		}
 
+		// Per-account forwarding
+		if (account && account.forwardEmail) {
+			const fwdEmails = account.forwardEmail.split(',').map(e => e.trim()).filter(Boolean);
+			await Promise.all(fwdEmails.map(async fwd => {
+				try {
+					await message.forward(fwd);
+				} catch (e) {
+					console.error(`Per-account forward to ${fwd} failed:`, e);
+				}
+			}));
+		}
+
 	} catch (e) {
 		console.error('邮件接收异常: ', e);
 		throw e

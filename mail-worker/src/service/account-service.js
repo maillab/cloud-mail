@@ -257,6 +257,20 @@ const accountService = {
 		await orm(c).update(account).set({ allReceive: accountRow.allReceive ? 0 : 1 }).where(eq(account.accountId, accountId)).run();
 	},
 
+	async setForwardEmail(c, params, userId) {
+		const { accountId, forwardEmail } = params;
+		const accountRow = await this.selectById(c, accountId);
+		if (!accountRow || accountRow.userId !== userId) {
+			throw new BizError(t('noUserAccount'));
+		}
+		const trimmed = (forwardEmail || '').trim();
+		if (trimmed && !trimmed.split(',').every(e => verifyUtils.isEmail(e.trim()))) {
+			throw new BizError(t('notEmail'));
+		}
+		await orm(c).update(account).set({ forwardEmail: trimmed })
+			.where(and(eq(account.accountId, accountId), eq(account.userId, userId))).run();
+	},
+
 	async setAsTop(c, params, userId) {
 		const { accountId } = params;
 		console.log(accountId);
