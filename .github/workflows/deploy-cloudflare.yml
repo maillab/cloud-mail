@@ -38,15 +38,15 @@ jobs:
 
     steps:
       - name: 🚚 检出代码仓库 / Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: ⚙ 设置 pnpm / Set up pnpm
-        uses: pnpm/action-setup@v4.1.0
+        uses: pnpm/action-setup@v4.0.0
         with:
           version: latest
 
       - name: ⚙ 设置 Node.js / Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4.1.1
         with:
           node-version: "20"
           cache: "pnpm"
