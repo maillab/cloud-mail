@@ -27,6 +27,7 @@ export default {
 		await verifyRecordService.clearRecord({ env })
 		await userService.resetDaySendCount({ env })
 		await emailService.completeReceiveAll({ env })
+		await emailService.cleanupDeletedEmails({ env })
 		await oauthService.clearNoBindOathUser({ env })
 	},
 };

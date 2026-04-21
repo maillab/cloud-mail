@@ -813,6 +813,25 @@ const emailService = {
 	async read(c, params, userId) {
 		const { emailIds } = params;
 		await orm(c).update(email).set({ unread: emailConst.unread.READ }).where(and(eq(email.userId, userId), inArray(email.emailId, emailIds)));
+	},
+
+	async cleanupDeletedEmails(c) {
+		const cutoff = dayjs().subtract(30, 'day').format('YYYY-MM-DD HH:mm:ss');
+		const deletedEmails = await orm(c).select({ emailId: email.emailId })
+			.from(email)
+			.where(and(
+				eq(email.isDel, isDel.DELETE),
+				lt(email.createTime, cutoff)
+			))
+			.limit(100)
+			.all();
+
+		if (deletedEmails.length === 0) return;
+
+		const emailIds = deletedEmails.map(e => e.emailId);
+		await attService.removeByEmailIds(c, emailIds);
+		await starService.removeByEmailIds(c, emailIds);
+		await orm(c).delete(email).where(inArray(email.emailId, emailIds)).run();
 	}
 };
 

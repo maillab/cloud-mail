@@ -10,6 +10,7 @@ import emailUtils from '../utils/email-utils';
 import roleService from '../service/role-service';
 import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
+import { sanitizeHtml } from '../utils/sanitize-utils';
 
 export async function email(message, env, ctx) {
 
@@ -85,8 +86,8 @@ export async function email(message, env, ctx) {
 			toName: toName,
 			sendEmail: email.from.address,
 			name: email.from.name || emailUtils.getName(email.from.address),
-			subject: email.subject,
-			content: email.html,
+			subject: email.subject ? email.subject.substring(0, 500) : '',
+			content: sanitizeHtml(email.html),
 			text: email.text,
 			cc: email.cc ? JSON.stringify(email.cc) : '[]',
 			bcc: email.bcc ? JSON.stringify(email.bcc) : '[]',

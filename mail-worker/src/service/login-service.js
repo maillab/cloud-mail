@@ -19,10 +19,14 @@ import dayjs from 'dayjs';
 import { toUtc } from '../utils/date-uitil';
 import { t } from '../i18n/i18n.js';
 import verifyRecordService from './verify-record-service';
+import rateLimiter from '../utils/rate-limiter';
 
 const loginService = {
 
 	async register(c, params, oauth = false) {
+
+		const ip = c.req.header('CF-Connecting-IP') || 'unknown';
+		await rateLimiter.check(c, `register:${ip}`, 3, 3600);
 
 		const { email, password, token, code } = params;
 
@@ -203,18 +207,20 @@ const loginService = {
 
 		const { email, password } = params;
 
+		const ip = c.req.header('CF-Connecting-IP') || 'unknown';
+		if (!noVerifyPwd) {
+			await rateLimiter.check(c, `login:${ip}`, 5, 300);
+			await rateLimiter.check(c, `login:${email}`, 10, 3600);
+		}
+
 		if ((!email || !password) && !noVerifyPwd) {
 			throw new BizError(t('emailAndPwdEmpty'));
 		}
 
 		const userRow = await userService.selectByEmailIncludeDel(c, email);
 
-		if (!userRow) {
-			throw new BizError(t('notExistUser'));
-		}
-
-		if(userRow.isDel === isDel.DELETE) {
-			throw new BizError(t('isDelUser'));
+		if (!userRow || userRow.isDel === isDel.DELETE) {
+			throw new BizError(t('IncorrectPwd'));
 		}
 
 		if(userRow.status === userConst.status.BAN) {
@@ -225,8 +231,14 @@ const loginService = {
 			throw new BizError(t('IncorrectPwd'));
 		}
 
+		// Upgrade legacy SHA-256 hash to PBKDF2 on successful login
+		if (!noVerifyPwd && cryptoUtils.needsUpgrade(userRow.password)) {
+			const { salt, hash } = await cryptoUtils.hashPassword(password);
+			await userService.updatePassword(c, userRow.userId, hash, salt);
+		}
+
 		const uuid = uuidv4();
-		const jwt = await JwtUtils.generateToken(c,{ userId: userRow.userId, token: uuid });
+		const jwt = await JwtUtils.generateToken(c,{ userId: userRow.userId, token: uuid }, 60 * 60 * 2);
 
 		let authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userRow.userId, { type: 'json' });
 
@@ -253,6 +265,11 @@ const loginService = {
 		await userService.updateUserInfo(c, userRow.userId);
 
 		await c.env.kv.put(KvConst.AUTH_INFO + userRow.userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
+
+		if (!noVerifyPwd) {
+			await rateLimiter.reset(c, `login:${ip}`);
+		}
+
 		return jwt;
 	},
 

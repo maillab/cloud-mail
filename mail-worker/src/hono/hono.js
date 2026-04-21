@@ -4,7 +4,18 @@ const app = new Hono();
 import result from '../model/result';
 import { cors } from 'hono/cors';
 
-app.use('*', cors());
+app.use('*', cors({
+	origin: (origin, c) => {
+		const allowed = c.env?.allowed_origins;
+		if (allowed && Array.isArray(allowed) && allowed.length > 0) {
+			return allowed.includes(origin) ? origin : null;
+		}
+		return origin;
+	},
+	allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+	allowHeaders: ['Content-Type', 'Authorization'],
+	maxAge: 86400
+}));
 
 app.onError((err, c) => {
 	if (err.name === 'BizError') {

@@ -6,30 +6,87 @@ const dbInit = {
 	async init(c) {
 
 		const secret = c.req.param('secret');
+		const initSecret = c.env.init_secret || c.env.jwt_secret;
 
-		if (secret !== c.env.jwt_secret) {
-			return c.text('❌ JWT secret mismatch');
+		if (secret !== initSecret) {
+			return c.json({ error: 'Unauthorized' }, 403);
 		}
 
-		await this.intDB(c);
-		await this.v1_1DB(c);
-		await this.v1_2DB(c);
-		await this.v1_3DB(c);
-		await this.v1_3_1DB(c);
-		await this.v1_4DB(c);
-		await this.v1_5DB(c);
-		await this.v1_6DB(c);
-		await this.v1_7DB(c);
-		await this.v2DB(c);
-		await this.v2_3DB(c);
-		await this.v2_4DB(c);
-		await this.v2_5DB(c);
-		await this.v2_6DB(c);
-		await this.v2_7DB(c);
-		await this.v2_8DB(c);
-		await this.v2_9DB(c);
+		const initialized = await c.env.kv.get('SYSTEM_INITIALIZED');
+		if (initialized === 'true') {
+			return c.json({ error: 'System already initialized' }, 403);
+		}
+
+		const ip = c.req.header('CF-Connecting-IP') || 'unknown';
+		await c.env.kv.put('INIT_AUDIT', JSON.stringify({ ip, time: new Date().toISOString() }));
+
+		await this.ensureMigrationTable(c);
+
+		const migrations = [
+			['init', this.intDB],
+			['v1.1', this.v1_1DB],
+			['v1.2', this.v1_2DB],
+			['v1.3', this.v1_3DB],
+			['v1.3.1', this.v1_3_1DB],
+			['v1.4', this.v1_4DB],
+			['v1.5', this.v1_5DB],
+			['v1.6', this.v1_6DB],
+			['v1.7', this.v1_7DB],
+			['v2.0', this.v2DB],
+			['v2.3', this.v2_3DB],
+			['v2.4', this.v2_4DB],
+			['v2.5', this.v2_5DB],
+			['v2.6', this.v2_6DB],
+			['v2.7', this.v2_7DB],
+			['v2.8', this.v2_8DB],
+			['v2.9', this.v2_9DB],
+		];
+
+		const errors = [];
+		for (const [version, fn] of migrations) {
+			const result = await this.runMigration(c, version, fn);
+			if (result?.error) errors.push(result);
+		}
+
 		await settingService.refresh(c);
+		await c.env.kv.put('SYSTEM_INITIALIZED', 'true');
+
+		if (errors.length > 0) {
+			return c.json({ status: 'partial', errors }, 207);
+		}
 		return c.text('success');
+	},
+
+	async ensureMigrationTable(c) {
+		await c.env.db.prepare(`
+			CREATE TABLE IF NOT EXISTS _migrations (
+				version TEXT PRIMARY KEY,
+				applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				success INTEGER NOT NULL DEFAULT 1
+			)
+		`).run();
+	},
+
+	async runMigration(c, version, fn) {
+		const existing = await c.env.db.prepare(
+			'SELECT 1 FROM _migrations WHERE version = ? AND success = 1'
+		).bind(version).first();
+
+		if (existing) return null;
+
+		try {
+			await fn.call(this, c);
+			await c.env.db.prepare(
+				'INSERT OR REPLACE INTO _migrations (version, success) VALUES (?, 1)'
+			).bind(version).run();
+			return null;
+		} catch (e) {
+			console.error(`Migration ${version} FAILED: ${e.message}`);
+			await c.env.db.prepare(
+				'INSERT OR REPLACE INTO _migrations (version, success) VALUES (?, 0)'
+			).bind(version).run();
+			return { version, error: e.message };
+		}
 	},
 
 	async v2_9DB(c) {

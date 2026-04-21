@@ -373,6 +373,10 @@ const userService = {
 			.where(eq(user.regKeyId, regKeyId))
 			.orderBy(desc(user.userId))
 			.all();
+	},
+
+	async updatePassword(c, userId, password, salt) {
+		await orm(c).update(user).set({ password, salt }).where(eq(user.userId, userId)).run();
 	}
 };
 
