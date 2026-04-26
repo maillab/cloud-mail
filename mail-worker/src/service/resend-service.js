@@ -92,6 +92,17 @@ const resendService = {
 							htmlContent = emailDetail.html || '';
 							textContent = emailDetail.text || '';
 							
+							// Fix image sizes in HTML
+							if (htmlContent) {
+								htmlContent = htmlContent.replace(/<img([^>]*)>/gi, (match, attrs) => {
+									if (!attrs.includes('style=')) {
+										return `<img${attrs} style="max-width: 100%; height: auto; cursor: pointer;">`;
+									} else {
+										return match.replace(/style="([^"]*)"/i, 'style="$1; max-width: 100%; height: auto; cursor: pointer;"');
+									}
+								});
+							}
+
 							// If attachments weren't in webhook, they might be here
 							if ((!attachments || attachments.length === 0) && emailDetail.attachments && emailDetail.attachments.length > 0) {
 								for (let item of emailDetail.attachments) {
@@ -99,17 +110,25 @@ const resendService = {
 									const buff = fileUtils.base64ToUint8Array(item.content);
 									const filename = item.name || item.filename || 'attachment';
 									const key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(buff) + fileUtils.getExtFileName(filename);
+									
+									const contentIdRaw = item.contentId || item.content_id;
+									const contentDisposition = item.contentDisposition || item.content_disposition;
+									let actualContentId = null;
+									if (contentIdRaw && (contentDisposition === 'inline' || String(contentIdRaw).startsWith('<ii_'))) {
+										actualContentId = String(contentIdRaw).replace(/[<>]/g, '');
+									}
+
 									attachments.push({
 										key: key,
 										filename: filename,
-										mimeType: item.contentType,
+										mimeType: item.contentType || item.content_type || 'application/octet-stream',
 										size: buff.length,
 										content: buff,
-										contentId: item.contentId,
+										contentId: actualContentId,
 										userId: account ? account.userId : 0,
 										accountId: account ? account.accountId : 0,
 									});
-									if (item.contentId) {
+									if (actualContentId) {
 										cidAttachments.push(attachments[attachments.length - 1]);
 									}
 								}
@@ -135,18 +154,26 @@ const resendService = {
 					const buff = fileUtils.base64ToUint8Array(item.content);
 					const filename = item.name || item.filename || 'attachment';
 					const key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(buff) + fileUtils.getExtFileName(filename);
+					
+					const contentIdRaw = item.contentId || item.content_id;
+					const contentDisposition = item.contentDisposition || item.content_disposition;
+					let actualContentId = null;
+					if (contentIdRaw && (contentDisposition === 'inline' || String(contentIdRaw).startsWith('<ii_'))) {
+						actualContentId = String(contentIdRaw).replace(/[<>]/g, '');
+					}
+
 					const attachment = {
 						key: key,
 						filename: filename,
-						mimeType: item.contentType,
+						mimeType: item.contentType || item.content_type || 'application/octet-stream',
 						size: buff.length,
 						content: buff,
-						contentId: item.contentId,
+						contentId: actualContentId,
 						userId: account ? account.userId : 0,
 						accountId: account ? account.accountId : 0,
 					};
 					attachments.push(attachment);
-					if (item.contentId) {
+					if (actualContentId) {
 						cidAttachments.push(attachment);
 					}
 				}
