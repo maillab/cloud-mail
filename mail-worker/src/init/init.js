@@ -1,6 +1,6 @@
 import settingService from '../service/setting-service';
 import emailUtils from '../utils/email-utils';
-import {emailConst} from "../const/entity-const";
+import { emailConst } from "../const/entity-const";
 
 const dbInit = {
 	async init(c) {
@@ -316,7 +316,7 @@ const dbInit = {
 
 	},
 
-	async v1_2DB(c){
+	async v1_2DB(c) {
 
 		const ADD_COLUMN_SQL_LIST = [
 			`ALTER TABLE email ADD COLUMN recipient TEXT NOT NULL DEFAULT '[]';`,
@@ -401,7 +401,7 @@ const dbInit = {
       )
     `).run();
 
-		const {permTotal} = await c.env.db.prepare(`SELECT COUNT(*) as permTotal FROM perm`).first();
+		const { permTotal } = await c.env.db.prepare(`SELECT COUNT(*) as permTotal FROM perm`).first();
 
 		if (permTotal === 0) {
 			await c.env.db.prepare(`
@@ -463,7 +463,7 @@ const dbInit = {
         INSERT INTO role (
           role_id, name, key, create_time, sort, description, user_id, is_default, send_count, send_type, account_count
         ) VALUES (
-          1, '普通用户', NULL, '0000-00-00 00:00:00', 0, '只有普通使用权限', 0, 1, NULL, 'ban', 10
+          1, 'Regular users', NULL, '0000-00-00 00:00:00', 0, 'Only normal usage permissions are available.', 0, 1, NULL, 'ban', 10
         )
       `).run();
 		}
@@ -477,7 +477,7 @@ const dbInit = {
       )
     `).run();
 
-		const {rolePermCount} = await c.env.db.prepare(`SELECT COUNT(*) as rolePermCount FROM role_perm`).first();
+		const { rolePermCount } = await c.env.db.prepare(`SELECT COUNT(*) as rolePermCount FROM role_perm`).first();
 		if (rolePermCount === 0) {
 			await c.env.db.prepare(`
         INSERT INTO role_perm (id, role_id, perm_id) VALUES
@@ -600,13 +600,13 @@ const dbInit = {
 		}
 
 		const queryList = []
-		const {results} = await c.env.db.prepare('SELECT receive_email,email_id FROM email').all();
+		const { results } = await c.env.db.prepare('SELECT receive_email,email_id FROM email').all();
 		results.forEach(emailRow => {
 			const recipient = {}
 			recipient.address = emailRow.receive_email
 			recipient.name = ''
 			const recipientStr = JSON.stringify([recipient]);
-			const sql = c.env.db.prepare('UPDATE email SET recipient = ? WHERE email_id = ?').bind(recipientStr,emailRow.email_id);
+			const sql = c.env.db.prepare('UPDATE email SET recipient = ? WHERE email_id = ?').bind(recipientStr, emailRow.email_id);
 			queryList.push(sql)
 		})
 
@@ -628,11 +628,11 @@ const dbInit = {
 
 		queryList.push(c.env.db.prepare(`ALTER TABLE account ADD COLUMN name TEXT NOT NULL DEFAULT ''`));
 
-		const {results} = await c.env.db.prepare(`SELECT account_id, email FROM account`).all();
+		const { results } = await c.env.db.prepare(`SELECT account_id, email FROM account`).all();
 
 		results.forEach(accountRow => {
 			const name = emailUtils.getName(accountRow.email);
-			const sql = c.env.db.prepare('UPDATE account SET name = ? WHERE account_id = ?').bind(name,accountRow.account_id);
+			const sql = c.env.db.prepare('UPDATE account SET name = ? WHERE account_id = ?').bind(name, accountRow.account_id);
 			queryList.push(sql)
 		})
 

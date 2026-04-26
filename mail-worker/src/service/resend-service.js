@@ -77,11 +77,13 @@ const resendService = {
 							// If attachments weren't in webhook, they might be here
 							if ((!attachments || attachments.length === 0) && emailDetail.attachments && emailDetail.attachments.length > 0) {
 								for (let item of emailDetail.attachments) {
+									if (!item.content) continue;
 									const buff = fileUtils.base64ToUint8Array(item.content);
-									const key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(buff) + fileUtils.getExtFileName(item.name);
+									const filename = item.name || item.filename || 'attachment';
+									const key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(buff) + fileUtils.getExtFileName(filename);
 									attachments.push({
 										key: key,
-										filename: item.name,
+										filename: filename,
 										mimeType: item.contentType,
 										size: buff.length,
 										content: buff,
@@ -109,11 +111,13 @@ const resendService = {
 			const payloadAttachments = data.attachments || body.attachments || [];
 			if (payloadAttachments.length > 0) {
 				for (let item of payloadAttachments) {
+					if (!item.content) continue;
 					const buff = fileUtils.base64ToUint8Array(item.content);
-					const key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(buff) + fileUtils.getExtFileName(item.name);
+					const filename = item.name || item.filename || 'attachment';
+					const key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(buff) + fileUtils.getExtFileName(filename);
 					const attachment = {
 						key: key,
-						filename: item.name,
+						filename: filename,
 						mimeType: item.contentType,
 						size: buff.length,
 						content: buff,
