@@ -22,7 +22,7 @@
 		"i18next": "^25.3.2",
 		"linkedom": "^0.18.10",
 		"postal-mime": "^2.4.3",
-		"@unosend/node": "^1.0.0",
+		"@unosend/node": "^3.0.0",
 		"resend": "^6.4.1",
 		"ua-parser-js": "^2.0.3",
 		"uuid": "^11.1.0"
