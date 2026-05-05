@@ -19,11 +19,11 @@
 
       <el-dropdown @command="handleLanguageSwitch" trigger="click">
         <div class="icon-item" style="font-size: 14px; font-weight: bold; outline: none;">
-          {{ locale === 'zh' ? '中' : 'En' }}
+          {{ locale === 'zh-cn' ? '中' : 'En' }}
         </div>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item command="zh">简体中文</el-dropdown-item>
+            <el-dropdown-item command="zh-cn">简体中文</el-dropdown-item>
             <el-dropdown-item command="en">English</el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -207,7 +207,6 @@ function handleLanguageSwitch(lang) {
   changeLang(lang); // 先执行原系统设置
   locale.value = lang; // 切换当前语言
   localStorage.setItem('cloud_mail_lang', lang); // 存入本地缓存，配合 index.js 读取
-  window.location.reload(); // 强制刷新生效
 }
 
 function openNotice() {
