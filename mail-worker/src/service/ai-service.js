@@ -1,12 +1,15 @@
 import emailUtils from '../utils/email-utils';
+import { settingConst } from '../const/entity-const';
+
+const codeKeywords = ['码', '令牌', 'code', 'token'];
 
 const aiService = {
-	async extractCode(c, email) {
-		const ai = c.env.AI || c.env.ai;
-
-		if (!ai) {
+	async extractCode(c, email, options = {}) {
+		if (!this.shouldExtractCode(options.aiCode, options.aiCodeFilter, email)) {
 			return '';
 		}
+
+		const ai = c.env.AI;
 
 		try {
 			const subject = email.subject || '';
@@ -48,6 +51,28 @@ const aiService = {
 			console.error('验证码提取失败: ', e);
 			return '';
 		}
+	},
+
+	shouldExtractCode(aiCode, aiCodeFilterStr, email) {
+		if (aiCode !== settingConst.aiCode.OPEN) {
+			return false;
+		}
+
+		const filterList = aiCodeFilterStr ? aiCodeFilterStr.split(',').map(item => item.trim().toLowerCase()).filter(Boolean) : [];
+
+		if (filterList.length > 0) {
+			const fromEmail = (email.from?.address || '').trim().toLowerCase();
+			const fromDomain = emailUtils.getDomain(fromEmail).toLowerCase();
+			return filterList.some(item => item === fromEmail || item === fromDomain);
+		}
+
+		const subject = email.subject || '';
+		const text = emailUtils.formatText(email.text || '');
+		const htmlText = emailUtils.htmlToText(email.html || '');
+		const content = `${subject}\n${htmlText || text}`;
+		const lowerContent = content.toLowerCase();
+
+		return codeKeywords.some(keyword => lowerContent.includes(keyword));
 	}
 };
 
