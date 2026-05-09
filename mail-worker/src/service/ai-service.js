@@ -22,7 +22,7 @@ const aiService = {
 				messages: [
 					{
 						role: 'system',
-						content: 'You extract verification codes from emails. Return only JSON like {"code":"123456"} or {"code":""}. The code must be 6 characters or fewer and must not contain spaces. If the code is longer than 6 characters or contains spaces, return {"code":""}. Do not explain.'
+						content: 'You extract verification codes from emails. Return only JSON like {"code":"12345678"} or {"code":""}. The code must be 8 characters or fewer and must not contain spaces. If the code is longer than 8 characters or contains spaces, return {"code":""}. Do not explain.'
 					},
 					{
 						role: 'user',
@@ -39,7 +39,7 @@ const aiService = {
 				return '';
 			}
 
-			if (json.code.length > 6 || /\s/.test(json.code)) {
+			if (json.code.length > 8 || /\s/.test(json.code)) {
 				return '';
 			}
 
