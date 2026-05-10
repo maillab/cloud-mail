@@ -7,6 +7,7 @@ import settingService from './setting-service';
 import accountService from './account-service';
 import BizError from '../error/biz-error';
 import emailUtils from '../utils/email-utils';
+import fileUtils from '../utils/file-utils';
 import { Resend } from 'resend';
 import attService from './att-service';
 import { parseHTML } from 'linkedom';
@@ -401,6 +402,8 @@ const emailService = {
 			};
 		}
 
+		console.log(sendForm)
+
 		const result = await c.env.EMAIL.send(sendForm);
 
 		return {
@@ -453,6 +456,10 @@ const emailService = {
 
 			if (typeof content === 'string' && content.startsWith('data:')) {
 				content = content.split(',')[1] || content;
+			}
+
+			if (typeof content === 'string') {
+				content = fileUtils.base64ToUint8Array(content.replace(/\s+/g, '')).buffer;
 			}
 
 			const item = {
