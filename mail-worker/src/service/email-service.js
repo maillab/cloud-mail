@@ -549,18 +549,8 @@ const emailService = {
 
 		const { noRecipient  } = await settingService.query(c);
 
-		//兼容数据库中文和 punycode 两种邮箱格式
-		const searchEmails = [];
-		for (const email of receiveEmail) {
-			searchEmails.push(email);
-			const unicodeEmail = emailUtils.fromPunycodeEmail(email);
-			if (unicodeEmail !== email) {
-				searchEmails.push(unicodeEmail);
-			}
-		}
-
 		//查询所有收件人账号信息
-		let accountList = await orm(c).select().from(account).where(inArray(account.email, searchEmails)).all();
+		let accountList = await orm(c).select().from(account).where(inArray(account.email, receiveEmail)).all();
 
 		//查询所有收件人权限身份
 		const userIds = accountList.map(accountRow => accountRow.userId);
@@ -579,8 +569,7 @@ const emailService = {
 			emailValues.toName = emailUtils.getName(email);
 			emailValues.emailId = null;
 
-			const accountRow = accountList.find(accountRow =>
-				accountRow.email === email || emailUtils.toPunycodeEmail(accountRow.email) === email);
+			const accountRow = accountList.find(accountRow => accountRow.email === email);
 
 			//如果收件人存在就把邮件信息改成收件人的
 			if (accountRow) {

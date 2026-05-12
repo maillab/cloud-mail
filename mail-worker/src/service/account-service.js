@@ -103,14 +103,7 @@ const accountService = {
 
 	selectByEmailIncludeDel(c, email) {
 		const punycodeEmail = emailUtils.toPunycodeEmail(email);
-		let result = orm(c).select().from(account).where(sql`${account.email} COLLATE NOCASE = ${punycodeEmail}`).get();
-		if (!result) {
-			const unicodeEmail = emailUtils.fromPunycodeEmail(email);
-			if (unicodeEmail !== punycodeEmail) {
-				result = orm(c).select().from(account).where(sql`${account.email} COLLATE NOCASE = ${unicodeEmail}`).get();
-			}
-		}
-		return result;
+		return orm(c).select().from(account).where(sql`${account.email} COLLATE NOCASE = ${punycodeEmail}`).get();
 	},
 
 	list(c, params, userId) {
