@@ -163,8 +163,8 @@ const roleService = {
 		}
 
 		const availIndex = availDomain.findIndex(item => {
-			const domain = emailUtils.getDomain(email.toLowerCase());
-			const availDomainItem = item.toLowerCase();
+			const domain = emailUtils.getPunycodeDomain(email.toLowerCase());
+			const availDomainItem = emailUtils.toPunycode(item.toLowerCase());
 			return domain === availDomainItem
 		})
 
@@ -197,8 +197,8 @@ const roleService = {
 
 			if (verifyUtils.isDomain(item)) {
 
-				const banDomain = item.toLowerCase();
-				const receiveDomain = emailUtils.getDomain(fromEmail.toLowerCase());
+				const banDomain = emailUtils.toPunycode(item.toLowerCase());
+				const receiveDomain = emailUtils.getPunycodeDomain(fromEmail.toLowerCase());
 
 				if (banDomain === receiveDomain) {
 					return true;

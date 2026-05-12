@@ -306,7 +306,7 @@ const userService = {
 
 		const { email, type, password } = params;
 
-		if (!c.env.domain.includes(emailUtils.getDomain(email))) {
+		if (!c.env.domain.includes(emailUtils.getPunycodeDomain(email))) {
 			throw new BizError(t('notEmailDomain'));
 		}
 

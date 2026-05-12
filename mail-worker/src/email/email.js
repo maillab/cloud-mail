@@ -204,7 +204,7 @@ function checkBlock(blackSubjectStr, blackContentStr, blackFromStr, email) {
 	}
 
 	for (const blackFrom of blackFromList) {
-		if (email.from.address === blackFrom || emailUtils.getDomain(email.from.address) === blackFrom) {
+		if (email.from.address === blackFrom || emailUtils.getPunycodeDomain(email.from.address) === emailUtils.toPunycode(blackFrom)) {
 			return true
 		}
 	}

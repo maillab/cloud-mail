@@ -178,8 +178,8 @@ const emailService = {
 
 		//判断接收方是不是全部为站内邮箱
 		const allInternal = receiveEmail.every(email => {
-			const domain = '@' + emailUtils.getDomain(email);
-			return domainList.includes(domain);
+			const domain = '@' + emailUtils.getPunycodeDomain(email);
+			return domainList.some(d => emailUtils.toPunycode(d.slice(1)) === domain);
 		});
 
 		if (c.env.admin !== userRow.email) {
@@ -229,7 +229,7 @@ const emailService = {
 
 		}
 
-		const domain = emailUtils.getDomain(accountRow.email);
+		const domain = emailUtils.getPunycodeDomain(accountRow.email);
 		const resendToken = resendTokens[domain];
 		const useCloudflareEmail = !!c.env.email;
 
@@ -377,8 +377,8 @@ const emailService = {
 
 	async sendByCloudflareEmail(c, params) {
 		const sendForm = {
-			from: { email: params.accountEmail, name: params.name },
-			to: [...params.receiveEmail],
+			from: { email: emailUtils.toPunycodeEmail(params.accountEmail), name: params.name },
+			to: params.receiveEmail.map(e => emailUtils.toPunycodeEmail(e)),
 			subject: params.subject
 		};
 
@@ -417,8 +417,8 @@ const emailService = {
 		const resend = new Resend(resendToken);
 
 		const sendForm = {
-			from: `${params.name} <${params.accountEmail}>`,
-			to: [...params.receiveEmail],
+			from: `${params.name} <${emailUtils.toPunycodeEmail(params.accountEmail)}>`,
+			to: params.receiveEmail.map(e => emailUtils.toPunycodeEmail(e)),
 			subject: params.subject,
 			text: params.text,
 			html: params.html,

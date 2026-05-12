@@ -42,6 +42,27 @@ const emailUtils = {
 			console.error(e)
 			return ''
 		}
+	},
+
+	toPunycode(domain) {
+		if (typeof domain !== 'string') return '';
+		try {
+			return new URL('http://' + domain).hostname;
+		} catch {
+			return domain;
+		}
+	},
+
+	getPunycodeDomain(email) {
+		const domain = this.getDomain(email);
+		return this.toPunycode(domain);
+	},
+
+	toPunycodeEmail(email) {
+		if (typeof email !== 'string') return '';
+		const parts = email.split('@');
+		if (parts.length !== 2) return email;
+		return parts[0] + '@' + this.toPunycode(parts[1]);
 	}
 };
 

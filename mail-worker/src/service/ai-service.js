@@ -63,9 +63,12 @@ const aiService = {
 		}
 
 		const fromEmail = (email.from?.address || '').trim().toLowerCase();
-		const fromDomain = emailUtils.getDomain(fromEmail).toLowerCase();
+		const fromDomain = emailUtils.getPunycodeDomain(fromEmail).toLowerCase();
 
-		return filterList.some(item => item === fromEmail || item === fromDomain);
+		return filterList.some(item => {
+			const itemLower = item.toLowerCase();
+			return itemLower === fromEmail || emailUtils.toPunycode(itemLower) === fromDomain;
+		});
 	}
 };
 
