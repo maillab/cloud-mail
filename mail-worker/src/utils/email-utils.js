@@ -1,5 +1,58 @@
 import { parseHTML } from 'linkedom';
-import { domainToUnicode } from 'node:url';
+
+function decodePunycodeLabel(encoded) {
+	const base = 36, tmin = 1, tmax = 26, skew = 38, damp = 700, initialBias = 72, initialN = 128;
+
+	function decodeDigit(cp) {
+		const n = cp.charCodeAt(0);
+		if (n >= 0x41 && n <= 0x5A) return n - 0x41;
+		if (n >= 0x61 && n <= 0x7A) return n - 0x61;
+		if (n >= 0x30 && n <= 0x39) return n - 0x30 + 26;
+		throw new Error('Invalid punycode digit');
+	}
+
+	function adapt(delta, numPoints, firstTime) {
+		delta = firstTime ? Math.floor(delta / damp) : Math.floor(delta / 2);
+		delta += Math.floor(delta / numPoints);
+		let k = 0;
+		while (delta > Math.floor(((base - tmin) * tmax) / 2)) {
+			delta = Math.floor(delta / (base - tmin));
+			k += base;
+		}
+		return k + Math.floor((((base - tmin + 1) * delta) / (delta + skew)));
+	}
+
+	const delimIndex = encoded.lastIndexOf('-');
+	let output = [];
+	if (delimIndex >= 0) {
+		output = encoded.slice(0, delimIndex).split('').map(c => c.charCodeAt(0));
+		encoded = encoded.slice(delimIndex + 1);
+	}
+
+	let i = 0, n = initialN, bias = initialBias;
+
+	while (encoded.length > 0) {
+		const prevI = i;
+		let w = 1;
+		for (let k = base; ; k += base) {
+			const digit = decodeDigit(encoded[0]);
+			encoded = encoded.slice(1);
+			i += digit * w;
+			const t = k <= bias ? tmin : k >= bias + tmax ? tmax : k - bias;
+			if (digit < t) break;
+			w *= base - t;
+		}
+
+		const outLen = output.length + 1;
+		bias = adapt(i - prevI, outLen, prevI === 0);
+		n += Math.floor(i / outLen);
+		i %= outLen;
+		output.splice(i, 0, n);
+		i++;
+	}
+
+	return String.fromCharCode(...output);
+}
 
 const emailUtils = {
 
@@ -70,7 +123,13 @@ const emailUtils = {
 		if (typeof domain !== 'string') return '';
 		if (!domain.includes('xn--')) return domain;
 		try {
-			return domainToUnicode(domain);
+			const parts = domain.split('.');
+			return parts.map(part => {
+				if (part.startsWith('xn--')) {
+					return decodePunycodeLabel(part.slice(4));
+				}
+				return part;
+			}).join('.');
 		} catch {
 			return domain;
 		}
