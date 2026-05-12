@@ -1,5 +1,5 @@
 export function isEmail(email) {
-    const reg = /^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~.-]+@([a-zA-Z0-9\p{L}\p{N}-]+\.)+[a-zA-Z\p{L}]{2,}$/u;
+    const reg = /^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~\p{L}\p{N}.-]+@([a-zA-Z0-9\p{L}\p{N}-]+\.)+[a-zA-Z\p{L}]{2,}$/u;
     return reg.test(email);
 }
 
