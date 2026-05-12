@@ -237,16 +237,27 @@ const loginOpacity = computed(() => {
   return uiStore.dark ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`
 })
 
+const loginDarkenFactor = computed(() => {
+  const factor = Number(settingStore.settings.loginDarkenFactor ?? 0)
+  if (Number.isNaN(factor)) return 0
+  return Math.min(1, Math.max(0, factor))
+})
+
 const hideLoginDomain = computed(() => settingStore.settings.loginDomain === 1)
 
 const background = computed(() => {
-
-  return settingStore.settings.background ? {
-    'background-image': `url(${cvtR2Url(settingStore.settings.background)})`,
-    'background-repeat': 'no-repeat',
-    'background-size': 'cover',
-    'background-position': 'center'
-  } : ''
+  const bg = settingStore.settings.background
+  if (!bg) return ''
+  const bgUrl = cvtR2Url(bg)
+  return {
+    'background-image': `
+      linear-gradient(rgba(0, 0, 0, ${loginDarkenFactor.value}), rgba(0, 0, 0, ${loginDarkenFactor.value})),
+      url(${bgUrl})
+    `,
+    'background-repeat': 'no-repeat, no-repeat',
+    'background-size': 'cover, cover',
+    'background-position': 'center, center'
+  }
 })
 
 const openSelect = () => {

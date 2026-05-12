@@ -143,6 +143,7 @@ const zh = {
     websiteTitle: '网站标题',
     loginBoxOpacity: '登录透明',
     loginBackground: '登录背景',
+    backgroundDarken: '背景压暗',
     emailSetting: '邮件设置',
     receiveEmail: '邮件接收',
     autoRefresh: '自动刷新',

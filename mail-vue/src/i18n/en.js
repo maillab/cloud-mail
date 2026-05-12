@@ -143,6 +143,7 @@ const en = {
     websiteTitle: 'Title',
     loginBoxOpacity: 'Login Box Opacity',
     loginBackground: 'Background',
+    backgroundDarken: 'Background Dim',
     emailSetting: 'Email',
     receiveEmail: 'Receive Email',
     autoRefresh: 'Auto Refresh',
