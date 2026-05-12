@@ -67,11 +67,22 @@ const userService = {
 
 	selectByEmail(c, email) {
 		const punycodeEmail = emailUtils.toPunycodeEmail(email);
-		return orm(c).select().from(user).where(
+		let result = orm(c).select().from(user).where(
 			and(
 				eq(user.email, punycodeEmail),
 				eq(user.isDel, isDel.NORMAL)))
 			.get();
+		if (!result) {
+			const unicodeEmail = emailUtils.fromPunycodeEmail(email);
+			if (unicodeEmail !== punycodeEmail) {
+				result = orm(c).select().from(user).where(
+					and(
+						eq(user.email, unicodeEmail),
+						eq(user.isDel, isDel.NORMAL)))
+					.get();
+			}
+		}
+		return result;
 	},
 
 	async insert(c, params) {
@@ -81,7 +92,14 @@ const userService = {
 
 	selectByEmailIncludeDel(c, email) {
 		const punycodeEmail = emailUtils.toPunycodeEmail(email);
-		return orm(c).select().from(user).where(sql`${user.email} COLLATE NOCASE = ${punycodeEmail}`).get();
+		let result = orm(c).select().from(user).where(sql`${user.email} COLLATE NOCASE = ${punycodeEmail}`).get();
+		if (!result) {
+			const unicodeEmail = emailUtils.fromPunycodeEmail(email);
+			if (unicodeEmail !== punycodeEmail) {
+				result = orm(c).select().from(user).where(sql`${user.email} COLLATE NOCASE = ${unicodeEmail}`).get();
+			}
+		}
+		return result;
 	},
 
 	selectByIdIncludeDel(c, userId) {
