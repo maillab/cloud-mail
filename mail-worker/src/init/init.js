@@ -597,9 +597,7 @@ const dbInit = {
 			title TEXT NOT NULL,
 			auto_refresh INTEGER NOT NULL,
 			register_verify INTEGER NOT NULL,
-			add_email_verify INTEGER NOT NULL,
-			ai_code INTEGER NOT NULL DEFAULT 1,
-			ai_code_filter TEXT NOT NULL DEFAULT ''
+			add_email_verify INTEGER NOT NULL
 		  )
 		`).run();
 
