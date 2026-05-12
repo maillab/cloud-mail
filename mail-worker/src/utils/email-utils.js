@@ -139,7 +139,7 @@ const emailUtils = {
 		if (typeof email !== 'string') return '';
 		const parts = email.split('@');
 		if (parts.length !== 2) return email;
-		return parts[0] + '@' + this.fromPunycode(parts[1]);
+		return this.fromPunycode(parts[0]) + '@' + this.fromPunycode(parts[1]);
 	},
 
 	convertEmailsToUnicode(data) {
