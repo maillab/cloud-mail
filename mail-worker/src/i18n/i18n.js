@@ -17,10 +17,10 @@ const resources = {
 		translation: en
 	},
 	zh: {
-		translation: zh,
+		translation: zh
 	},
 	ja: {
-		translation: ja,
+		translation: ja
 	},
 
 };
