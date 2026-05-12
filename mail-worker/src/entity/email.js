@@ -7,6 +7,7 @@ export const email = sqliteTable('email', {
 	accountId: integer('account_id').notNull(),
 	userId: integer('user_id').notNull(),
 	subject: text('subject'),
+	code: text('code').default('').notNull(),
 	text: text('text'),
 	content: text('content'),
 	cc: text('cc').default('[]'),

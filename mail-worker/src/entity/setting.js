@@ -49,6 +49,8 @@ export const setting = sqliteTable('setting', {
 	emailPrefixFilter: text('email_prefix_filter').default('').notNull(),
 	blackSubject: text('black_subject').default('').notNull(),
 	blackContent: text('black_content').default('').notNull(),
-	blackFrom: text('black_from').default('').notNull()
+	blackFrom: text('black_from').default('').notNull(),
+	aiCode: integer('ai_code').default(1).notNull(),
+	aiCodeFilter: text('ai_code_filter').default('').notNull()
 });
 export default setting

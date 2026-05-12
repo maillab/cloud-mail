@@ -128,6 +128,10 @@ export const settingConst = {
 		OPEN: 0,
 		CLOSE: 1
 	},
+	aiCode: {
+		OPEN: 0,
+		CLOSE: 1
+	},
 	authRefresh: {
 		OPEN: 1,
 		CLOSE: 0

@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectsCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import settingService from './setting-service';
 import domainUtils from '../utils/domain-uitls';
 import { settingConst } from '../const/entity-const';
@@ -73,6 +73,23 @@ const s3Service = {
 				}
 			})
 		);
+	},
+
+	async getObj(c, key) {
+		const client = await this.client(c);
+		const { bucket } = await settingService.query(c);
+		const result = await client.send(new GetObjectCommand({
+			Bucket: bucket,
+			Key: key
+		}));
+
+		return new Response(result.Body, {
+			headers: {
+				'Content-Type': result.ContentType || 'application/octet-stream',
+				'Content-Disposition': result.ContentDisposition || null,
+				'Cache-Control': result.CacheControl || null
+			}
+		});
 	},
 
 

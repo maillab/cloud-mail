@@ -17,9 +17,11 @@ const kvObjService = {
 		await Promise.all(keys.map( key => c.env.kv.delete(key)));
 	},
 
-	async toObjResp(c, key) {
-
+	async getObj(c, key) {
 		const obj = await c.env.kv.getWithMetadata(key, { type: "arrayBuffer"});
+		if (!obj.value) {
+			return null;
+		}
 
 		return new Response(obj.value, {
 			headers: {
@@ -28,6 +30,11 @@ const kvObjService = {
 				'Cache-Control': obj.metadata?.cacheControl || null
 			}
 		});
+	},
+
+	async toObjResp(c, key) {
+
+		return await this.getObj(c, key);
 
 	}
 

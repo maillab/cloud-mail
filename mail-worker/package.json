@@ -11,7 +11,7 @@
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.7.5",
 		"vitest": "~3.0.7",
-		"wrangler": "^4.7.0"
+		"wrangler": "^4.90.0"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.882.0",

@@ -25,10 +25,14 @@ jobs:
       KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID || vars.KV_NAMESPACE_ID }}
       R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME || vars.R2_BUCKET_NAME }}
       PROJECT_LINK: ${{ secrets.PROJECT_LINK || vars.PROJECT_LINK }}
+      AI_MODEL: ${{ secrets.AI_MODEL || vars.AI_MODEL || '@cf/meta/llama-3.1-8b-instruct' }}
+      CF_EMAIL: ${{ secrets.CF_EMAIL || vars.CF_EMAIL || false }}
+      ANALYSIS_CACHE: ${{ secrets.ANALYSIS_CACHE || vars.ANALYSIS_CACHE || false }}
       LINUXDO_CLIENT_ID: ${{ secrets.LINUXDO_CLIENT_ID || vars.LINUXDO_CLIENT_ID }}
       LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET || vars.LINUXDO_CLIENT_SECRET }}
       LINUXDO_CALLBACK_URL: ${{ secrets.LINUXDO_CALLBACK_URL || vars.LINUXDO_CALLBACK_URL }}
       LINUXDO_SWITCH: ${{ secrets.LINUXDO_SWITCH || vars.LINUXDO_SWITCH }}
+
 
     outputs:
       worker_url: ${{ steps.deploy.outputs.worker_url }}
@@ -46,7 +50,7 @@ jobs:
       - name: ⚙ 设置 Node.js / Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "pnpm"
           cache-dependency-path: "./mail-worker/pnpm-lock.yaml"
 
@@ -110,6 +114,14 @@ jobs:
           if [ -z "$CUSTOM_DOMAIN" ]; then
             sed -i '/\[\[routes\]\]/,/^$/d' "$CONFIG_FILE"
           fi
+          
+          if [ "$(printf '%s' "$CF_EMAIL" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
+            cat >> "$CONFIG_FILE" <<'EOF'
+
+          [[send_email]]
+          name = "email"
+          EOF
+          fi
 
           sed -i "s|\${NAME}|${NAME}|g" "$CONFIG_FILE"
           sed -i "s|\${CUSTOM_DOMAIN}|${CUSTOM_DOMAIN}|g" "$CONFIG_FILE"
@@ -118,6 +130,8 @@ jobs:
           sed -i "s|\${JWT_SECRET}|${JWT_SECRET}|g" "$CONFIG_FILE"
           sed -i "s|\${R2_BUCKET_NAME}|${R2_BUCKET_NAME}|g" "$CONFIG_FILE"
           sed -i "s|\${PROJECT_LINK}|${PROJECT_LINK}|g" "$CONFIG_FILE"
+          sed -i "s|\${ANALYSIS_CACHE}|${ANALYSIS_CACHE}|g" "$CONFIG_FILE"
+          sed -i "s|\${AI_MODEL}|${AI_MODEL}|g" "$CONFIG_FILE"
           sed -i "s|\${LINUXDO_CLIENT_ID}|${LINUXDO_CLIENT_ID}|g" "$CONFIG_FILE"
           sed -i "s|\${LINUXDO_CLIENT_SECRET}|${LINUXDO_CLIENT_SECRET}|g" "$CONFIG_FILE"
           sed -i "s|\${LINUXDO_CALLBACK_URL}|${LINUXDO_CALLBACK_URL}|g" "$CONFIG_FILE"

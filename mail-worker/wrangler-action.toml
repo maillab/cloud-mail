@@ -11,32 +11,37 @@ custom_domain = true
 
 [[d1_databases]]
 binding = "db"
-database_name = "cloud-mail" # 数据库的名称
-database_id = "${D1_DATABASE_ID}" # 使用占位符引用环境变量
+database_name = "cloud-mail"
+database_id = "${D1_DATABASE_ID}"
 
 [[kv_namespaces]]
 binding = "kv"
-id = "${KV_NAMESPACE_ID}" # 使用占位符引用环境变量
+id = "${KV_NAMESPACE_ID}"
 
 [[r2_buckets]]
 binding = "r2"
-bucket_name = "${R2_BUCKET_NAME}" # 使用占位符引用环境变量
+bucket_name = "${R2_BUCKET_NAME}"
+
+[ai]
+binding = "ai"
 
 [assets]
-binding = "assets"		#静态资源绑定名默认不可修改
-directory = "./dist"	#前端vue项目打包的静态资源存放位置,默认dist
+binding = "assets"
+directory = "./dist"
 not_found_handling = "single-page-application"
 run_worker_first = true
 
 [triggers]
-crons = ["0 16 * * *"]	#定时任务每天晚上12点执行
+crons = ["*/30 * * * *", "0 16 * * *"]
 
 
 [vars]
+ai_model = "${AI_MODEL}"
+analysis_cache = "${ANALYSIS_CACHE}"
 #orm_log = false
-domain = "${DOMAIN}"				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
-admin = "${ADMIN}"				#管理员的邮箱	示例: admin@example.com
-jwt_secret = "${JWT_SECRET}"			#jwt令牌的密钥,随便填一串字符串
+domain = "${DOMAIN}"
+admin = "${ADMIN}"
+jwt_secret = "${JWT_SECRET}"
 project_link = "${PROJECT_LINK}"
 
 linuxdo_client_id = "${LINUXDO_CLIENT_ID}"

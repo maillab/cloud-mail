@@ -23,8 +23,8 @@
         </a>
     </p>
     <p align="center">
-        <a href="https://trendshift.io/repositories/14418" target="_blank" >
-            <img src="https://trendshift.io/api/badge/repositories/14418" alt="trendshift" >
+        <a href="https://trendshift.io/repositories/20459" target="_blank" >
+            <img src="https://trendshift.io/api/badge/repositories/20459" alt="trendshift" >
         </a>
     </p>
 </p>
@@ -61,6 +61,8 @@
 - **🔔 邮件推送**：接收邮件后可以转发到TG机器人或其他服务商邮箱
 
 - **📡 开放API**：支持使用API批量生成用户，多条件查询邮件 
+
+- **🔢 验证码识别**：使用Workers AI，自动识别邮件验证码 
 
 - **📈 数据可视化**：使用ECharts对系统数据详情，用户邮件增长可视化显示
 

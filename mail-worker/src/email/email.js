@@ -10,6 +10,7 @@ import emailUtils from '../utils/email-utils';
 import roleService from '../service/role-service';
 import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
+import aiService from '../service/ai-service';
 
 export async function email(message, env, ctx) {
 
@@ -27,7 +28,9 @@ export async function email(message, env, ctx) {
 			noRecipient,
 			blackSubject,
 			blackContent,
-			blackFrom
+			blackFrom,
+			aiCode,
+			aiCodeFilter
 		} = await settingService.query({ env });
 
 		if (receive === settingConst.receive.CLOSE) {
@@ -89,6 +92,7 @@ export async function email(message, env, ctx) {
 		}
 
 		const toName = email.to.find(item => item.address === message.to)?.name || '';
+		const code = await aiService.extractCode({ env }, email, { aiCode, aiCodeFilter });
 
 		const params = {
 			toEmail: message.to,
@@ -96,6 +100,7 @@ export async function email(message, env, ctx) {
 			sendEmail: email.from.address,
 			name: email.from.name || emailUtils.getName(email.from.address),
 			subject: email.subject,
+			code,
 			content: email.html,
 			text: email.text,
 			cc: email.cc ? JSON.stringify(email.cc) : '[]',

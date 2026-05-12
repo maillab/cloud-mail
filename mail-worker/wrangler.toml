@@ -19,6 +19,12 @@ enabled = true
 #binding = "r2"			#r2对象存储绑定名默认不可修改
 #bucket_name = ""		#r2对象存储桶的名字
 
+#[[send_email]]
+#name = "email"			#CF发件, 配置后优先使用
+
+[ai]
+binding = "ai"
+
 [assets]
 binding = "assets"		#静态资源绑定名默认不可修改
 directory = "./dist"	#前端vue项目打包的静态资源存放位置,默认dist
@@ -26,11 +32,13 @@ not_found_handling = "single-page-application"
 run_worker_first = true
 
 [triggers]
-crons = ["0 16 * * *"]	#定时任务每天晚上12点执行
+crons = ["*/30 * * * *", "0 16 * * *"]	#每30分钟刷新分析缓存，每天晚上12点执行每日任务
 
 
-#[vars]
-#orm_log = false
+[vars]
+#ai_model = ""			#ai模型,不填默认使用@cf/meta/llama-3.1-8b-instruct
+#analysis_cache = false			#是否开启分析数据缓存
+#orm_log = false			#是否sql日志
 #domain = []				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
 #admin = ""				#管理员的邮箱	示例: admin@example.com
 #jwt_secret = ""			#jwt令牌的密钥,随便填一串字符串

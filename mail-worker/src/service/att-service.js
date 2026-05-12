@@ -91,13 +91,10 @@ const attService = {
 
 				if (src.startsWith(domainUtils.toOssDomain(r2Domain))) {
 					attData.key = src.replace(domainUtils.toOssDomain(r2Domain) + '/','');
-					attData.path = src;
 				}
 
 				if (src.startsWith('attachments/')) {
-					const origin = new URL(c.req.url).origin;
 					attData.key = src;
-					attData.path = origin + '/' + src;
 				}
 
 				attData.contentId = cid;
@@ -117,22 +114,34 @@ const attService = {
 		}
 
 		//查询已有内嵌url图片信息
-		const keys = [...new Set(imageDataList.filter(item => item.path).map(item => item.key))];
+		const keys = [...new Set(imageDataList.filter(item => !item.content).map(item => item.key))];
 		const dbImageList  = await this.selectOneByKeys(c, keys);
 
 		//设置给当前附件
-		imageDataList.forEach(image => {
-			dbImageList.forEach(dbImage => {
-				if (image.path && (image.key === dbImage.key)) {
-					image.size = dbImage.size;
-					image.filename = dbImage.filename;
-					image.mimeType = dbImage.mimeType;
-					image.contentType = dbImage.mimeType;
-				}
-			})
-		})
+		await Promise.all(imageDataList.map(async image => {
+			if (image.content) {
+				return;
+			}
 
-		imageDataList = imageDataList.filter(image => !image.path || image.size);
+			const dbImage = dbImageList.find(dbImage => image.key === dbImage.key);
+			if (!dbImage) {
+				return;
+			}
+
+			image.size = dbImage.size;
+			image.filename = dbImage.filename;
+			image.mimeType = dbImage.mimeType;
+			image.contentType = dbImage.mimeType;
+
+			const obj = await r2Service.getObj(c, image.key);
+			if (!obj) {
+				return;
+			}
+
+			image.content = obj instanceof ArrayBuffer ? obj : await obj.arrayBuffer();
+		}))
+
+		imageDataList = imageDataList.filter(image => image.content);
 
 		return { imageDataList, html: document.toString() };
 	},

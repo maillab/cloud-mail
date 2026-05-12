@@ -23,8 +23,8 @@
         </a>
     </p>
     <p align="center">
-        <a href="https://trendshift.io/repositories/14418" target="_blank" >
-            <img src="https://trendshift.io/api/badge/repositories/14418" alt="trendshift" >
+        <a href="https://trendshift.io/repositories/20459" target="_blank" >
+            <img src="https://trendshift.io/api/badge/repositories/20459" alt="trendshift" >
         </a>
     </p>
 </p>
@@ -56,6 +56,8 @@ With only one domain, you can create multiple different email addresses, similar
 - **🔔 Email Push**: Forward received emails to Telegram bots or other email providers.
 
 - **📡 Open API**: Supports batch user creation via API and multi-condition email queries
+
+- **🔢 Verification Code Recognition**: Auto-detect codes via Workers AI
 
 - **📈 Data Visualization**: Use ECharts to visualize system data, including user email growth.
 
@@ -131,7 +133,7 @@ cloud-mail
 
 ```
 
-## Support
+## Sponsor
 
 <a href="https://doc.skymail.ink/support.html">
 <img width="170px" src="./doc/images/support.png" alt="">
