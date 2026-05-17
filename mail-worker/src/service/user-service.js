@@ -370,11 +370,6 @@ const userService = {
 	},
 
 	async uploadAvatar(c, userId) {
-		const storageType = await r2Service.storageType(c);
-		if (storageType === 'KV') {
-			throw new BizError(t('noOsUpAvatar'));
-		}
-
 		const formData = await c.req.formData();
 		const file = formData.get('file');
 
