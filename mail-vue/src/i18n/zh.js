@@ -337,6 +337,15 @@ const zh = {
     searchUser: '搜索用户',
     searchEmail: '搜索邮箱',
     searchSender: '搜索发件人',
-    userEmail: '用户邮箱'
+    userEmail: '用户邮箱',
+    avatar: '头像',
+    uploadAvatar: '上传',
+    deleteAvatar: '删除',
+    avatarDesc: '支持 JPG、PNG、GIF、WebP（最大 5MB）',
+    deleteAvatarConfirm: '确认删除头像？',
+    avatarTypeError: '只支持图片文件',
+    avatarTooLarge: '图片大小不能超过5MB',
+    avatarUploadSuccess: '头像更新成功',
+    avatarDeleteSuccess: '头像已删除'
 }
 export default zh

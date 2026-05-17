@@ -22,14 +22,16 @@
       <el-dropdown ref="userinfoRef" @visible-change="e => userInfoShow = e" :teleported="false" popper-class="detail-dropdown">
         <div class="avatar" @click="userInfoHide" >
           <div class="avatar-text">
-            <div>{{ formatName(userStore.user.email) }}</div>
+            <img v-if="userStore.user.avatar" :src="userStore.user.avatar" class="avatar-img" alt="avatar"/>
+            <div v-else>{{ formatName(userStore.user.email) }}</div>
           </div>
           <Icon class="setting-icon" icon="mingcute:down-small-fill" width="24" height="24"/>
         </div>
         <template #dropdown>
           <div class="user-details">
             <div class="details-avatar">
-              {{ formatName(userStore.user.email) }}
+              <img v-if="userStore.user.avatar" :src="userStore.user.avatar" class="details-avatar-img" alt="avatar"/>
+              <span v-else>{{ formatName(userStore.user.email) }}</span>
             </div>
             <div class="user-name">
               {{ userStore.user.name }}
@@ -351,6 +353,13 @@ function formatName(email) {
     align-items: center;
     justify-content: center;
     border-radius: 10px;
+    overflow: hidden;
+
+    .details-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
   }
 }
 
@@ -461,6 +470,13 @@ function formatName(email) {
       align-items: center;
       border-radius: 8px;
       border: 1px solid var(--dark-border);
+      overflow: hidden;
+
+      .avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
     }
 
     .setting-icon {

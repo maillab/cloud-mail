@@ -2,6 +2,23 @@
   <div class="box">
     <div class="container">
       <div class="title">{{$t('profile')}}</div>
+      <div class="avatar-row">
+        <div class="avatar-preview" @click="triggerFileInput">
+          <img v-if="userStore.user.avatar" :src="userStore.user.avatar" class="avatar-img" alt="avatar"/>
+          <div v-else class="avatar-placeholder">{{ formatInitial(userStore.user.email) }}</div>
+          <div class="avatar-overlay">
+            <span>{{ $t('uploadAvatar') }}</span>
+          </div>
+        </div>
+        <div class="avatar-actions">
+          <div class="avatar-desc">{{ $t('avatarDesc') }}</div>
+          <div class="avatar-btns">
+            <el-button size="small" type="primary" :loading="avatarLoading" @click="triggerFileInput">{{ $t('uploadAvatar') }}</el-button>
+            <el-button size="small" v-if="userStore.user.avatar" :loading="avatarDelLoading" @click="confirmDeleteAvatar">{{ $t('deleteAvatar') }}</el-button>
+          </div>
+          <input ref="fileInputRef" type="file" accept="image/*" style="display:none" @change="onFileChange"/>
+        </div>
+      </div>
       <div class="item">
         <div>{{$t('username')}}</div>
         <div>
@@ -62,7 +79,7 @@
 </template>
 <script setup>
 import {reactive, ref, defineOptions} from 'vue'
-import {resetPassword, userDelete} from "@/request/my.js";
+import {resetPassword, userDelete, uploadAvatar, deleteAvatar} from "@/request/my.js";
 import {useUserStore} from "@/store/user.js";
 import router from "@/router/index.js";
 import {accountSetName} from "@/request/account.js";
@@ -78,6 +95,57 @@ const setPwdLoading = ref(false)
 const setNameShow = ref(false)
 const accountName = ref(null)
 const langSelect = ref(settingStore.lang)
+const avatarLoading = ref(false)
+const avatarDelLoading = ref(false)
+const fileInputRef = ref(null)
+
+function formatInitial(email) {
+  return email?.[0]?.toUpperCase() || ''
+}
+
+function triggerFileInput() {
+  fileInputRef.value?.click()
+}
+
+async function onFileChange(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    ElMessage({ message: t('avatarTypeError'), type: 'error', plain: true })
+    return
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage({ message: t('avatarTooLarge'), type: 'error', plain: true })
+    return
+  }
+
+  avatarLoading.value = true
+  uploadAvatar(file).then(() => {
+    userStore.refreshUserInfo()
+    ElMessage({ message: t('avatarUploadSuccess'), type: 'success', plain: true })
+  }).finally(() => {
+    avatarLoading.value = false
+    e.target.value = ''
+  })
+}
+
+function confirmDeleteAvatar() {
+  ElMessageBox.confirm(t('deleteAvatarConfirm'), {
+    confirmButtonText: t('confirm'),
+    cancelButtonText: t('cancel'),
+    type: 'warning'
+  }).then(() => {
+    avatarDelLoading.value = true
+    deleteAvatar().then(() => {
+      userStore.refreshUserInfo()
+      ElMessage({ message: t('avatarDeleteSuccess'), type: 'success', plain: true })
+    }).finally(() => {
+      avatarDelLoading.value = false
+    })
+  })
+}
 
 defineOptions({
   name: 'setting'
@@ -229,6 +297,74 @@ function submitPwd() {
     display: grid;
     gap: 20px;
     margin-bottom: 40px;
+
+    .avatar-row {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+
+      .avatar-preview {
+        position: relative;
+        width: 72px;
+        height: 72px;
+        border-radius: 14px;
+        overflow: hidden;
+        cursor: pointer;
+        border: 1px solid var(--dark-border);
+        flex-shrink: 0;
+
+        .avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .avatar-placeholder {
+          width: 100%;
+          height: 100%;
+          background: var(--el-bg-color);
+          color: var(--el-text-color-primary);
+          font-size: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .avatar-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.45);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transition: opacity 0.2s;
+          color: #fff;
+          font-size: 12px;
+        }
+
+        &:hover .avatar-overlay {
+          opacity: 1;
+        }
+      }
+
+      .avatar-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        .avatar-desc {
+          font-size: 12px;
+          color: var(--regular-text-color);
+        }
+
+        .avatar-btns {
+          display: flex;
+          gap: 8px;
+        }
+      }
+    }
 
     .item {
       display: grid;

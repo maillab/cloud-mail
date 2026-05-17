@@ -337,7 +337,16 @@ const en = {
     searchUser: 'Search by user',
     searchEmail: 'Search by Email',
     searchSender: 'Search by Sender',
-    userEmail: 'Email Address'
+    userEmail: 'Email Address',
+    avatar: 'Profile Picture',
+    uploadAvatar: 'Upload',
+    deleteAvatar: 'Remove',
+    avatarDesc: 'Supports JPG, PNG, GIF, WebP (max 5MB)',
+    deleteAvatarConfirm: 'Remove profile picture?',
+    avatarTypeError: 'Only image files are supported',
+    avatarTooLarge: 'Image must be less than 5MB',
+    avatarUploadSuccess: 'Profile picture updated',
+    avatarDeleteSuccess: 'Profile picture removed'
 }
 
 export default en

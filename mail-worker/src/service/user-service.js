@@ -3,6 +3,7 @@ import accountService from './account-service';
 import orm from '../entity/orm';
 import user from '../entity/user';
 import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import r2Service from './r2-service';
 import { emailConst, isDel, roleConst, userConst } from '../const/entity-const';
 import kvConst from '../const/kv-const';
 import KvConst from '../const/kv-const';
@@ -29,10 +30,11 @@ const userService = {
 			throw new BizError(t('authExpired'), 401);
 		}
 
-		const [account, roleRow, permKeys] = await Promise.all([
+		const [account, roleRow, permKeys, oauthRow] = await Promise.all([
 			accountService.selectByEmailIncludeDel(c, userRow.email),
 			roleService.selectById(c, userRow.type),
-			userRow.email === c.env.admin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
+			userRow.email === c.env.admin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId),
+			orm(c).select({ avatar: oauth.avatar }).from(oauth).where(eq(oauth.userId, userId)).get()
 		]);
 
 		const user = {};
@@ -44,6 +46,7 @@ const userService = {
 		user.permKeys = permKeys;
 		user.role = roleRow;
 		user.type = userRow.type;
+		user.avatar = userRow.avatar ? `/oss/${userRow.avatar}` : (oauthRow?.avatar || null);
 
 		if (c.env.admin === userRow.email) {
 			user.role = constant.ADMIN_ROLE
@@ -364,6 +367,35 @@ const userService = {
 			await accountService.restoreByUserId(c, userId);
 		}
 
+	},
+
+	async uploadAvatar(c, userId) {
+		const storageType = await r2Service.storageType(c);
+		if (storageType === 'KV') {
+			throw new BizError(t('noOsUpAvatar'));
+		}
+
+		const formData = await c.req.formData();
+		const file = formData.get('file');
+
+		if (!file || !file.type.startsWith('image/')) {
+			throw new BizError(t('avatarTypeError'));
+		}
+
+		if (file.size > 5 * 1024 * 1024) {
+			throw new BizError(t('avatarTooLarge'));
+		}
+
+		const key = `avatar/${userId}`;
+		const buffer = await file.arrayBuffer();
+		await r2Service.putObj(c, key, buffer, { contentType: file.type });
+		await orm(c).update(user).set({ avatar: key }).where(eq(user.userId, userId)).run();
+	},
+
+	async deleteAvatar(c, userId) {
+		const key = `avatar/${userId}`;
+		await r2Service.delete(c, key);
+		await orm(c).update(user).set({ avatar: null }).where(eq(user.userId, userId)).run();
 	},
 
 	listByRegKeyId(c, regKeyId) {

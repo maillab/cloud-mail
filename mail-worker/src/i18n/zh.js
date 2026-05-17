@@ -66,6 +66,9 @@ const zh = {
 	notAdmin: '输入的邮箱不是管理员邮箱',
 	emailExistDatabase: '有邮箱已存在数据库中',
 	notConfigOss: '对象存储未配置',
+	noOsUpAvatar: '对象存储未配置不能上传头像',
+	avatarTypeError: '只支持图片文件',
+	avatarTooLarge: '头像文件大小不能超过5MB',
 	perms: {
 		"邮件": "邮件",
 		"邮件发送": "邮件发送",

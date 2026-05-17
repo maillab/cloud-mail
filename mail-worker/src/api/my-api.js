@@ -18,4 +18,14 @@ app.delete('/my/delete', async (c) => {
 	return c.json(result.ok());
 });
 
+app.put('/my/avatar', async (c) => {
+	await userService.uploadAvatar(c, userContext.getUserId(c));
+	return c.json(result.ok());
+});
+
+app.delete('/my/avatar', async (c) => {
+	await userService.deleteAvatar(c, userContext.getUserId(c));
+	return c.json(result.ok());
+});
+
 
