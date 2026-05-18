@@ -193,6 +193,7 @@ const en = {
     send: 'Send',
     reply: 'Reply',
     forward: 'Forward',
+    cc: 'Cc',
     confirm: 'Confirm',
     cancel: 'Cancel',
     delEmailConfirm: 'Confirm deleting this email?',

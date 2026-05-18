@@ -26,6 +26,7 @@
                 </div>
               </div>
               <div class="receive"><span class="source">{{$t('recipient')}}</span><span class="receive-email">{{  formateReceive(email.recipient) }}</span></div>
+              <div class="receive" v-if="formateReceive(email.cc)"><span class="source">{{$t('cc')}}</span><span class="receive-email">{{  formateReceive(email.cc) }}</span></div>
               <div class="date">
                 <div>{{ formatDetailDate(email.createTime) }}</div>
               </div>
@@ -149,8 +150,12 @@ function isImage(filename) {
 }
 
 function formateReceive(recipient) {
-  recipient = JSON.parse(recipient)
-  return recipient.map(item => item.address).join(', ')
+  try {
+    recipient = JSON.parse(recipient || '[]')
+  } catch (e) {
+    return ''
+  }
+  return recipient.map(item => item.address).filter(Boolean).join(', ')
 }
 
 function changeStar() {

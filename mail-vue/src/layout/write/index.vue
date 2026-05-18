@@ -43,6 +43,11 @@
             </div>
           </template>
         </el-input-tag>
+        <el-input-tag @add-tag="val => addTagChange(val, 'ccEmail')" tag-type="info" size="default" v-model="form.ccEmail">
+          <template #prefix>
+            <div class="item-title" >{{ $t('cc') }}</div>
+          </template>
+        </el-input-tag>
         <el-input v-model="form.subject" :placeholder="t('subject')" />
         <tinyEditor :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
         <div class="button-item">
@@ -141,6 +146,7 @@ const mySelect = ref()
 let selectStatus = false
 const backReply = reactive({
   receiveEmail: [],
+  ccEmail: [],
   subject: '',
   content: '',
   sendType: ''
@@ -148,6 +154,7 @@ const backReply = reactive({
 const form = reactive({
   sendEmail: '',
   receiveEmail: [],
+  ccEmail: [],
   accountId: -1,
   name: '',
   subject: '',
@@ -182,6 +189,7 @@ function deleteContact() {
   }).then(() => {
     const contactList = contactsTabRef.value.getSelectionRows().map(item => item.email);
     form.receiveEmail = form.receiveEmail.filter(item => !contactList.includes(item));
+    form.ccEmail = form.ccEmail.filter(item => !contactList.includes(item));
     writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.filter(item => !contactList.includes(item));
   })
 }
@@ -190,7 +198,7 @@ function chooseContact() {
 
   const contactList = contactsTabRef.value.getSelectionRows().map(item => item.email);
   contactList.forEach(item => {
-    if (!form.receiveEmail.includes(item)) {
+    if (!hasRecipient(item)) {
       form.receiveEmail.push(item);
     }
   })
@@ -207,7 +215,9 @@ function clearSelectContact() {
 }
 
 function selectChange(value) {
-  form.receiveEmail.push(value)
+  if (!hasRecipient(value)) {
+    form.receiveEmail.push(value)
+  }
 }
 
 function selectStatusChange(status) {
@@ -220,7 +230,7 @@ const openSelect = () => {
 
 function inputChange(value) {
 
-  selectRecipientList.value = writerStore.sendRecipientRecord.filter(item => value && !form.receiveEmail.includes(item) && item.startsWith(value)).slice(0, 10);
+  selectRecipientList.value = writerStore.sendRecipientRecord.filter(item => value && !hasRecipient(item) && item.startsWith(value)).slice(0, 10);
 
   if (!selectStatus && selectRecipientList.value.length > 0) {
     openSelect()
@@ -232,18 +242,20 @@ function inputChange(value) {
 
 }
 
-function addTagChange(val) {
+function addTagChange(val, field = 'receiveEmail') {
+
+  const emailList = form[field];
 
   const emails = Array.from(new Set(
       val.split(/[,，]/).map(item => item.trim()).filter(item => item)
   ));
 
-  form.receiveEmail.splice(form.receiveEmail.length - 1, 1)
+  emailList.splice(emailList.length - 1, 1)
 
   let has = false
   emails.forEach(email => {
-    if (isEmail(email) && !form.receiveEmail.includes(email)) {
-      form.receiveEmail.push(email)
+    if (isEmail(email) && !hasRecipient(email)) {
+      emailList.push(email)
       has = true
     }
   })
@@ -400,16 +412,19 @@ async function sendEmail() {
 }
 
 function addRecipientRecord() {
+  const recipientList = uniqueEmailList([...form.receiveEmail, ...form.ccEmail]);
+
   writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.filter(
-      email => !form.receiveEmail.includes(email)
+      email => !recipientList.includes(email)
   );
 
-  writerStore.sendRecipientRecord.unshift(...form.receiveEmail);
+  writerStore.sendRecipientRecord.unshift(...recipientList);
   writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.slice(0, 500);
 }
 
 function resetForm() {
   form.receiveEmail = []
+  form.ccEmail = []
   form.subject = ''
   form.content = ''
   form.manyType = null
@@ -420,6 +435,7 @@ function resetForm() {
   backReply.content = ''
   backReply.subject = ''
   backReply.receiveEmail = []
+  backReply.ccEmail = []
   backReply.sendType = ''
   editor.value.clearEditor()
 }
@@ -465,7 +481,7 @@ function openReply(email) {
 
   email.subject = email.subject || ''
 
-  form.receiveEmail.push(email.sendEmail)
+  setReplyAllRecipients(email)
   form.subject = (
       email.subject.startsWith('Re:') ||
       email.subject.startsWith('Re：') ||
@@ -493,11 +509,92 @@ function openReply(email) {
     nextTick(() => {
       backReply.content = editor.value.getContent()
       backReply.subject = form.subject
-      backReply.receiveEmail = form.receiveEmail
+      backReply.receiveEmail = [...form.receiveEmail]
+      backReply.ccEmail = [...form.ccEmail]
       backReply.sendType = form.sendType
     })
   })
 
+}
+
+function setReplyAllRecipients(email) {
+  const senderEmail = currentSenderEmail();
+  const senderKey = normalizeEmail(senderEmail);
+  const originalSenderKey = normalizeEmail(email.sendEmail);
+
+  addUniqueEmail(form.receiveEmail, email.sendEmail, [senderKey]);
+
+  parseAddressList(email.recipient).forEach(item => {
+    addUniqueEmail(form.receiveEmail, item.address, [senderKey, originalSenderKey]);
+  });
+
+  parseAddressList(email.cc).forEach(item => {
+    addUniqueEmail(form.ccEmail, item.address, [
+      senderKey,
+      originalSenderKey,
+      ...form.receiveEmail.map(normalizeEmail)
+    ]);
+  });
+}
+
+function parseAddressList(value) {
+  try {
+    if (typeof value === 'string') {
+      value = JSON.parse(value || '[]');
+    }
+  } catch (e) {
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+      .map(item => typeof item === 'string' ? {address: item} : item)
+      .filter(item => item?.address && isEmail(item.address));
+}
+
+function currentSenderEmail() {
+  return accountStore.currentAccount.email || userStore.user.email || '';
+}
+
+function normalizeEmail(email) {
+  return (email || '').trim().toLowerCase();
+}
+
+function hasRecipient(email) {
+  const key = normalizeEmail(email);
+  return [...form.receiveEmail, ...form.ccEmail].some(item => normalizeEmail(item) === key);
+}
+
+function addUniqueEmail(list, email, excludeKeys = []) {
+  if (!email || !isEmail(email)) {
+    return;
+  }
+
+  const key = normalizeEmail(email);
+  if (excludeKeys.includes(key) || list.some(item => normalizeEmail(item) === key) || hasRecipient(email)) {
+    return;
+  }
+
+  list.push(email.trim());
+}
+
+function uniqueEmailList(emailList) {
+  const emailSet = new Set();
+  const result = [];
+
+  emailList.forEach(email => {
+    const key = normalizeEmail(email);
+    if (!key || emailSet.has(key)) {
+      return;
+    }
+    emailSet.add(key);
+    result.push(email);
+  });
+
+  return result;
 }
 
 function formatImage(content) {
@@ -557,7 +654,7 @@ function close() {
     return;
   }
 
-  if (!(form.content || form.subject || form.receiveEmail.length > 0)) {
+  if (!(form.content || form.subject || form.receiveEmail.length > 0 || form.ccEmail.length > 0)) {
     show.value = false
     resetForm()
     return;
@@ -566,8 +663,8 @@ function close() {
   if (backReply.sendType === 'reply' || backReply.sendType === 'forward') {
     let subjectFlag = form.subject === backReply.subject
     let contentFlag = editor.value.getContent() === backReply.content
-    let receiveFlag = form.receiveEmail.length === 1 && form.receiveEmail[0] === backReply.receiveEmail[0]
-    if (backReply.sendType === 'forward' && form.receiveEmail.length === 0) {
+    let receiveFlag = sameEmailList(form.receiveEmail, backReply.receiveEmail) && sameEmailList(form.ccEmail, backReply.ccEmail)
+    if (backReply.sendType === 'forward' && form.receiveEmail.length === 0 && form.ccEmail.length === 0) {
       receiveFlag = true;
     }
     if (subjectFlag && contentFlag && receiveFlag) {
@@ -601,6 +698,10 @@ function close() {
     }
   })
 
+}
+
+function sameEmailList(a, b) {
+  return JSON.stringify(a.map(normalizeEmail)) === JSON.stringify(b.map(normalizeEmail));
 }
 
 </script>
@@ -691,7 +792,7 @@ function close() {
     .container {
       height: 100%;
       display: grid;
-      grid-template-rows: auto auto 1fr auto;
+      grid-template-rows: auto auto auto 1fr auto;
       gap: 15px;
 
       .item-title {
