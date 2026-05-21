@@ -11,6 +11,7 @@ import roleService from '../service/role-service';
 import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
 import aiService from '../service/ai-service';
+import { emailListIncludes, parseEmailList } from '../utils/email-list-utils';
 
 export async function email(message, env, ctx) {
 
@@ -149,9 +150,9 @@ export async function email(message, env, ctx) {
 
 		if (ruleType === settingConst.ruleType.RULE) {
 
-			const emails = ruleEmail.split(',');
+			const ruleMatched = emailListIncludes(ruleEmail, message.to) || emailListIncludes(ruleEmail, account?.email);
 
-			if (!emails.includes(message.to)) {
+			if (!ruleMatched) {
 				return;
 			}
 
@@ -165,14 +166,14 @@ export async function email(message, env, ctx) {
 		//转发到其他邮箱
 		if (forwardStatus === settingConst.forwardStatus.OPEN && forwardEmail) {
 
-			const emails = forwardEmail.split(',');
+			const emails = parseEmailList(forwardEmail);
 
-			await Promise.all(emails.map(async email => {
+			await Promise.all(emails.map(async forwardTo => {
 
 				try {
-					await message.forward(email);
+					await message.forward(forwardTo);
 				} catch (e) {
-					console.error(`转发邮箱 ${email} 失败：`, e);
+					console.error(`转发邮箱 ${forwardTo} 失败：`, e);
 				}
 
 			}));
