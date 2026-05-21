@@ -25,6 +25,8 @@ export async function email(message, env, ctx) {
 			forwardEmail,
 			ruleEmail,
 			ruleType,
+			resendTokens,
+			domainList,
 			r2Domain,
 			noRecipient,
 			blackSubject,
@@ -170,11 +172,7 @@ export async function email(message, env, ctx) {
 
 			await Promise.all(emails.map(async forwardTo => {
 
-				try {
-					await message.forward(forwardTo);
-				} catch (e) {
-					console.error(`转发邮箱 ${forwardTo} 失败：`, e);
-				}
+				await forwardToEmail({ env }, message, email, attachments, forwardTo, message.to, resendTokens, domainList);
 
 			}));
 
@@ -184,6 +182,67 @@ export async function email(message, env, ctx) {
 		console.error('邮件接收异常: ', e);
 		throw e
 	}
+}
+
+async function forwardToEmail(c, message, email, attachments, forwardTo, fromEmail, resendTokens, domainList) {
+
+	if (isInternalForwardTarget(domainList, forwardTo)) {
+		console.error(`转发邮箱 ${forwardTo} 跳过：目标域名会回到当前 Worker`);
+		return;
+	}
+
+	try {
+		if (message.canBeForwarded === false) {
+			throw new Error('Message cannot be forwarded by Cloudflare Email Routing');
+		}
+		await message.forward(forwardTo);
+		return;
+	} catch (e) {
+		console.error(`转发邮箱 ${forwardTo} 失败：`, e);
+	}
+
+	try {
+		await sendForwardCopy(c, email, attachments, forwardTo, fromEmail, resendTokens);
+	} catch (e) {
+		console.error(`转发邮箱 ${forwardTo} 备用发送失败：`, e);
+	}
+
+}
+
+async function sendForwardCopy(c, email, attachments, forwardTo, fromEmail, resendTokens) {
+
+	const accountEmail = fromEmail || email.to?.[0]?.address || c.env.admin;
+	const domain = emailUtils.getDomain(accountEmail);
+	const resendToken = resendTokens?.[domain];
+
+	const params = {
+		name: emailUtils.getName(accountEmail),
+		accountEmail,
+		receiveEmail: [forwardTo],
+		subject: email.subject || '',
+		text: email.text || '',
+		html: email.html || '',
+		attachments,
+		sendType: 'forward'
+	};
+
+	if (c.env.email) {
+		await emailService.sendByCloudflareEmail(c, params);
+		return;
+	}
+
+	if (resendToken) {
+		await emailService.sendByResend(resendToken, params);
+		return;
+	}
+
+	throw new Error('No fallback email provider configured');
+
+}
+
+function isInternalForwardTarget(domainList, forwardTo) {
+	const domain = emailUtils.getDomain(forwardTo);
+	return !!domain && domainList?.includes(`@${domain}`);
 }
 
 function checkBlock(blackSubjectStr, blackContentStr, blackFromStr, email) {
