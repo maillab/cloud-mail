@@ -43,6 +43,7 @@ const requirePerms = [
 	'/setting/deleteBackground',
 	'/setting/set',
 	'/setting/query',
+	'/setting/setBlacklist',
 	'/user/delete',
 	'/user/setPwd',
 	'/user/setStatus',

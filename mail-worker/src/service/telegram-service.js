@@ -55,7 +55,7 @@ const telegramService = {
 		const inlineKeyboard = [
 			[
 				{
-					text: '查看',
+					text: 'View',
 					web_app: { url: webAppUrl }
 				}
 			]
