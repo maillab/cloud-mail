@@ -94,6 +94,47 @@ function formatTelegramHtml(html = '') {
 		.trim();
 }
 
+function renderTelegramLink(label, href) {
+	return `<a href="${escapeTelegramAttribute(href)}">${escapeTelegramHtml(label)}</a>`;
+}
+
+function renderPlainTextUrls(text = '') {
+	let result = '';
+	let lastIndex = 0;
+
+	for (const match of text.matchAll(URL_PATTERN)) {
+		const fullMatch = match[0];
+		const matchIndex = match.index;
+		const { url, trailing } = splitTrailingPunctuation(fullMatch);
+		const href = normalizeLinkUrl(url);
+
+		result += escapeTelegramHtml(text.slice(lastIndex, matchIndex));
+		result += href
+			? `${renderTelegramLink('jump', href)}${escapeTelegramHtml(trailing)}`
+			: escapeTelegramHtml(fullMatch);
+		lastIndex = matchIndex + fullMatch.length;
+	}
+
+	result += escapeTelegramHtml(text.slice(lastIndex));
+	return result;
+}
+
+function renderTextLineWithLinks(line = '') {
+	const referenceMatch = line.match(/^(.*?)\s*\(\s*((?:https?:\/\/|www\.)[^\s()]+)\s*\)\s*$/i);
+
+	if (referenceMatch) {
+		const label = referenceMatch[1].trim();
+		const href = normalizeLinkUrl(referenceMatch[2]);
+
+		if (label && href) {
+			const safeLabel = FULL_LINK_PATTERN.test(label) ? 'jump' : label;
+			return renderTelegramLink(safeLabel, href);
+		}
+	}
+
+	return renderPlainTextUrls(line);
+}
+
 const emailUtils = {
 
 	getDomain(email) {
@@ -140,24 +181,12 @@ const emailUtils = {
 			return '';
 		}
 
-		let result = '';
-		let lastIndex = 0;
-
-		for (const match of formattedText.matchAll(URL_PATTERN)) {
-			const fullMatch = match[0];
-			const matchIndex = match.index;
-			const { url, trailing } = splitTrailingPunctuation(fullMatch);
-			const href = normalizeLinkUrl(url);
-
-			result += escapeTelegramHtml(formattedText.slice(lastIndex, matchIndex));
-			result += href
-				? `<a href="${escapeTelegramAttribute(href)}">jump</a>${escapeTelegramHtml(trailing)}`
-				: escapeTelegramHtml(fullMatch);
-			lastIndex = matchIndex + fullMatch.length;
-		}
-
-		result += escapeTelegramHtml(formattedText.slice(lastIndex));
-		return formatTelegramHtml(result);
+		return formattedText
+			.split('\n')
+			.map(line => renderTextLineWithLinks(line))
+			.join('\n')
+			.replace(/\n{3,}/g, '\n')
+			.trim();
 	},
 
 	htmlToTelegramHtmlLinks(content) {
@@ -198,7 +227,7 @@ const emailUtils = {
 						return escapeTelegramHtml(safeLabel);
 					}
 
-					return `<a href="${escapeTelegramAttribute(href)}">${escapeTelegramHtml(safeLabel)}</a>`;
+					return renderTelegramLink(safeLabel, href);
 				}
 
 				const childHtml = Array.from(node.childNodes || [])

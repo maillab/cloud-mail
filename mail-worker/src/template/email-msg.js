@@ -39,8 +39,8 @@ function truncateText(text, maxLength) {
 
 function getEmailText(email, tgMsgLink) {
 	if (tgMsgLink === 'hide') {
-		return emailUtils.htmlToTelegramHtmlLinks(email.content)
-			|| emailUtils.textToTelegramHtmlLinks(email.text);
+		return emailUtils.textToTelegramHtmlLinks(email.text)
+			|| emailUtils.htmlToTelegramHtmlLinks(email.content);
 	}
 
 	return escapeHtml(emailUtils.formatText(email.text) || emailUtils.htmlToText(email.content));
