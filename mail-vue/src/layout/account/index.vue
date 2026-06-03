@@ -1,52 +1,59 @@
 <template>
   <div class="account-box">
     <div class="head-opt">
-      <Icon v-perm="'account:add'" class="icon add" icon="ion:add-outline" width="23" height="23" @click="add"/>
-      <Icon class="icon refresh" icon="ion:reload" width="18" height="18" @click="refresh"/>
+      <div v-perm="'account:add'" class="icon" @click="add">
+        <Icon icon="ion:add-outline" width="20" height="20"/>
+      </div>
+      <div class="icon" @click="refresh">
+        <Icon icon="ion:reload" width="16" height="16"/>
+      </div>
     </div>
     <el-scrollbar class="scrollbar" ref="scrollbarRef">
       <div v-infinite-scroll="getAccountList" :infinite-scroll-distance="600" :infinite-scroll-immediate="false">
-        <el-card class="item" :class="itemBg(item.accountId)" v-for="(item, index) in accounts" :key="item.accountId"
-                 @click="changeAccount(item)">
-          <div class="account">
-            {{ item.email }}
+        <div class="item" :class="itemBg(item.accountId)" v-for="(item, index) in accounts" :key="item.accountId"
+             @click="changeAccount(item)">
+          <div class="item-avatar">{{ emailInitial(item.email) }}</div>
+          <div class="item-info">
+            <div class="item-email">{{ item.email }}</div>
+            <div class="item-name" v-if="item.name">{{ item.name }}</div>
           </div>
-          <div class="opt">
-            <div class="send-email" @click.stop>
-              <Icon @click="setAllReceive(item)" v-if="!item.allReceive" icon="eva:email-fill" width="22" height="22" color="#fccb1a"/>
-              <Icon @click="setAllReceive(item)" v-else icon="flat-color-icons:folder" width="22" height="22" color="#23c4f1" />
-            </div>
-            <div class="settings" @click.stop>
-              <Icon icon="fluent-color:clipboard-24" width="22" height="22" @click.stop="copyAccount(item.email)"/>
-              <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"
-                    v-if="showNullSetting(item)"/>
-              <el-dropdown v-else>
-                <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"/>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item v-if="hasPerm('email:send')" @click="openSetName(item)">{{ $t('rename') }}</el-dropdown-item>
-                    <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId" @click="setAsTop(item, index)">{{ $t('pin') }}</el-dropdown-item>
-                    <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId && hasPerm('account:delete')"
-                                      @click="remove(item)">{{ $t('delete') }}
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
+          <div class="item-actions" @click.stop>
+            <Icon @click="setAllReceive(item)" v-if="!item.allReceive"
+                  icon="eva:email-fill" width="17" height="17" class="action-icon" style="color:#c8970a"/>
+            <Icon @click="setAllReceive(item)" v-else
+                  icon="flat-color-icons:folder" width="17" height="17" class="action-icon"/>
+            <Icon icon="fluent-color:clipboard-24" width="17" height="17" class="action-icon"
+                  @click.stop="copyAccount(item.email)"/>
+            <Icon icon="fluent:settings-24-filled" width="17" height="17" class="action-icon action-settings"
+                  v-if="showNullSetting(item)"/>
+            <el-dropdown v-else trigger="click">
+              <Icon icon="fluent:settings-24-filled" width="17" height="17" class="action-icon action-settings"/>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="hasPerm('email:send')" @click="openSetName(item)">{{ $t('rename') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId" @click="setAsTop(item, index)">{{ $t('pin') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId && hasPerm('account:delete')"
+                                    @click="remove(item)">{{ $t('delete') }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
-        </el-card>
+        </div>
 
         <!-- Initial Loading Skeleton -->
         <template v-if="loading">
           <el-skeleton v-for="i in skeletonRows" :key="i" animated>
             <template #template>
-              <el-card class="item">
-                <el-skeleton-item variant="p" style="width: 70%; height: 20px; margin-bottom: 25px"/>
-                <div style="display: flex; justify-content: space-between">
-                  <el-skeleton-item variant="text" style="width: 20px"/>
-                  <el-skeleton-item variant="text" style="width: 20px"/>
+              <div class="item" style="pointer-events:none">
+                <el-skeleton-item variant="image" style="width:36px;height:36px;border-radius:9px;flex-shrink:0"/>
+                <div style="flex:1;min-width:0">
+                  <el-skeleton-item variant="p" style="width:75%;height:13px"/>
                 </div>
-              </el-card>
+                <div style="display:flex;gap:5px">
+                  <el-skeleton-item variant="text" style="width:17px;height:17px"/>
+                  <el-skeleton-item variant="text" style="width:17px;height:17px"/>
+                </div>
+              </div>
             </template>
           </el-skeleton>
         </template>
@@ -55,13 +62,12 @@
         <template v-if="accounts.length > 0 && !noLoading">
           <el-skeleton animated>
             <template #template>
-              <el-card class="item">
-                <el-skeleton-item variant="p" style="width: 70%; height: 20px; margin-bottom: 20px"/>
-                <div style="display: flex; justify-content: space-between">
-                  <el-skeleton-item variant="text" style="width: 20px"/>
-                  <el-skeleton-item variant="text" style="width: 20px"/>
+              <div class="item" style="pointer-events:none">
+                <el-skeleton-item variant="image" style="width:36px;height:36px;border-radius:9px;flex-shrink:0"/>
+                <div style="flex:1;min-width:0">
+                  <el-skeleton-item variant="p" style="width:75%;height:13px"/>
                 </div>
-              </el-card>
+              </div>
             </template>
           </el-skeleton>
         </template>
@@ -365,6 +371,10 @@ function setAsTop(account, index) {
   });
 }
 
+function emailInitial(email) {
+  return (email || '').charAt(0).toUpperCase()
+}
+
 async function copyAccount(account) {
   try {
     await navigator.clipboard.writeText(account);
@@ -517,8 +527,7 @@ path[fill="#ffdda1"] {
 </style>
 <style scoped lang="scss">
 .account-box {
-
-  border-right: 1px solid var(--el-border-color) !important;
+  border-right: 1px solid var(--el-border-color-lighter);
   background-color: var(--el-bg-color);
   height: 100%;
   overflow: hidden;
@@ -527,24 +536,27 @@ path[fill="#ffdda1"] {
     display: flex;
     align-items: center;
     height: 38px;
-    box-shadow: var(--header-actions-border);
-    padding-left: 10px;
-    padding-right: 10px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    padding: 0 12px;
+    gap: 4px;
 
     .icon {
       cursor: pointer;
-    }
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--el-text-color-regular);
+      transition: background 0.15s ease;
 
-    .refresh {
-      margin-left: 10px;
-    }
-
-    .add {
-      margin-left: 2px;
-    }
-
-    .head-opt:not(.add) .refresh {
-      margin-left: 5px;
+      @media (hover: hover) {
+        &:hover {
+          background: var(--base-fill);
+          color: var(--el-text-color-primary);
+        }
+      }
     }
   }
 
@@ -568,6 +580,7 @@ path[fill="#ffdda1"] {
       justify-content: center;
       align-items: center;
       padding: 10px 0;
+      font-size: 12px;
       color: var(--secondary-text-color);
     }
   }
@@ -577,52 +590,105 @@ path[fill="#ffdda1"] {
     margin-top: 15px;
   }
 
+  /* ── Account card ── */
   .item {
-    background-color: var(--el-bg-color);
-    border-radius: 8px;
-    padding: 12px 10px;
-    margin-bottom: 10px;
-    margin-left: 10px;
-    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    margin: 4px 8px;
+    border-radius: 10px;
     cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 
-    .account {
-      font-weight: 600;
-      margin-bottom: 20px;
+    &:first-child { margin-top: 8px; }
+    &:last-child  { margin-bottom: 8px; }
+
+    @media (hover: hover) {
+      &:hover:not(.item-choose) {
+        background: var(--email-hover-background);
+        border-color: var(--el-border-color-lighter);
+      }
+    }
+  }
+
+  .item-avatar {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #1a3560, #2a4c8a);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(26, 53, 96, 0.22);
+    user-select: none;
+  }
+
+  .item-info {
+    flex: 1;
+    min-width: 0;
+
+    .item-email {
+      font-size: 12.5px;
+      font-weight: 500;
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
+      color: var(--el-text-color-primary);
     }
 
-    .opt {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      color: #888;
-
-      .settings {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .send-email {
-        display: flex;
-        align-items: center;
-      }
-    }
-
-    :deep(.el-card__body) {
-      padding: 0;
+    .item-name {
+      font-size: 11px;
+      color: var(--secondary-text-color);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      margin-top: 1px;
     }
   }
 
-  .item:first-child {
-    margin-top: 10px;
+  .item-actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    .action-icon {
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.15s ease;
+
+      @media (hover: hover) {
+        &:hover { opacity: 1; }
+      }
+    }
+
+    .action-settings {
+      color: var(--secondary-text-color);
+    }
   }
 
+  /* ── Selected state: gold left accent ── */
   .item-choose {
-    background: var(--choose-account-background);
+    background: var(--gold-accent-subtle) !important;
+    box-shadow: inset 3px 0 0 var(--gold-accent) !important;
+    border-color: transparent !important;
+
+    .item-email {
+      font-weight: 600;
+      color: var(--gold-accent-dark);
+    }
+
+    .item-avatar {
+      background: linear-gradient(135deg, #c8970a, #e8b520);
+      color: #0c1c3a;
+      box-shadow: 0 2px 6px rgba(200, 151, 10, 0.3);
+    }
   }
 }
 
