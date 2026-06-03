@@ -35,6 +35,7 @@ const MAX_HTML_BATCH_LENGTH = 3600;
 const MAX_BATCH_TRANSLATE_LENGTH = 3600;
 const MAX_TRANSLATE_TEXT_LENGTH = 4000;
 const MAX_INDIVIDUAL_FALLBACK_SEGMENTS = 8;
+const MIN_TRANSLATION_MAX_TOKENS = 1024;
 const ENABLE_HTML_STRUCTURED_TRANSLATION = true;
 
 function getAi(c) {
@@ -44,8 +45,41 @@ function getAi(c) {
 	return c.env.ai;
 }
 
+function aiText(value) {
+	if (typeof value === 'string') {
+		return value;
+	}
+
+	if (Array.isArray(value)) {
+		return value.map(item => aiText(item?.text || item?.content || item)).filter(Boolean).join('');
+	}
+
+	return '';
+}
+
 function extractAiContent(result) {
-	return typeof result === 'string' ? result : result?.response || '';
+	if (typeof result === 'string') {
+		return result;
+	}
+
+	if (!result || typeof result !== 'object') {
+		return '';
+	}
+
+	const directContent = aiText(result.response || result.text || result.content || result.output_text);
+	if (directContent) {
+		return directContent;
+	}
+
+	const choices = Array.isArray(result.choices) ? result.choices : [];
+	for (const choice of choices) {
+		const choiceContent = aiText(choice?.message?.content || choice?.text || choice?.content);
+		if (choiceContent) {
+			return choiceContent;
+		}
+	}
+
+	return '';
 }
 
 function estimateLanguage(text) {
@@ -92,7 +126,7 @@ function targetLangName(lang) {
 }
 
 function translationMaxTokens(input) {
-	return Math.min(4096, Math.max(512, Math.ceil(String(input || '').length * 1.6)));
+	return Math.min(4096, Math.max(MIN_TRANSLATION_MAX_TOKENS, Math.ceil(String(input || '').length * 1.6)));
 }
 
 function emailBodyText(email) {
@@ -457,6 +491,15 @@ const aiService = {
 			return results;
 		}
 
+		const maxIndividualFallback = options.maxIndividualFallback ?? MAX_INDIVIDUAL_FALLBACK_SEGMENTS;
+		if (entries.length <= maxIndividualFallback) {
+			const translatedList = await Promise.all(entries.map(entry => this.translateText(c, entry.text, targetLang)));
+			entries.forEach((entry, index) => {
+				results[entry.index] = translatedList[index] || entry.text;
+			});
+			return results;
+		}
+
 		const batchText = entries.map(item => item.text).join(`\n\n${TRANSLATION_SEPARATOR}\n\n`);
 
 		if (batchText.length <= MAX_BATCH_TRANSLATE_LENGTH) {
@@ -474,7 +517,6 @@ const aiService = {
 			console.warn('AI批量翻译分隔符数量不匹配，准备单条回退。');
 		}
 
-		const maxIndividualFallback = options.maxIndividualFallback ?? MAX_INDIVIDUAL_FALLBACK_SEGMENTS;
 		if (entries.length > maxIndividualFallback) {
 			throw new Error('批量翻译结果无法分割，且片段过多');
 		}
@@ -516,7 +558,7 @@ const aiService = {
 		const translated = cleanTranslationOutput(content);
 		if (!translated) {
 			console.warn('AI翻译片段返回为空，保留原文片段。');
-			return input;
+			return options.isBatch ? '' : input;
 		}
 		return translated;
 	},

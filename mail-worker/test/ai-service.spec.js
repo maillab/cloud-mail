@@ -21,7 +21,8 @@ function createMockContext(translate) {
 					async run(model, payload) {
 						calls.push({ model, payload });
 						const input = payload.messages.at(-1).content;
-						return { response: translate(input) };
+						const result = translate(input);
+						return result && typeof result === 'object' ? result : { response: result };
 					}
 				}
 			}
@@ -114,6 +115,43 @@ describe('email translation helpers', () => {
 		const { c } = createMockContext(() => '');
 
 		await expect(aiService.translateText(c, 'Turbo0', 'zh')).resolves.toBe('Turbo0');
+	});
+
+	it('reads translated text from Cloudflare chat choices content', async () => {
+		const { c } = createMockContext(() => ({
+			choices: [
+				{
+					message: {
+						content: '查看最新文章'
+					}
+				}
+			]
+		}));
+
+		await expect(aiService.translateText(c, 'View Latest Posts', 'zh')).resolves.toBe('查看最新文章');
+	});
+
+	it('uses enough output tokens for short reasoning-prone translations', async () => {
+		const { c, calls } = createMockContext(() => '查看最新文章');
+
+		await aiService.translateText(c, 'View Latest Posts', 'zh');
+
+		expect(calls[0].payload.max_tokens).toBeGreaterThanOrEqual(1024);
+	});
+
+	it('translates small batches individually instead of using separator batch', async () => {
+		const dict = new Map([
+			['First item', '第一项'],
+			['Second item', '第二项']
+		]);
+		const { c, calls } = createMockContext(input => dict.get(input));
+
+		await expect(aiService.translateTextBatch(c, ['First item', 'Second item'], 'zh')).resolves.toEqual([
+			'第一项',
+			'第二项'
+		]);
+		expect(calls).toHaveLength(2);
+		expect(calls.every(call => !call.payload.messages.at(-1).content.includes(TRANSLATION_SEPARATOR))).toBe(true);
 	});
 
 	it('does not count URLs as English translated body text', () => {
