@@ -76,12 +76,12 @@ const settingService = {
 
 		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
 
-		// 推送配置
-		setting.barkUrl = await c.env.kv.get(KvConst.BARK_URL);
-		setting.pushoverUser = await c.env.kv.get(KvConst.PUSHOVER_USER);
-		setting.pushoverToken = await c.env.kv.get(KvConst.PUSHOVER_TOKEN);
-		setting.ntfyTopic = await c.env.kv.get(KvConst.NTFY_TOPIC);
-		setting.ntfyServer = await c.env.kv.get(KvConst.NTFY_SERVER);
+		// 推送配置：優先從環境變量讀取，若無則從 KV 讀取
+		setting.barkUrl = c.env.BARK_URL || await c.env.kv.get(KvConst.BARK_URL);
+		setting.pushoverUser = c.env.PUSHOVER_USER || await c.env.kv.get(KvConst.PUSHOVER_USER);
+		setting.pushoverToken = c.env.PUSHOVER_TOKEN || await c.env.kv.get(KvConst.PUSHOVER_TOKEN);
+		setting.ntfyTopic = c.env.NTFY_TOPIC || await c.env.kv.get(KvConst.NTFY_TOPIC);
+		setting.ntfyServer = c.env.NTFY_SERVER || await c.env.kv.get(KvConst.NTFY_SERVER);
 
 		c.set?.('setting', setting);
 		return setting;
@@ -146,7 +146,7 @@ const settingService = {
 			params.aiCodeFilter = params.aiCodeFilter + '';
 		}
 
-		// 推送配置保存
+		// 推送配置保存至 KV（環境變量需通過 Dashboard 或 Wrangler 設置）
 		if (params.barkUrl !== undefined) {
 			await c.env.kv.put(KvConst.BARK_URL, params.barkUrl);
 		}
