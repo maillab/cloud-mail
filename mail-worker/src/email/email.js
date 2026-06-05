@@ -11,6 +11,7 @@ import roleService from '../service/role-service';
 import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
 import aiService from '../service/ai-service';
+import pushService from '../service/push-service';
 
 export async function email(message, env, ctx) {
 
@@ -30,7 +31,12 @@ export async function email(message, env, ctx) {
 			blackContent,
 			blackFrom,
 			aiCode,
-			aiCodeFilter
+			aiCodeFilter,
+			barkUrl,
+			pushoverUser,
+			pushoverToken,
+			ntfyTopic,
+			ntfyServer
 		} = await settingService.query({ env });
 
 		if (receive === settingConst.receive.CLOSE) {
@@ -156,6 +162,10 @@ export async function email(message, env, ctx) {
 			}
 
 		}
+
+		// 手机推送逻辑
+		const pushSettings = { barkUrl, pushoverUser, pushoverToken, ntfyTopic, ntfyServer };
+		await pushService.sendPush({ env }, emailRow, pushSettings);
 
 		//转发到TG
 		if (tgBotStatus === settingConst.tgBotStatus.OPEN && tgChatId) {

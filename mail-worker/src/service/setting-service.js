@@ -76,6 +76,13 @@ const settingService = {
 
 		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
 
+		// 推送配置
+		setting.barkUrl = await c.env.kv.get(KvConst.BARK_URL);
+		setting.pushoverUser = await c.env.kv.get(KvConst.PUSHOVER_USER);
+		setting.pushoverToken = await c.env.kv.get(KvConst.PUSHOVER_TOKEN);
+		setting.ntfyTopic = await c.env.kv.get(KvConst.NTFY_TOPIC);
+		setting.ntfyServer = await c.env.kv.get(KvConst.NTFY_SERVER);
+
 		c.set?.('setting', setting);
 		return setting;
 	},
@@ -137,6 +144,23 @@ const settingService = {
 
 		if (Array.isArray(params.aiCodeFilter)) {
 			params.aiCodeFilter = params.aiCodeFilter + '';
+		}
+
+		// 推送配置保存
+		if (params.barkUrl !== undefined) {
+			await c.env.kv.put(KvConst.BARK_URL, params.barkUrl);
+		}
+		if (params.pushoverUser !== undefined) {
+			await c.env.kv.put(KvConst.PUSHOVER_USER, params.pushoverUser);
+		}
+		if (params.pushoverToken !== undefined) {
+			await c.env.kv.put(KvConst.PUSHOVER_TOKEN, params.pushoverToken);
+		}
+		if (params.ntfyTopic !== undefined) {
+			await c.env.kv.put(KvConst.NTFY_TOPIC, params.ntfyTopic);
+		}
+		if (params.ntfyServer !== undefined) {
+			await c.env.kv.put(KvConst.NTFY_SERVER, params.ntfyServer);
 		}
 
 		if (params.loginDarkenFactor !== undefined) {
@@ -238,7 +262,12 @@ const settingService = {
 			linuxdoCallbackUrl: settingRow.linuxdoCallbackUrl,
 			linuxdoSwitch: settingRow.linuxdoSwitch,
 			minEmailPrefix: settingRow.minEmailPrefix,
-			projectLink: settingRow.projectLink
+			projectLink: settingRow.projectLink,
+			barkUrl: settingRow.barkUrl,
+			pushoverUser: settingRow.pushoverUser,
+			pushoverToken: settingRow.pushoverToken,
+			ntfyTopic: settingRow.ntfyTopic,
+			ntfyServer: settingRow.ntfyServer
 		};
 	},
 
