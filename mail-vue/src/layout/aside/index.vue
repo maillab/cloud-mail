@@ -84,20 +84,23 @@ const route = useRoute();
 
 .title {
   margin: 15px 10px;
-  height: 45px;
-  border-radius: 6px;
+  height: 50px;
+  border-radius: 12px;
   display: flex;
   position: relative;
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 700;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 8px;
   color: #ffffff;
-  background: linear-gradient(135deg, #1890ff, #3a80dd);
-  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 50%, #7c3aed 100%);
+  transition: all 0.3s ease-out;
   max-width: 240px;
-  padding: 0 10px;
+  padding: 0 12px;
+  box-shadow: 0 8px 16px rgba(6, 182, 212, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   > div {
     overflow: hidden;
     white-space: nowrap;
@@ -128,21 +131,44 @@ const route = useRoute();
 }
 
 .el-menu-item {
-  margin: 5px 10px !important;
-  border-radius: 6px;
-  height: 36px;
+  margin: 6px 10px !important;
+  border-radius: 10px;
+  height: 40px;
   padding: 10px !important;
+  transition: all 0.3s ease-out !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.el-menu-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease-out;
 }
 
 .choose-item {
-  font-weight: bold;
-  background: rgba(255, 255, 255, 0.08) !important;
-  backdrop-filter: blur(4px);
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(124, 58, 237, 0.1) 100%) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(6, 182, 212, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15) !important;
 }
 
 @media (hover: hover) {
   .el-menu-item:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(124, 58, 237, 0.08) 100%) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(6, 182, 212, 0.2) !important;
+    transform: translateX(4px);
+  }
+
+  .el-menu-item::before {
+    left: 100%;
   }
 }
 
@@ -152,15 +178,16 @@ const route = useRoute();
 
 
 :deep(.el-scrollbar__wrap--hidden-default ) {
-  background: var(--aside-backgound) !important;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.8) 100%) !important;
+  backdrop-filter: blur(10px);
 }
 
 :deep(.el-menu-item) {
-  background: var(--aside-backgound);
+  background: transparent;
 }
 
 :deep(.el-menu) {
-  background: var(--aside-backgound);
+  background: transparent;
 }
 
 .el-menu {

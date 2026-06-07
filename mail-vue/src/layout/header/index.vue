@@ -376,15 +376,22 @@ function formatName(email) {
   margin-left: 5px;
 
   .writer {
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     color: #ffffff;
-    background: linear-gradient(135deg, #1890ff, #3a80dd);
-    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 50%, #7c3aed 100%);
+    transition: all 0.3s ease-out;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 8px 16px rgba(6, 182, 212, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .writer:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(6, 182, 212, 0.3);
 
     .writer-text {
       margin-left: 15px;
@@ -420,17 +427,23 @@ function formatName(email) {
 
   .icon-item {
     align-self: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 4px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    transition: all 0.3s ease-out;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .icon-item:hover {
-    background: var(--base-fill);
+    background: rgba(6, 182, 212, 0.15);
+    border-color: rgba(6, 182, 212, 0.3);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.1);
+    transform: translateY(-2px);
   }
 
   .notice {
@@ -452,15 +465,22 @@ function formatName(email) {
     cursor: pointer;
 
     .avatar-text {
-      background: var(--el-bg-color);
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(124, 58, 237, 0.1) 100%);
       color: var(--el-text-color-primary);
-      height: 30px;
-      width: 30px;
+      height: 36px;
+      width: 36px;
       display: flex;
       justify-content: center;
       align-items: center;
-      border-radius: 8px;
-      border: 1px solid var(--dark-border);
+      border-radius: 10px;
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease-out;
+    }
+
+    .avatar-text:hover {
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.3) 0%, rgba(124, 58, 237, 0.15) 100%);
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15);
     }
 
     .setting-icon {
