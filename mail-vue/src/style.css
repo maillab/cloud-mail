@@ -106,12 +106,12 @@ button, input, select, textarea {
 }
 
 :root {
-    --el-color-primary: #1890ff;
-    --el-color-primary-dark-2: #1064c0;
-    --el-color-primary-light-3: #4dabff;
-    --el-color-primary-light-5: #69c0ff;
-    --el-color-primary-light-7: #91d5ff;
-    --el-color-primary-light-9: #e6f7ff;
+    --el-color-primary: #06b6d4;
+    --el-color-primary-dark-2: #0891b2;
+    --el-color-primary-light-3: #22d3ee;
+    --el-color-primary-light-5: #06d6ff;
+    --el-color-primary-light-7: #67e8f9;
+    --el-color-primary-light-9: #cffafe;
 
     --extra-light-fill: #FAFCFF;
     --light-ill: #F5F7FA;
@@ -129,11 +129,11 @@ button, input, select, textarea {
     --email-scroll-content-color: rgba(25, 41, 59, 0.45);
     --email-hover-background: #F5F9FF;
     --email-unread-background: #EEF5FF;
-    --email-row-radius: 8px;
-    --email-row-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --email-row-radius: 12px;
+    --email-row-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     --login-border: none;
     --form-desc-color: #71717a;
-    --login-switch-color: #006be6;
+    --login-switch-color: #06b6d4;
     --scrollbar-track-color: #A8ABB2;
     --base-border-color: #DCDFE6;
     --secondary-text-color: #909399;
@@ -149,23 +149,23 @@ button, input, select, textarea {
     --extra-light-fill: #191919;
     --light-ill: #262727;
     --light-border: #414243;
-    --aside-backgound: #141414;
+    --aside-backgound: #0f172a;
     --header-actions-border: 0 1px 0 0 var(--el-border-color-lighter);
     --loadding-background: rgba(0, 0, 0, 0.3);
     --dark-border: #636466;
-    --base-fill: #303030;
+    --base-fill: #1e293b;
     --regular-text-color: #bfbdbc;
     --light-border-color: #414243;
     --aside-right-border: 3px 0 5px #0A0A0A;
     --choose-account-background: #39393A;
     --email-scroll-content-color: rgba(255, 255, 255, 0.35);
-    --email-hover-background: #262728;
-    --email-unread-background: #1F2633;
-    --email-row-radius: 8px;
-    --email-row-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --email-hover-background: #1e293b;
+    --email-unread-background: #1f2937;
+    --email-row-radius: 12px;
+    --email-row-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     --login-border: none;
     --form-desc-color: #8D9095;
-    --login-switch-color: rgb(102, 177, 255);
+    --login-switch-color: #06d6ff;
     --scrollbar-track-color: #8D9095;
     --base-border-color: #4C4D4F;
     --secondary-text-color: #A3A6AD;
@@ -215,4 +215,97 @@ html[data-theme-to="light"]::view-transition-old(root) {
 @keyframes vt-radial-out {
     from { clip-path: circle(var(--vt-end-radius, 0px) at var(--vt-x) var(--vt-y)); }
     to   { clip-path: circle(0px at var(--vt-x) var(--vt-y)); }
+}
+
+/* Glassmorphic enhancements */
+.el-button {
+    transition: all 0.3s ease-out;
+    border-radius: 8px;
+}
+
+.el-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(6, 182, 212, 0.2);
+}
+
+.el-button.is-loading {
+    opacity: 0.8;
+}
+
+.el-input {
+    transition: all 0.3s ease-out;
+}
+
+.el-input:deep(.el-input__wrapper) {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease-out;
+}
+
+.el-input:deep(.el-input__wrapper:hover) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(6, 182, 212, 0.3);
+}
+
+.el-input:deep(.el-input__wrapper.is-focus) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(6, 182, 212, 0.6);
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+}
+
+.dark .el-input:deep(.el-input__wrapper) {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark .el-input:deep(.el-input__wrapper:hover) {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(6, 214, 255, 0.3);
+}
+
+.dark .el-input:deep(.el-input__wrapper.is-focus) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(6, 214, 255, 0.6);
+    box-shadow: 0 0 0 3px rgba(6, 214, 255, 0.1);
+}
+
+/* Email list enhancements */
+.email-row {
+    transition: all 0.2s ease-out;
+    border-radius: var(--email-row-radius);
+}
+
+.email-row:hover {
+    background: var(--email-hover-background);
+    box-shadow: var(--email-row-shadow);
+    transform: translateX(4px);
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(6, 182, 212, 0.3);
+    border-radius: 4px;
+    transition: background 0.3s ease-out;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(6, 182, 212, 0.6);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+    background: rgba(6, 214, 255, 0.2);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(6, 214, 255, 0.4);
 }
