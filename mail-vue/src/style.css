@@ -116,7 +116,7 @@ button, input, select, textarea {
     --extra-light-fill: #FAFCFF;
     --light-ill: #F5F7FA;
     --light-border: #E4E7ED;
-    --header-actions-border: inset 0 -1px 0 0 var(--el-border-color-lighter);
+    --header-actions-border: 0 1px 0 0 var(--el-border-color-lighter);
     --aside-backgound: #001529;
     --loadding-background: rgba(255, 255, 255, 0.8);
     --dark-border: #CDD0D6;
@@ -126,8 +126,11 @@ button, input, select, textarea {
     --aside-right-border: 3px 0 5px rgba(0, 21, 41, .35);
     --choose-account-background: var(--el-color-primary-light-8);
     --el-text-color-regular: var(--el-text-color-primary);
-    --email-scroll-content-color: rgba(25, 41, 59, 0.4);
-    --email-hover-background: #F2F6FC;
+    --email-scroll-content-color: rgba(25, 41, 59, 0.45);
+    --email-hover-background: #F5F9FF;
+    --email-unread-background: #EEF5FF;
+    --email-row-radius: 8px;
+    --email-row-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     --login-border: none;
     --form-desc-color: #71717a;
     --login-switch-color: #006be6;
@@ -147,7 +150,7 @@ button, input, select, textarea {
     --light-ill: #262727;
     --light-border: #414243;
     --aside-backgound: #141414;
-    --header-actions-border: inset 0 -1px 0 0 var(--el-border-color-lighter);
+    --header-actions-border: 0 1px 0 0 var(--el-border-color-lighter);
     --loadding-background: rgba(0, 0, 0, 0.3);
     --dark-border: #636466;
     --base-fill: #303030;
@@ -155,8 +158,11 @@ button, input, select, textarea {
     --light-border-color: #414243;
     --aside-right-border: 3px 0 5px #0A0A0A;
     --choose-account-background: #39393A;
-    --email-scroll-content-color: rgba(255, 255, 255, 0.3);
-    --email-hover-background: #1D1E1F;
+    --email-scroll-content-color: rgba(255, 255, 255, 0.35);
+    --email-hover-background: #262728;
+    --email-unread-background: #1F2633;
+    --email-row-radius: 8px;
+    --email-row-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     --login-border: none;
     --form-desc-color: #8D9095;
     --login-switch-color: rgb(102, 177, 255);

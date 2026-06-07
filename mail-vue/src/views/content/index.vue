@@ -297,11 +297,19 @@ const handleDelete = () => {
           align-self: center;
         }
         background: var(--light-ill);
-        padding: 5px 7px;
-        border-radius: 4px;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid var(--light-border-color);
         align-self: start;
         display: grid;
         grid-template-columns: auto 1fr auto auto;
+        transition: all 0.2s ease;
+      }
+
+      .att-item:hover {
+        background: var(--extra-light-fill);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-color: var(--el-color-primary-light-7);
         .att-icon {
           display: grid;
         }
@@ -341,11 +349,12 @@ const handleDelete = () => {
       }
     }
 
-    .email-info {
-
-      border-bottom: 1px solid var(--light-border-color);
+      .email-info {
+      border: 1px solid var(--light-border-color);
+      border-radius: 8px;
+      background: var(--extra-light-fill);
       margin-bottom: 20px;
-      padding-bottom: 8px;
+      padding: 16px;
       @media (max-width: 1024px) {
         margin-bottom: 15px;
       }
