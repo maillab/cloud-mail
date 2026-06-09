@@ -32,7 +32,7 @@ not_found_handling = "single-page-application"
 run_worker_first = true
 
 [triggers]
-crons = ["*/30 * * * *", "0 16 * * *"]	#每30分钟刷新分析缓存，每天晚上12点执行每日任务
+crons = ["0 16 * * *"]	#每天晚上12点执行每日任务,刷新分析缓存
 
 
 [vars]

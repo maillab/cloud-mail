@@ -162,11 +162,6 @@ const settingService = {
 			params.aiCodeFilter = params.aiCodeFilter + '';
 		}
 
-		if (params.loginDarkenFactor !== undefined) {
-			const factor = Number(params.loginDarkenFactor);
-			params.loginDarkenFactor = Number.isNaN(factor) ? 0 : Math.min(1, Math.max(0, factor));
-		}
-
 		params.resendTokens = JSON.stringify(resendTokens);
 		params.smtpConfigs = JSON.stringify(smtpConfigs);
 		await orm(c).update(setting).set({ ...params }).returning().get();
@@ -244,7 +239,6 @@ const settingService = {
 			siteKey: settingRow.siteKey,
 			background: settingRow.background,
 			loginOpacity: settingRow.loginOpacity,
-			loginDarkenFactor: settingRow.loginDarkenFactor,
 			domainList: settingRow.loginDomain === 1 && !token ? [] : settingRow.domainList,
 			regKey: settingRow.regKey,
 			regVerifyOpen: settingRow.regVerifyOpen,

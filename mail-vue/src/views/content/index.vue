@@ -221,7 +221,7 @@ const handleDelete = () => {
 }
 
 .header-actions {
-  padding: 9px 15px;
+  padding: 9px 15px 8px;
   display: flex;
   align-items: center;
   gap: 20px;
