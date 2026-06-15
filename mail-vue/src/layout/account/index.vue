@@ -36,10 +36,10 @@
           <el-skeleton v-for="i in skeletonRows" :key="i" animated>
             <template #template>
               <el-card class="item">
-                <el-skeleton-item variant="p" style="width: 70%; height: 20px; margin-bottom: 25px"/>
                 <div style="display: flex; justify-content: space-between">
-                  <el-skeleton-item variant="text" style="width: 20px"/>
-                  <el-skeleton-item variant="text" style="width: 20px"/>
+                  <el-skeleton-item variant="text" style="width: 22px; height: 22px;"/>
+                  <el-skeleton-item variant="p" style="flex: 1; height: 22px; margin: 0 6px;"/>
+                  <el-skeleton-item variant="text" style="width: 22px; height: 22px;"/>
                 </div>
               </el-card>
             </template>
@@ -47,14 +47,14 @@
         </template>
 
         <!-- Follow Loading Skeleton -->
-        <template v-if="accounts.length > 0 && !noLoading">
+        <template v-if="followLoading">
           <el-skeleton animated>
             <template #template>
               <el-card class="item">
-                <el-skeleton-item variant="p" style="width: 70%; height: 20px; margin-bottom: 20px"/>
                 <div style="display: flex; justify-content: space-between">
-                  <el-skeleton-item variant="text" style="width: 20px"/>
-                  <el-skeleton-item variant="text" style="width: 20px"/>
+                  <el-skeleton-item variant="text" style="width: 22px; height: 22px;"/>
+                  <el-skeleton-item variant="p" style="flex: 1; height: 22px; margin: 0 6px;"/>
+                  <el-skeleton-item variant="text" style="width: 22px; height: 22px;"/>
                 </div>
               </el-card>
             </template>
