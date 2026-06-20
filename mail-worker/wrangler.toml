@@ -6,6 +6,15 @@ keep_vars = true
 [observability]
 enabled = true
 
+
+[[d1_databases]]
+binding = "db"
+database_name = "email"
+database_id = "9d3e8b58-1d3c-4b78-a9b4-f7dbc7372f1a"
+
+[[kv_namespaces]]
+binding = "kv"
+id = "d88694d1025749cca41e78fd820af8b4"
 #[[d1_databases]]
 #binding = "db"			#d1数据库绑定名默认不可修改
 #database_name = ""		#d1数据库名字
