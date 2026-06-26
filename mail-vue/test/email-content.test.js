@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatEmailBody, htmlToVisibleText, isCalendarAttachment } from '../src/utils/email-content.js';
+import {
+	attachmentDisplayName,
+	attachmentDownloadUrl,
+	formatEmailBody,
+	htmlToVisibleText,
+	isCalendarAttachment
+} from '../src/utils/email-content.js';
 import { getExtName } from '../src/utils/file-utils.js';
 
 describe('email content utilities', () => {
@@ -29,5 +35,15 @@ describe('email content utilities', () => {
 	it('detects nameless text/calendar attachments without crashing on missing filenames', () => {
 		assert.equal(getExtName(null), '');
 		assert.equal(isCalendarAttachment({ filename: null, mimeType: 'text/calendar' }), true);
+	});
+
+	it('builds a worker download URL with the displayed attachment filename', () => {
+		const attachment = { key: 'attachments/calendar-key', filename: null, mimeType: 'text/calendar' };
+
+		assert.equal(attachmentDisplayName(attachment), 'calendar.ics');
+		assert.equal(
+			attachmentDownloadUrl(attachment, '/api'),
+			'/api/oss/attachments/calendar-key?filename=calendar.ics'
+		);
 	});
 });

@@ -51,6 +51,24 @@ export function isCalendarAttachment(attachment = {}) {
 	return mimeType.includes('text/calendar') || mimeType.includes('application/ics') || filename.endsWith('.ics');
 }
 
+export function attachmentDisplayName(attachment = {}) {
+	const filename = String(attachment.filename || '').trim();
+	if (filename && !['null', 'undefined'].includes(filename.toLowerCase())) {
+		return filename;
+	}
+	return isCalendarAttachment(attachment) ? 'calendar.ics' : 'attachment';
+}
+
+export function attachmentDownloadUrl(attachment = {}, baseUrl = import.meta.env?.VITE_BASE_URL || '/api') {
+	const key = String(attachment.key || '')
+		.split('/')
+		.map(segment => encodeURIComponent(segment))
+		.join('/');
+	const base = String(baseUrl || '/api').replace(/\/$/, '');
+	const filename = encodeURIComponent(attachmentDisplayName(attachment));
+	return `${base}/oss/${key}?filename=${filename}`;
+}
+
 function decodeHtmlEntities(text) {
 	const value = String(text);
 

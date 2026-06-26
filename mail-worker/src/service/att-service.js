@@ -11,21 +11,23 @@ import domainUtils from '../utils/domain-uitls';
 import settingService from "./setting-service";
 import BizError from '../error/biz-error';
 import { isCalendarAttachment, parseICalendar } from '../utils/calendar-utils';
+import { attachmentContentDisposition, attachmentFilename } from '../utils/attachment-utils';
 
 const attService = {
 
 	async addAtt(c, attachments) {
 
 		for (let attachment of attachments) {
+			attachment.filename = attachmentFilename(attachment);
 
 			let metadate = {
 				contentType: attachment.mimeType,
 			}
 
 			if (!attachment.contentId) {
-				metadate.contentDisposition = `attachment;filename=${attachment.filename}`
+				metadate.contentDisposition = attachmentContentDisposition(attachment)
 			} else {
-				metadate.contentDisposition = `inline;filename=${attachment.filename}`
+				metadate.contentDisposition = attachmentContentDisposition(attachment, 'inline')
 				metadate.cacheControl = `max-age=259200`
 			}
 

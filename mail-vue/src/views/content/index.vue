@@ -84,7 +84,7 @@
                 <div class="att-size">{{ formatBytes(att.size) }}</div>
                 <div class="opt-icon att-icon">
                   <Icon v-if="isImage(displayAttName(att))" icon="hugeicons:view" width="22" height="22" @click="showImage(att.key)"/>
-                  <a :href="cvtR2Url(att.key)" :download="displayAttName(att)">
+                  <a :href="attachmentDownloadUrl(att)" :download="displayAttName(att)">
                     <Icon icon="system-uicons:push-down" width="22" height="22"/>
                   </a>
                 </div>
@@ -121,7 +121,7 @@ import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
-import {formatEmailBody, isCalendarAttachment} from "@/utils/email-content.js";
+import {attachmentDisplayName, attachmentDownloadUrl, formatEmailBody, isCalendarAttachment} from "@/utils/email-content.js";
 
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
@@ -192,10 +192,8 @@ function isImage(filename) {
 }
 
 function displayAttName(att) {
-  if (att.filename) {
-    return att.filename;
-  }
-  return isCalendarAttachment(att) ? 'calendar.ics' : t('attachment');
+  const name = attachmentDisplayName(att);
+  return name === 'attachment' ? t('attachment') : name;
 }
 
 async function loadCalendarInvites() {
