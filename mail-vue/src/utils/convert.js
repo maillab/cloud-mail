@@ -14,7 +14,8 @@ export function cvtR2Url(key) {
     let domain = settings.r2Domain
 
     if (!domain) {
-        return key;
+        // 没有配置 R2 域名时，通过 Worker 的 /oss/ 路径代理访问
+        return '/oss/' + key
     }
 
     if (!domain.startsWith('http')) {
