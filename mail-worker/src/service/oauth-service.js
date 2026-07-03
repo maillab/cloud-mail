@@ -70,7 +70,7 @@ const oauthService = {
 
 		userInfo.oauthUserId = String(userInfo.id);
 		userInfo.active = userInfo.active ? 0 : 1;
-		userInfo.silenced = userInfo.active ? 0 : 1;
+		userInfo.silenced = userInfo.silenced ? 0 : 1;
 		userInfo.trustLevel = userInfo.trust_level;
 		userInfo.avatar = userInfo.avatar_url;
 
