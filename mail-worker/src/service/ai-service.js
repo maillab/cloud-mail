@@ -34,8 +34,15 @@ const aiService = {
 				max_tokens: 32
 			});
 
-			const content = typeof result === 'string' ? result : result?.response || '';
-			const json = JSON.parse(content);
+const content = typeof result === 'string'
+	? result
+	: typeof result?.response === 'string'
+		? result.response
+		: result?.response || result;
+
+const json = typeof content === 'object'
+	? content
+	: JSON.parse(content);
 			if (typeof json.code !== 'string') {
 				return '';
 			}
