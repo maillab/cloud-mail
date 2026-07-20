@@ -1,10 +1,19 @@
 import i18next from 'i18next';
 import zh from './zh.js'
+import zhTW from './zh-TW.js'
 import en from './en.js'
 import app from '../hono/hono';
 
 app.use('*', async (c, next) => {
-	const lang = c.req.header('accept-language')?.split('-')[0]
+	const header = c.req.header('accept-language') || ''
+	let lang = 'zh'
+	if (/^zh-(TW|HK|MO)$/i.test(header) || header === 'zh-Hant') {
+		lang = 'zh-TW'
+	} else if (header.startsWith('zh')) {
+		lang = 'zh'
+	} else if (header.startsWith('en')) {
+		lang = 'en'
+	}
 	i18next.init({
 		lng: lang,
 	});
@@ -17,6 +26,9 @@ const resources = {
 	},
 	zh: {
 		translation: zh,
+	},
+	'zh-TW': {
+		translation: zhTW,
 	},
 };
 
