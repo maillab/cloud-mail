@@ -1,0 +1,39 @@
+Cloud Mail Backend Audit Validation Report
+Date: 2026-08-06
+
+[1/12] JavaScript syntax
+PASS: 132 JavaScript/MJS files
+
+[2/12] Changed Vue script syntax
+PASS: mail-vue/src/views/login/index.vue <script setup>
+
+[3/12] Security utility smoke tests
+PASS: PBKDF2, JWT canonical/signature/purpose/expiry, Svix signature/replay-window primitives
+
+[4/12] Security migration fixture
+PASS: v3.2/v3.3 de-duplication, unique indexes, orphan cleanup on representative SQLite fixture
+
+[5/12] TOML and JSON parsing
+PASS: all Wrangler TOML files and package manifests
+
+[6/12] Secret and Cloudflare resource scan
+PASS: no committed production secrets or real D1/KV resource identifiers detected
+
+[7/12] Local import resolution
+PASS: all relative imports in checked JavaScript files resolve locally
+
+[8/12] Patch hygiene
+PASS: git diff --check
+
+[9/12] Security boundary assertions
+PASS: no startsWith public route whitelist, method-aware public route entries, CORS origin validation, Resend signature verification, user projection excludes password field
+
+[10/12] Integration-build availability
+LIMITATION: node_modules is absent; Wrangler/Vite build and live Cloudflare D1/KV/R2/Email/APNs/Resend integration tests were not executable in this environment.
+REQUIRED: run staging deployment and the acceptance scenarios in BACKEND_SECURITY_AUDIT.md before production cutover.
+
+[11/12] Patch reproducibility
+PASS: patch applies cleanly to the pristine cloud-mail source tree and reproduces the audited tree byte-for-byte (excluding .git metadata)
+
+[12/12] Final archive independent verification
+PASS: ZIP integrity, independent extraction, 132 JavaScript/MJS syntax checks, security smoke tests, migration fixture, TOML/JSON parsing, report presence, and secret-file exclusions

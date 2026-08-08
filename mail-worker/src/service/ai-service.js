@@ -8,9 +8,10 @@ const aiService = {
 		}
 
 		const ai = c.env.ai;
+		if (!ai || typeof ai.run !== 'function') return '';
 
 		try {
-			const subject = email.subject || '';
+			const subject = String(email.subject || '').slice(0, 998);
 			const text = emailUtils.formatText(email.text || '');
 			const htmlText = emailUtils.htmlToText(email.html || '');
 			const body = (htmlText || text).slice(0, 6000);
@@ -46,7 +47,7 @@ const aiService = {
 
 			return json.code;
 		} catch (e) {
-			console.error('验证码提取失败: ', e);
+			console.warn('验证码提取失败:', e?.message || e);
 			return '';
 		}
 	},

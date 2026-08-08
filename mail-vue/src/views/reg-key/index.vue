@@ -100,7 +100,7 @@ import {defineOptions, nextTick, reactive, ref, watch} from "vue"
 import {Icon} from "@iconify/vue";
 import loading from "@/components/loading/index.vue";
 import {useSettingStore} from "@/store/setting.js";
-import {roleSelectUse} from "@/request/role.js";
+import {roleSelectUseCompat} from "@/request/role.js";
 import {useRoleStore} from "@/store/role.js";
 import {regKeyAdd, regKeyList, regKeyClearNotUse, regKeyDelete, regKeyHistory} from "@/request/reg-key.js";
 import {getTextWidth} from "@/utils/text.js";
@@ -142,13 +142,13 @@ const regKeyData = reactive([])
 
 getList(true)
 
-roleSelectUse().then(list => {
+roleSelectUseCompat().then(list => {
   roleList.length = 0
   roleList.push(...list)
 })
 
 watch(() => roleStore.refresh, () => {
-  roleSelectUse().then(list => {
+  roleSelectUseCompat().then(list => {
     roleList.length = 0
     roleList.push(...list)
   })
@@ -310,7 +310,7 @@ function submit() {
 
   if (!addForm.code) {
     ElMessage({
-      message: $('emptyRegKeyMsg'),
+      message: t('emptyRegKeyMsg'),
       type: "error",
       plain: true
     })
@@ -378,10 +378,17 @@ function deleteRegKey(regKey) {
 
 function resetForm() {
   addForm.code = ''
+  addForm.count = 1
+  addForm.expireTime = null
+  addForm.roleId = null
 }
 
 function openAdd() {
   genCode()
+  if (!addForm.roleId && roleList.length) {
+    const preferred = roleList.find(item => Number(item.isDefault) === 1) || roleList[0]
+    addForm.roleId = preferred?.roleId ?? null
+  }
   showAdd.value = true
 }
 

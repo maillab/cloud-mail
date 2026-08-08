@@ -1,50 +1,34 @@
 import emailService from './email-service';
 import { emailConst } from '../const/entity-const';
-import BizError from '../error/biz-error';
+
+const STATUS_BY_EVENT = {
+	'email.sent': emailConst.status.SENT,
+	'email.delivered': emailConst.status.DELIVERED,
+	'email.complained': emailConst.status.COMPLAINED,
+	'email.bounced': emailConst.status.BOUNCED,
+	'email.delivery_delayed': emailConst.status.DELAYED,
+	'email.failed': emailConst.status.FAILED
+};
 
 const resendService = {
-
 	async webhooks(c, body) {
-
-		const params = {
-			resendEmailId: body.data.email_id,
-			status: emailConst.status.SENT
+		if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
+		const status = STATUS_BY_EVENT[body.type];
+		const resendEmailId = body?.data?.email_id;
+		if (status === undefined || typeof resendEmailId !== 'string' || !resendEmailId || resendEmailId.length > 256) {
+			return false;
 		}
 
-		if (body.type === 'email.delivered') {
-			params.status = emailConst.status.DELIVERED
-			params.message = null
-		}
-
-		if (body.type === 'email.complained') {
-			params.status = emailConst.status.COMPLAINED
-			params.message = null
-		}
-
+		let message = null;
 		if (body.type === 'email.bounced') {
-			let bounce = body.data.bounce
-			bounce = JSON.stringify(bounce);
-			params.status = emailConst.status.BOUNCED
-			params.message = bounce
+			message = JSON.stringify(body.data?.bounce || {}).slice(0, 10_000);
+		} else if (body.type === 'email.failed') {
+			message = String(body.data?.failed?.reason || 'unknown').slice(0, 2000);
 		}
 
-		if (body.type === 'email.delivery_delayed') {
-			params.status = emailConst.status.DELAYED
-			params.message = null
-		}
-
-		if (body.type === 'email.failed') {
-			params.status = emailConst.status.FAILED
-			params.message = body.data.failed.reason
-		}
-
-		const emailRow = await emailService.updateEmailStatus(c, params)
-
-		if (!emailRow) {
-			throw new BizError('更新邮件状态记录失败');
-		}
-
+		await emailService.updateEmailStatus(c, { resendEmailId, status, message });
+		return true;
 	}
-}
+};
 
-export default resendService
+export default resendService;

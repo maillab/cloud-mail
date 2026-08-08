@@ -1,8 +1,10 @@
 import http from '@/axios/index.js'
+import {normalizePageNumber, normalizePageSize, normalizePagination} from '@/request/params.js'
 
-
-export function userList(params) {
-    return http.get('/user/list', {params: {...params}})
+export function userList(params = {}) {
+    return http.get('/user/list', {
+        params: normalizePagination(params, {sizeMax: 50, defaultSize: 20})
+    })
 }
 
 export function userSetPwd(params) {
@@ -16,7 +18,6 @@ export function userSetStatus(params) {
 export function userSetType(params) {
     return http.put('/user/setType', params)
 }
-
 
 export function userDelete(userIds) {
     return http.delete('/user/delete', {params:{userIds: userIds + ''}})
@@ -35,7 +36,13 @@ export function userRestore(userId,type) {
 }
 
 export function userAllAccount(userId, num, size) {
-    return http.get('/user/allAccount', {params:{userId,num,size}})
+    return http.get('/user/allAccount', {
+        params: {
+            userId,
+            num: normalizePageNumber(num),
+            size: normalizePageSize(size, 30, 20),
+        }
+    })
 }
 
 export function userDeleteAccount(accountId) {

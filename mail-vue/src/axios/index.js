@@ -97,8 +97,11 @@ http.interceptors.response.use((res) => {
             })
             ElMessage.error('')
         } else if (error.response) {
+            const backendMessage = error.response?.data?.message
+                || error.response?.data?.error
+                || i18n.global.t('serverBusyErrorMsg')
             ElMessage({
-                message: i18n.global.t('serverBusyErrorMsg'),
+                message: backendMessage,
                 type: 'error',
                 plain: true,
                 grouping: true,

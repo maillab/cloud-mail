@@ -289,7 +289,10 @@ function jumpContent(email) {
 
 
 function getEmailList(emailId, size) {
-  return allEmailList({emailId, size, ...params})
+  const query = {size, ...params}
+  // 降序第一页不发送 emailId=0，兼容旧后端；升序第一页的 0 是有效游标。
+  if (emailId > 0 || params.timeSort === 1) query.emailId = emailId
+  return allEmailList(query)
 }
 
 async function latest() {

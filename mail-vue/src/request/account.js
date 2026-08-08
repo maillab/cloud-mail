@@ -1,7 +1,10 @@
 import http from '@/axios/index.js'
+import {normalizePageSize} from '@/request/params.js'
 
 export function accountList(accountId, size, lastSort) {
-    return http.get('/account/list', {params: {accountId, size, lastSort}});
+    return http.get('/account/list', {
+        params: {accountId, size: normalizePageSize(size, 30, 20), lastSort}
+    });
 }
 
 export function accountAdd(email,token) {

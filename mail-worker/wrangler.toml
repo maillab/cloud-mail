@@ -41,7 +41,11 @@ crons = ["0 16 * * *"]	#每天晚上12点执行每日任务,刷新分析缓存
 #orm_log = false			#是否sql日志
 #domain = []				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
 #admin = ""				#管理员的邮箱	示例: admin@example.com
-#jwt_secret = ""			#jwt令牌的密钥,随便填一串字符串
+#cors_origins = "https://mail.example.com" # 允许跨域的前端来源，多个使用逗号分隔
+#oauth_state_required = true
+#allow_unsigned_resend_webhook = false
+#turnstile_hostnames = "mail.example.com"
+# jwt_secret、init_secret、resend_webhook_secret 等敏感值请使用 `wrangler secret put`，不要写入 [vars]
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"

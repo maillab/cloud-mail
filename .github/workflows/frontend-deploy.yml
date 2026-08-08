@@ -1,0 +1,16 @@
+name: Deploy frontend to Cloudflare
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-frontend:
+    # 前端由 Worker Assets 托管，因此前端发布仍会重新部署同一个 Worker，
+    # 但触发条件与后端代码变更完全分离。
+    uses: ./.github/workflows/_deploy-cloudflare.yml
+    with:
+      source: frontend
+    secrets: inherit

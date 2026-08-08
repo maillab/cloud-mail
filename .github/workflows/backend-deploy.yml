@@ -1,0 +1,15 @@
+name: Deploy backend to Cloudflare
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-backend:
+    uses: ./.github/workflows/_deploy-cloudflare.yml
+    with:
+      source: backend
+      initialize_database: true
+    secrets: inherit

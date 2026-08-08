@@ -1,0 +1,552 @@
+name: Reusable Cloudflare deployment
+
+on:
+  workflow_call:
+    inputs:
+      source:
+        description: Deployment source
+        required: true
+        type: string
+      initialize_database:
+        description: Run the protected database initialization and migrations
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloud-mail-cloudflare-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy (${{ inputs.source }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NAME: ${{ secrets.NAME || vars.NAME || 'cloud-mail' }}
+      CUSTOM_DOMAIN: ${{ secrets.CUSTOM_DOMAIN || vars.CUSTOM_DOMAIN }}
+      DOMAIN: ${{ secrets.DOMAIN || vars.DOMAIN }}
+      ADMIN: ${{ secrets.ADMIN || vars.ADMIN }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      INIT_SECRET: ${{ secrets.INIT_SECRET }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID || vars.D1_DATABASE_ID }}
+      KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID || vars.KV_NAMESPACE_ID }}
+      R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME || vars.R2_BUCKET_NAME }}
+      PROJECT_LINK: ${{ secrets.PROJECT_LINK || vars.PROJECT_LINK }}
+      AI_MODEL: ${{ secrets.AI_MODEL || vars.AI_MODEL || '@cf/meta/llama-3.1-8b-instruct' }}
+      CLOUDFLARE_EMAIL: ${{ secrets.CF_EMAIL || vars.CF_EMAIL || 'false' }}
+      ANALYSIS_CACHE: ${{ secrets.ANALYSIS_CACHE || vars.ANALYSIS_CACHE || 'false' }}
+      PASSWORD_PBKDF2_ITERATIONS: ${{ secrets.PASSWORD_PBKDF2_ITERATIONS || vars.PASSWORD_PBKDF2_ITERATIONS || '20000' }}
+      PASSWORD_REHASH_ON_LOGIN: ${{ secrets.PASSWORD_REHASH_ON_LOGIN || vars.PASSWORD_REHASH_ON_LOGIN || 'false' }}
+      LINUXDO_CLIENT_ID: ${{ secrets.LINUXDO_CLIENT_ID || vars.LINUXDO_CLIENT_ID }}
+      LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET }}
+      LINUXDO_CALLBACK_URL: ${{ secrets.LINUXDO_CALLBACK_URL || vars.LINUXDO_CALLBACK_URL }}
+      LINUXDO_SWITCH: ${{ secrets.LINUXDO_SWITCH || vars.LINUXDO_SWITCH || 'false' }}
+      RESEND_WEBHOOK_SECRET: ${{ secrets.RESEND_WEBHOOK_SECRET }}
+      # GitHub Repository secrets use upper-case names. The Worker bindings are
+      # intentionally written as lower-case names later because apns-service.js
+      # reads c.env.apns_*.
+      APNS_BUNDLE_ID: ${{ secrets.APNS_BUNDLE_ID }}
+      APNS_ENVIRONMENT: ${{ secrets.APNS_ENVIRONMENT }}
+      APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
+      APNS_PRIVATE_KEY: ${{ secrets.APNS_PRIVATE_KEY }}
+      APNS_TEAM_ID: ${{ secrets.APNS_TEAM_ID }}
+
+    steps:
+      - name: Checkout repository without external actions
+        shell: bash
+        env:
+          CHECKOUT_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          git init .
+          git remote remove origin 2>/dev/null || true
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH_HEADER="$(printf 'x-access-token:%s' "$CHECKOUT_TOKEN" | base64 | tr -d '\r\n')"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH_HEADER" \
+            fetch --no-tags --prune --depth=1 origin "$GITHUB_SHA"
+          git checkout --force --detach FETCH_HEAD
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git status --short --branch
+
+      - name: Set up Node.js 22 and pnpm without external actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCH="$(uname -m)"
+          case "$ARCH" in
+            x86_64) NODE_ARCH='x64' ;;
+            aarch64|arm64) NODE_ARCH='arm64' ;;
+            *) echo "::error::Unsupported runner architecture: $ARCH"; exit 1 ;;
+          esac
+
+          NODE_VERSION="$(python3 <<'PY_NODE_VERSION'
+          import json
+          import urllib.request
+
+          with urllib.request.urlopen('https://nodejs.org/dist/index.json', timeout=30) as response:
+              releases = json.load(response)
+          for release in releases:
+              version = release.get('version', '')
+              if version.startswith('v22.') and release.get('lts'):
+                  print(version[1:])
+                  break
+          else:
+              raise SystemExit('No Node.js 22 LTS release found')
+          PY_NODE_VERSION
+          )"
+
+          NODE_DIR="$RUNNER_TEMP/node-v${NODE_VERSION}-linux-${NODE_ARCH}"
+          ARCHIVE="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"
+          if [ ! -x "$NODE_DIR/bin/node" ]; then
+            cd "$RUNNER_TEMP"
+            curl --fail --silent --show-error --location \
+              "https://nodejs.org/dist/v${NODE_VERSION}/${ARCHIVE}" --output "$ARCHIVE"
+            curl --fail --silent --show-error --location \
+              "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" --output SHASUMS256.txt
+            grep "  ${ARCHIVE}$" SHASUMS256.txt | sha256sum --check --strict
+            tar -xJf "$ARCHIVE"
+          fi
+
+          echo "$NODE_DIR/bin" >> "$GITHUB_PATH"
+          export PATH="$NODE_DIR/bin:$PATH"
+          npm install --global --prefix "$RUNNER_TEMP/pnpm" pnpm@9.15.9
+          echo "$RUNNER_TEMP/pnpm/bin" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP/pnpm/bin:$PATH"
+          node --version
+          pnpm --version
+
+      - name: Validate deployment environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "🔐 Starting environment setup..."
+          python3 <<'PY'
+          import json
+          import os
+          import re
+          from urllib.parse import urlsplit
+
+          required = [
+              "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID",
+              "JWT_SECRET", "INIT_SECRET", "DOMAIN", "ADMIN"
+          ]
+          missing = [name for name in required if not os.environ.get(name, "").strip()]
+          if missing:
+              raise SystemExit("::error::Missing required secrets/variables: " + ", ".join(missing))
+
+          jwt_secret = os.environ["JWT_SECRET"]
+          init_secret = os.environ["INIT_SECRET"]
+          if len(jwt_secret) < 32 or len(init_secret) < 32:
+              raise SystemExit("::error::JWT_SECRET and INIT_SECRET must each contain at least 32 characters")
+          if jwt_secret == init_secret:
+              raise SystemExit("::error::JWT_SECRET and INIT_SECRET must be different values")
+          if any(ch in jwt_secret + init_secret for ch in "\r\n"):
+              raise SystemExit("::error::Secrets must be single-line values")
+
+          try:
+              domains = json.loads(os.environ["DOMAIN"])
+          except json.JSONDecodeError as exc:
+              raise SystemExit(f"::error::DOMAIN must be a JSON array: {exc}")
+          domain_pattern = re.compile(r"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$", re.I)
+          if not isinstance(domains, list) or not domains or any(not isinstance(v, str) or not domain_pattern.fullmatch(v.strip()) for v in domains):
+              raise SystemExit('::error::DOMAIN must look like ["example.com"]')
+
+          custom_domain = os.environ.get("CUSTOM_DOMAIN", "").strip()
+          if custom_domain:
+              candidate = custom_domain if "://" in custom_domain else "https://" + custom_domain
+              parsed = urlsplit(candidate)
+              if parsed.scheme != "https" or not parsed.hostname or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+                  raise SystemExit("::error::CUSTOM_DOMAIN must be a hostname or an https:// hostname without a path")
+
+          admin = os.environ["ADMIN"].strip()
+          if "@" not in admin or len(admin) > 320:
+              raise SystemExit("::error::ADMIN must be a valid administrator email address")
+
+          apns_names = [
+              "APNS_BUNDLE_ID", "APNS_ENVIRONMENT", "APNS_KEY_ID",
+              "APNS_PRIVATE_KEY", "APNS_TEAM_ID"
+          ]
+          apns_missing = [name for name in apns_names if not os.environ.get(name, "").strip()]
+          if apns_missing:
+              raise SystemExit(
+                  "::error::Missing APNs Repository secrets: " + ", ".join(apns_missing)
+              )
+          if os.environ["APNS_ENVIRONMENT"].strip().lower() not in {"production", "sandbox"}:
+              raise SystemExit("::error::APNS_ENVIRONMENT must be production or sandbox")
+          if "BEGIN PRIVATE KEY" not in os.environ["APNS_PRIVATE_KEY"]:
+              raise SystemExit("::error::APNS_PRIVATE_KEY does not look like an Apple .p8 private key")
+
+          print("✅ Environment validation completed")
+          PY
+
+      - name: Install backend dependencies
+        working-directory: mail-worker
+        run: pnpm install --frozen-lockfile
+
+      - name: Install frontend dependencies
+        working-directory: mail-vue
+        run: pnpm install --frozen-lockfile
+
+      - name: Run backend security tests
+        working-directory: mail-worker
+        run: |
+          pnpm run security:test
+          pnpm run security:migration-test
+          pnpm run email:list:test
+
+      - name: Run frontend API contract tests
+        working-directory: mail-vue
+        run: pnpm run contract:test
+
+      - name: Build frontend assets
+        working-directory: mail-vue
+        run: pnpm run build
+
+      - name: Resolve Cloudflare KV namespace
+        working-directory: mail-worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${KV_NAMESPACE_ID:-}" ]; then
+            KV_ID="$KV_NAMESPACE_ID"
+          else
+            KV_LIST="$(pnpm wrangler kv namespace list)"
+            KV_ID="$(jq -r --arg name "$NAME" '.[] | select(.title == $name) | .id' <<<"$KV_LIST" | head -n1)"
+            if [ -z "$KV_ID" ]; then
+              pnpm wrangler kv namespace create "$NAME"
+              KV_LIST="$(pnpm wrangler kv namespace list)"
+              KV_ID="$(jq -r --arg name "$NAME" '.[] | select(.title == $name) | .id' <<<"$KV_LIST" | head -n1)"
+            fi
+          fi
+          test -n "$KV_ID" || { echo "::error::Unable to resolve KV namespace"; exit 1; }
+          echo "RESOLVED_KV_NAMESPACE_ID=$KV_ID" >> "$GITHUB_ENV"
+
+      - name: Resolve Cloudflare D1 database
+        working-directory: mail-worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${D1_DATABASE_ID:-}" ]; then
+            D1_ID="$D1_DATABASE_ID"
+          else
+            DB_LIST="$(pnpm wrangler d1 list --json)"
+            D1_ID="$(jq -r --arg name "$NAME" '.[] | select(.name == $name) | .uuid' <<<"$DB_LIST" | head -n1)"
+            if [ -z "$D1_ID" ]; then
+              pnpm wrangler d1 create "$NAME"
+              DB_LIST="$(pnpm wrangler d1 list --json)"
+              D1_ID="$(jq -r --arg name "$NAME" '.[] | select(.name == $name) | .uuid' <<<"$DB_LIST" | head -n1)"
+            fi
+          fi
+          test -n "$D1_ID" || { echo "::error::Unable to resolve D1 database"; exit 1; }
+          echo "RESOLVED_D1_DATABASE_ID=$D1_ID" >> "$GITHUB_ENV"
+
+      - name: Render Wrangler configuration safely
+        working-directory: mail-worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from urllib.parse import urlsplit
+
+          def toml_string(value):
+              return json.dumps(str(value), ensure_ascii=False)
+
+          def as_bool(name, default=False):
+              raw = os.environ.get(name, "").strip().lower()
+              if not raw:
+                  return default
+              if raw in {"1", "true", "yes", "on"}:
+                  return True
+              if raw in {"0", "false", "no", "off"}:
+                  return False
+              raise SystemExit(f"::error::{name} must be true or false")
+
+          domains = json.loads(os.environ["DOMAIN"])
+          name = os.environ["NAME"].strip()
+          custom_domain = os.environ.get("CUSTOM_DOMAIN", "").strip()
+          if custom_domain:
+              parsed = urlsplit(custom_domain if "://" in custom_domain else "https://" + custom_domain)
+              custom_domain = parsed.hostname or ""
+
+          lines = [
+              f"name = {toml_string(name)}",
+              'main = "src/index.js"',
+              'compatibility_date = "2025-06-04"',
+              # Preserve dashboard-defined plain variables that are intentionally
+              # not rendered into this generated CI config. The repository's
+              # wrangler.toml already had keep_vars=true, but deployment uses
+              # wrangler-ci.toml, so it must be repeated here explicitly.
+              'keep_vars = true',
+              'workers_dev = true',
+              '',
+              '[observability]',
+              'enabled = true',
+              '',
+          ]
+          if custom_domain:
+              lines += [
+                  '[[routes]]',
+                  f'pattern = {toml_string(custom_domain)}',
+                  'custom_domain = true',
+                  '',
+              ]
+          lines += [
+              '[[d1_databases]]',
+              'binding = "db"',
+              f'database_name = {toml_string(name)}',
+              f'database_id = {toml_string(os.environ["RESOLVED_D1_DATABASE_ID"])}',
+              '',
+              '[[kv_namespaces]]',
+              'binding = "kv"',
+              f'id = {toml_string(os.environ["RESOLVED_KV_NAMESPACE_ID"])}',
+              '',
+          ]
+          r2_bucket = os.environ.get("R2_BUCKET_NAME", "").strip()
+          if r2_bucket:
+              lines += [
+                  '[[r2_buckets]]',
+                  'binding = "r2"',
+                  f'bucket_name = {toml_string(r2_bucket)}',
+                  '',
+              ]
+          lines += [
+              '[ai]',
+              'binding = "ai"',
+              '',
+              '[assets]',
+              'binding = "assets"',
+              'directory = "./dist"',
+              'not_found_handling = "single-page-application"',
+              'run_worker_first = true',
+              '',
+              '[triggers]',
+              'crons = ["0 16 * * *"]',
+              '',
+          ]
+          if as_bool("CLOUDFLARE_EMAIL"):
+              lines += ['[[send_email]]', 'name = "email"', '']
+          lines += [
+              '[vars]',
+              f'ai_model = {toml_string(os.environ.get("AI_MODEL", ""))}',
+              f'analysis_cache = {str(as_bool("ANALYSIS_CACHE")).lower()}',
+              f'password_pbkdf2_iterations = {max(10000, min(int(os.environ.get("PASSWORD_PBKDF2_ITERATIONS", "20000")), 2000000))}',
+              f'password_rehash_on_login = {str(as_bool("PASSWORD_REHASH_ON_LOGIN")).lower()}',
+              f'domain = {json.dumps(domains, ensure_ascii=False)}',
+              f'admin = {toml_string(os.environ["ADMIN"].strip())}',
+              f'project_link = {toml_string(os.environ.get("PROJECT_LINK", "").strip())}',
+              'oauth_state_required = true',
+              'allow_unsigned_resend_webhook = false',
+              f'linuxdo_client_id = {toml_string(os.environ.get("LINUXDO_CLIENT_ID", "").strip())}',
+              f'linuxdo_callback_url = {toml_string(os.environ.get("LINUXDO_CALLBACK_URL", "").strip())}',
+              f'linuxdo_switch = {str(as_bool("LINUXDO_SWITCH")).lower()}',
+              '',
+          ]
+          Path("wrangler-ci.toml").write_text("\n".join(lines), encoding="utf-8")
+          print("✅ wrangler-ci.toml rendered without shell interpolation")
+          PY
+          if grep -n '\${' wrangler-ci.toml; then
+            echo "::error::Unresolved placeholder remains in wrangler-ci.toml"
+            exit 1
+          fi
+          pnpm wrangler deploy --dry-run --config wrangler-ci.toml --outdir .wrangler-dry-run
+
+      - name: Prepare Worker secrets for atomic deployment
+        working-directory: mail-worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          # GitHub Repository secrets are mapped to the exact lower-case Worker
+          # binding names consumed by mail-worker/src/service/apns-service.js.
+          required = {
+              "jwt_secret": os.environ["JWT_SECRET"],
+              "init_secret": os.environ["INIT_SECRET"],
+              "apns_bundle_id": os.environ["APNS_BUNDLE_ID"],
+              "apns_environment": os.environ["APNS_ENVIRONMENT"].strip().lower(),
+              "apns_key_id": os.environ["APNS_KEY_ID"],
+              "apns_private_key": os.environ["APNS_PRIVATE_KEY"],
+              "apns_team_id": os.environ["APNS_TEAM_ID"],
+          }
+          optional = {
+              "linuxdo_client_secret": os.environ.get("LINUXDO_CLIENT_SECRET", ""),
+              "resend_webhook_secret": os.environ.get("RESEND_WEBHOOK_SECRET", ""),
+          }
+          payload = {**required, **{k: v for k, v in optional.items() if v}}
+          path = Path(".wrangler-ci-secrets.json")
+          path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+          path.chmod(0o600)
+          print("✅ Prepared encrypted Worker secret bindings (values not logged)")
+          PY
+
+      - name: Deploy Worker and frontend assets
+        id: deploy
+        working-directory: mail-worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          pnpm wrangler deploy \
+            --config wrangler-ci.toml \
+            --secrets-file .wrangler-ci-secrets.json \
+            2>&1 | tee deploy.log
+
+          # Wrangler 的输出格式可能随版本变化，使用 Python 从完整日志中提取
+          # workers.dev 地址，并显式在 wrangler-ci.toml 中启用 workers_dev。
+          WORKER_URL="$(python3 <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path('deploy.log').read_text(encoding='utf-8', errors='replace')
+          urls = re.findall(r'https://[A-Za-z0-9._-]+\.workers\.dev(?:/[^\s]*)?', text)
+          print(urls[-1].rstrip('.,;)\"\'') if urls else '')
+          PY
+          )"
+          if [ -n "$WORKER_URL" ]; then
+            echo "::add-mask::$WORKER_URL"
+            echo "✅ Worker endpoint detected"
+          else
+            echo "::warning::Wrangler output did not contain a workers.dev URL; initialization will try the custom domain only."
+          fi
+          echo "worker_url=$WORKER_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Remove temporary Worker secret file
+        if: always()
+        working-directory: mail-worker
+        shell: bash
+        run: rm -f .wrangler-ci-secrets.json
+
+      - name: Initialize or migrate database
+        if: inputs.initialize_database
+        shell: bash
+        env:
+          DEPLOYED_WORKER_URL: ${{ steps.deploy.outputs.worker_url }}
+        run: |
+          set -euo pipefail
+
+          # 自定义域名绑定在刚发布后可能需要几十秒传播。不要只依赖 CUSTOM_DOMAIN；
+          # 优先使用 workers.dev，失败后再回退到自定义域名，并对传播延迟进行重试。
+          mapfile -t BASE_URLS < <(python3 <<'PY'
+          import os
+          from urllib.parse import urlsplit
+
+          candidates = []
+          worker_url = os.environ.get('DEPLOYED_WORKER_URL', '').strip().rstrip('/')
+          if worker_url:
+              candidates.append(worker_url)
+
+          custom = os.environ.get('CUSTOM_DOMAIN', '').strip()
+          if custom:
+              parsed = urlsplit(custom if '://' in custom else 'https://' + custom)
+              if parsed.hostname:
+                  candidates.append('https://' + parsed.hostname)
+
+          seen = set()
+          for candidate in candidates:
+              if candidate and candidate not in seen:
+                  seen.add(candidate)
+                  print(candidate)
+          PY
+          )
+
+          if [ "${#BASE_URLS[@]}" -eq 0 ]; then
+            echo "::error::Unable to determine either the workers.dev URL or CUSTOM_DOMAIN"
+            exit 1
+          fi
+
+          : > init-response.txt
+          : > init-diagnostics.txt
+          initialized=false
+
+          for attempt in $(seq 1 12); do
+            echo "Initialization attempt $attempt/12"
+
+            for BASE_URL in "${BASE_URLS[@]}"; do
+              echo "Testing deployment endpoint: ${BASE_URL%%/*}//${BASE_URL#*//}" | tee -a init-diagnostics.txt
+
+              HEALTH_CODE="$(curl --silent --show-error \
+                --connect-timeout 10 \
+                --max-time 30 \
+                --header 'Accept: application/json' \
+                --header 'User-Agent: CloudMail-GitHub-Actions' \
+                --output health-response.txt \
+                --write-out '%{http_code}' \
+                "$BASE_URL/api/health" || printf '000')"
+
+              printf 'health=%s url=%s\n' "$HEALTH_CODE" "$BASE_URL" >> init-diagnostics.txt
+              if [ "$HEALTH_CODE" != "200" ]; then
+                continue
+              fi
+
+              HTTP_CODE="$(curl --silent --show-error \
+                --connect-timeout 10 \
+                --max-time 120 \
+                --request POST \
+                --header "X-Init-Secret: $INIT_SECRET" \
+                --header 'Accept: text/plain' \
+                --header 'User-Agent: CloudMail-GitHub-Actions' \
+                --output init-response.txt \
+                --write-out '%{http_code}' \
+                "$BASE_URL/api/init" || printf '000')"
+
+              printf 'init=%s url=%s\n' "$HTTP_CODE" "$BASE_URL" >> init-diagnostics.txt
+              if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+                cat init-response.txt
+                echo "✅ Database initialization completed"
+                initialized=true
+                break 2
+              fi
+
+              # 401/503 can occur briefly while wrangler secret put propagates a new version.
+              # 404 generally means the custom-domain route has not propagated yet.
+              cat init-response.txt || true
+            done
+
+            sleep $((attempt < 6 ? 5 : 10))
+          done
+
+          if [ "$initialized" != "true" ]; then
+            echo "::error::Database initialization failed on all deployment endpoints"
+            cat init-diagnostics.txt
+            exit 1
+          fi
+
+      - name: Print deployment diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          files=(
+            "mail-worker/deploy.log"
+            "init-response.txt"
+            "health-response.txt"
+            "init-diagnostics.txt"
+          )
+          for file in "${files[@]}"; do
+            if [ -f "$file" ]; then
+              echo "::group::$file"
+              head -n 600 "$file"
+              echo "::endgroup::"
+            fi
+          done
+          {
+            echo '## Cloudflare deployment diagnostics'
+            echo
+            echo 'The repository policy blocks third-party artifact actions, so diagnostics are printed in the job log.'
+            for file in "${files[@]}"; do
+              [ -f "$file" ] && echo "- $file"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"

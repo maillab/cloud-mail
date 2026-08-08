@@ -365,7 +365,7 @@
 </template>
 
 <script setup>
-import {defineOptions, h, reactive, ref, watch} from 'vue'
+import {computed, defineOptions, h, reactive, ref, watch} from 'vue'
 import {
   userList,
   userDelete,
@@ -378,7 +378,7 @@ import {
   userDeleteAccount,
   userAllAccount
 } from '@/request/user.js'
-import {roleSelectUse} from "@/request/role.js";
+import {roleSelectUseCompat} from "@/request/role.js";
 import {Icon} from "@iconify/vue";
 import loading from "@/components/loading/index.vue";
 import {tzDayjs} from "@/utils/day.js";
@@ -392,6 +392,7 @@ defineOptions({
   name: 'user'
 })
 
+import {normalizeInteger, normalizePageNumber, normalizePageSize} from '@/request/params.js'
 const {t, locale} = useI18n();
 const roleStore = useRoleStore()
 const userStore = useUserStore()
@@ -434,14 +435,23 @@ const triggerRef = ref({
     return position.value;
   }
 })
-const domainList = settingStore.domainList
+const domainList = computed(() => settingStore.domainList || [])
 
 const addForm = reactive({
   email: '',
-  suffix: settingStore.domainList[0],
+  suffix: settingStore.domainList?.[0] || '',
   password: '',
   type: null,
 })
+
+watch(() => settingStore.domainList, (list) => {
+  const values = Array.isArray(list) ? list : []
+  if (!values.length) {
+    addForm.suffix = ''
+    return
+  }
+  if (!values.includes(addForm.suffix)) addForm.suffix = values[0]
+}, {immediate: true})
 
 const params = reactive({
   email: '',
@@ -470,23 +480,27 @@ const mySelect = ref({})
 const accountList = reactive([])
 const accountParams = reactive({
   size: 10,
-  num: 0,
+  num: 1,
   total: 0,
   userId: 0,
 })
 
-roleSelectUse().then(list => {
+roleSelectUseCompat().then(list => {
   roleList.length = 0
   roleList.push(...list)
 })
 
 const paramsStar = localStorage.getItem('user-params')
 if (paramsStar) {
-  const localParams = JSON.parse(paramsStar)
-  params.num = localParams.num
-  params.size = localParams.size
-  params.timeSort = localParams.timeSort
-  params.status = localParams.status
+  try {
+    const localParams = JSON.parse(paramsStar)
+    params.num = normalizePageNumber(localParams.num)
+    params.size = normalizePageSize(localParams.size, 50, 15)
+    params.timeSort = normalizeInteger(localParams.timeSort, {defaultValue: 0, min: 0, max: 1})
+    params.status = normalizeInteger(localParams.status, {defaultValue: -1, min: -2, max: 1})
+  } catch {
+    localStorage.removeItem('user-params')
+  }
 }
 
 watch(() => params, () => {
@@ -496,7 +510,7 @@ watch(() => params, () => {
 })
 
 watch(() => roleStore.refresh, () => {
-  roleSelectUse().then(list => {
+  roleSelectUseCompat().then(list => {
     roleList.length = 0
     roleList.push(...list)
   })
@@ -574,7 +588,7 @@ function accountCurChange(e) {
 
 function resetAccountList() {
   accountList.length = 0
-  accountParams.num = 0
+  accountParams.num = 1
   accountParams.size = 10
   accountParams.total = 0
 }
@@ -682,7 +696,7 @@ const openSelect = () => {
 
 function resetAddForm() {
   addForm.email = ''
-  addForm.suffix = settingStore.domainList[0]
+  addForm.suffix = settingStore.domainList?.[0] || ''
   addForm.type = null
   addForm.password = ''
 }
@@ -972,7 +986,7 @@ function refresh() {
   params.status = -1
   params.timeSort = 0
   getUserList();
-  roleSelectUse().then(list => {
+  roleSelectUseCompat().then(list => {
     roleList.length = 0
     roleList.push(...list)
   })

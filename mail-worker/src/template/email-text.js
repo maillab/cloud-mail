@@ -1,3 +1,5 @@
+import { escapeHtml } from '../utils/html-utils';
+
 export default function emailTextTemplate(text) {
 	return `<!DOCTYPE html>
 <html lang='en' >
@@ -29,7 +31,7 @@ export default function emailTextTemplate(text) {
     </style>
 </head>
 <body>
-<span>${text}</span>
+<span>${escapeHtml(text)}</span>
 </body>
 </html>`
 }

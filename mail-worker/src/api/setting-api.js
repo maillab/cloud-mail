@@ -2,6 +2,7 @@ import app from '../hono/hono';
 import result from '../model/result';
 import settingService from '../service/setting-service';
 import userContext from "../security/user-context";
+import telegramService from '../service/telegram-service';
 
 app.put('/setting/set', async (c) => {
 	await settingService.set(c, await c.req.json());
@@ -11,6 +12,12 @@ app.put('/setting/set', async (c) => {
 app.get('/setting/query', async (c) => {
 	const setting = await settingService.get(c);
 	return c.json(result.ok(setting));
+});
+
+
+app.post('/setting/testTelegram', async (c) => {
+	const summary = await telegramService.testBot(c);
+	return c.json(result.ok(summary));
 });
 
 app.get('/setting/websiteConfig', async (c) => {

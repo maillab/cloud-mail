@@ -14,10 +14,23 @@ import roleService from './role-service';
 import emailUtils from '../utils/email-utils';
 import saltHashUtils from '../utils/crypto-utils';
 import constant from '../const/constant';
-import { t } from '../i18n/i18n'
+import { t } from '../i18n/i18n';
 import reqUtils from '../utils/req-utils';
 import {oauth} from "../entity/oauth";
-import oauthService from "./oauth-service";
+import oauthService from './oauth-service';
+import { normalizeEmail, toId, toIdList, toInteger, toPageNumber, toPageSize } from '../utils/input-utils';
+
+function isAdminEmail(c, email) {
+	return typeof c.env?.admin === 'string' && typeof email === 'string'
+		&& email.toLowerCase() === c.env.admin.toLowerCase();
+}
+
+async function assertMutableUser(c, userId) {
+	const row = await userService.selectByIdIncludeDel(c, userId);
+	if (!row) throw new BizError(t('notExistUser'), 404);
+	if (isAdminEmail(c, row.email)) throw new BizError('系统管理员账户不可执行此操作', 403);
+	return row;
+}
 
 const userService = {
 
@@ -32,7 +45,7 @@ const userService = {
 		const [account, roleRow, permKeys] = await Promise.all([
 			accountService.selectByEmailIncludeDel(c, userRow.email),
 			roleService.selectById(c, userRow.type),
-			userRow.email === c.env.admin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
+			isAdminEmail(c, userRow.email) ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
 		]);
 
 		const user = {};
@@ -40,12 +53,13 @@ const userService = {
 		user.sendCount = userRow.sendCount;
 		user.email = userRow.email;
 		user.account = account;
-		user.name = account.name;
+		user.name = account?.name || emailUtils.getName(userRow.email);
 		user.permKeys = permKeys;
 		user.role = roleRow;
 		user.type = userRow.type;
+		user.isAdmin = isAdminEmail(c, userRow.email);
 
-		if (c.env.admin === userRow.email) {
+		if (user.isAdmin) {
 			user.role = constant.ADMIN_ROLE
 			user.type = 0;
 		}
@@ -55,14 +69,22 @@ const userService = {
 
 
 	async resetPassword(c, params, userId) {
+		const password = params?.password;
+		if (typeof password !== 'string' || password.length < 6) throw new BizError(t('pwdMinLength'), 400);
+		if (password.length > 30) throw new BizError(t('pwdLengthLimit'), 400);
+		const { salt, hash } = await cryptoUtils.hashPassword(password, cryptoUtils.iterationsFromEnv(c.env));
+		const uid = toId(userId, 'userId');
+		await this.updatePasswordHash(c, uid, hash, salt);
+		await c.env.kv.delete(KvConst.AUTH_INFO + uid);
+	},
 
-		const { password } = params;
+	async updatePasswordHash(c, userId, hash, salt) {
+		await orm(c).update(user).set({ password: hash, salt }).where(eq(user.userId, userId)).run();
+	},
 
-		if (password.length < 6) {
-			throw new BizError(t('pwdMinLength'));
-		}
-		const { salt, hash } = await cryptoUtils.hashPassword(password);
-		await orm(c).update(user).set({ password: hash, salt: salt }).where(eq(user.userId, userId)).run();
+	async rollbackCreate(c, userId) {
+		await orm(c).delete(user).where(eq(user.userId, toId(userId, 'userId'))).run();
+		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
 	},
 
 	selectByEmail(c, email) {
@@ -95,31 +117,31 @@ const userService = {
 	},
 
 	async delete(c, userId) {
-		await orm(c).update(user).set({ isDel: isDel.DELETE }).where(eq(user.userId, userId)).run();
-		await c.env.kv.delete(kvConst.AUTH_INFO + userId)
+		const uid = toId(userId, 'userId');
+		await assertMutableUser(c, uid);
+		await orm(c).update(user).set({ isDel: isDel.DELETE }).where(eq(user.userId, uid)).run();
+		await c.env.kv.delete(kvConst.AUTH_INFO + uid);
 	},
 
 	async physicsDelete(c, params) {
-		let { userIds } = params;
-		userIds = userIds.split(',').map(Number);
+		const userIds = toIdList(params?.userIds, { name: 'userIds', maxItems: 200 });
+		for (const userId of userIds) await assertMutableUser(c, userId);
 		await accountService.physicsDeleteByUserIds(c, userIds);
 		await oauthService.deleteByUserIds(c, userIds);
 		await orm(c).delete(user).where(inArray(user.userId, userIds)).run();
+		await Promise.all(userIds.map(userId => c.env.kv.delete(KvConst.AUTH_INFO + userId)));
 	},
 
 	async list(c, params) {
 
-		let { num, size, email, timeSort, status } = params;
-
-		size = Number(size);
-		num = Number(num);
-		timeSort = Number(timeSort);
-		params.isDel = Number(params.isDel);
-		if (size > 50) {
-			size = 50;
-		}
-
-		num = (num - 1) * size;
+		let { email } = params;
+		const size = toPageSize(params.size, { defaultValue: 20, max: 50 });
+		const page = toPageNumber(params.num);
+		const num = (page - 1) * size;
+		const timeSort = toInteger(params.timeSort, { defaultValue: 0, min: 0, max: 1 });
+		const status = toInteger(params.status, { defaultValue: -1, min: -1, max: 1 });
+		params.isDel = toInteger(params.isDel, { defaultValue: 0, min: 0, max: 1 });
+		if (typeof email === 'string') email = email.trim().slice(0, 254);
 
 		const conditions = [];
 
@@ -140,7 +162,21 @@ const userService = {
 
 
 		const query = orm(c).select({
-			...user,
+			userId: user.userId,
+			email: user.email,
+			type: user.type,
+			status: user.status,
+			createTime: user.createTime,
+			activeTime: user.activeTime,
+			createIp: user.createIp,
+			activeIp: user.activeIp,
+			os: user.os,
+			browser: user.browser,
+			device: user.device,
+			sort: user.sort,
+			sendCount: user.sendCount,
+			regKeyId: user.regKeyId,
+			isDel: user.isDel,
 			username: oauth.username,
 			trustLevel: oauth.trustLevel,
 			avatar: oauth.avatar,
@@ -206,7 +242,7 @@ const userService = {
 				sendAction.hasPerm = false;
 			}
 
-			if (user.email === c.env.admin) {
+			if (isAdminEmail(c, user.email)) {
 				sendAction.sendType = constant.ADMIN_ROLE.sendType;
 				sendAction.sendCount = constant.ADMIN_ROLE.sendCount;
 				sendAction.hasPerm = true;
@@ -248,14 +284,17 @@ const userService = {
 
 	async setPwd(c, params) {
 
-		const { password, userId } = params;
-		await this.resetPassword(c, { password }, userId);
+		const userId = toId(params?.userId, 'userId');
+		await assertMutableUser(c, userId);
+		await this.resetPassword(c, { password: params?.password }, userId);
 		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
 	},
 
 	async setStatus(c, params) {
 
-		const { status, userId } = params;
+		const userId = toId(params?.userId, 'userId');
+		const status = toInteger(params?.status, { name: 'status', required: true, min: 0, max: 1 });
+		await assertMutableUser(c, userId);
 
 		await orm(c)
 			.update(user)
@@ -270,7 +309,9 @@ const userService = {
 
 	async setType(c, params) {
 
-		const { type, userId } = params;
+		const userId = toId(params?.userId, 'userId');
+		const type = toId(params?.type, 'type');
+		await assertMutableUser(c, userId);
 
 		const roleRow = await roleService.selectById(c, type);
 
@@ -283,6 +324,7 @@ const userService = {
 			.set({ type })
 			.where(eq(user.userId, userId))
 			.run();
+		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
 
 	},
 
@@ -302,55 +344,57 @@ const userService = {
 			.run();
 	},
 
-	async add(c, params) {
+	async add(c, params = {}) {
+		const email = normalizeEmail(params.email);
+		const type = toId(params.type, 'type');
+		const password = params.password;
+		if (typeof password !== 'string' || password.length < 6) throw new BizError(t('pwdMinLength'), 400);
+		if (password.length > 30) throw new BizError(t('pwdLengthLimit'), 400);
 
-		const { email, type, password } = params;
-
-		if (!c.env.domain.includes(emailUtils.getDomain(email))) {
+		const configuredDomains = Array.isArray(c.env.domain)
+			? c.env.domain
+			: (() => { try { return JSON.parse(c.env.domain || '[]'); } catch { return []; } })();
+		if (!configuredDomains.map(item => String(item).toLowerCase()).includes(emailUtils.getDomain(email))) {
 			throw new BizError(t('notEmailDomain'));
 		}
 
-		if (password.length < 6) {
-			throw new BizError(t('pwdMinLength'));
+		const [accountRow, role] = await Promise.all([
+			accountService.selectByEmailIncludeDel(c, email),
+			roleService.selectById(c, type)
+		]);
+		if (accountRow?.isDel === isDel.DELETE) throw new BizError(t('isDelUser'));
+		if (accountRow) throw new BizError(t('isRegAccount'), 409);
+		if (!role) throw new BizError(t('roleNotExist'));
+		if (!roleService.hasAvailDomainPerm(role.availDomain, email)) throw new BizError(t('noDomainPermAdd'), 403);
+
+		const { salt, hash } = await saltHashUtils.hashPassword(password, saltHashUtils.iterationsFromEnv(c.env));
+		const userId = await this.insert(c, { email, password: hash, salt, type });
+		try {
+			await accountService.insert(c, { userId, email, name: emailUtils.getName(email) });
+		} catch (error) {
+			await this.rollbackCreate(c, userId);
+			throw error;
 		}
-
-		const accountRow = await accountService.selectByEmailIncludeDel(c, email);
-
-		if (accountRow && accountRow.isDel === isDel.DELETE) {
-			throw new BizError(t('isDelUser'));
-		}
-
-		if (accountRow) {
-			throw new BizError(t('isRegAccount'));
-		}
-
-		const role = roleService.selectById(c, type);
-
-		if (!role) {
-			throw new BizError(t('roleNotExist'));
-		}
-
-		const { salt, hash } = await saltHashUtils.hashPassword(password);
-
-		const userId = await userService.insert(c, { email, password: hash, salt, type });
-
-		await userService.updateUserInfo(c, userId, true);
-
-		await accountService.insert(c, { userId: userId, email, type, name: emailUtils.getName(email) });
+		await this.updateUserInfo(c, userId, true);
 	},
 
 	async resetDaySendCount(c) {
 		const roleList = await roleService.selectByIdsAndSendType(c, 'email:send', roleConst.sendType.DAY);
 		const roleIds = roleList.map(action => action.roleId);
+		if (roleIds.length === 0) return;
 		await orm(c).update(user).set({ sendCount: 0 }).where(inArray(user.type, roleIds)).run();
 	},
 
 	async resetSendCount(c, params) {
-		await orm(c).update(user).set({ sendCount: 0 }).where(eq(user.userId, params.userId)).run();
+		const userId = toId(params?.userId, 'userId');
+		await assertMutableUser(c, userId);
+		await orm(c).update(user).set({ sendCount: 0 }).where(eq(user.userId, userId)).run();
 	},
 
 	async restore(c, params) {
-		const { userId, type } = params
+		const userId = toId(params?.userId, 'userId');
+		const type = toInteger(params?.type, { defaultValue: 0, min: 0, max: 1 });
+		await assertMutableUser(c, userId);
 		await orm(c)
 			.update(user)
 			.set({ isDel: isDel.NORMAL })

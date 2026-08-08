@@ -1,0 +1,16 @@
+# Copy to .dev.vars. Never commit the real file.
+# Generate separate random values; do not reuse secrets.
+jwt_secret="replace-with-at-least-32-random-characters"
+init_secret="replace-with-a-different-32-character-secret"
+resend_webhook_secret="whsec_replace-me"
+linuxdo_client_secret="replace-me"
+
+# Optional APNs secrets
+apns_key_id=""
+apns_team_id=""
+apns_bundle_id=""
+apns_private_key=""
+
+# Optional Turnstile response constraints
+turnstile_hostnames="localhost"
+turnstile_action=""

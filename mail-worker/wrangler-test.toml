@@ -9,11 +9,11 @@ enabled = true
 [[d1_databases]]
 binding = "db"			#d1数据库绑定名默认不可修改
 database_name = "test-email"		#d1数据库名字
-database_id = "e65f099d-796d-4eaa-8dff-529b368b20db"		#d1数据库id
+database_id = "00000000-0000-0000-0000-000000000000"		#d1数据库id
 
 [[kv_namespaces]]
 binding = "kv"			#kv绑定名默认不可修改
-id = "9be10cd058e04c55b526f8c0c116f50c"					#kv数据库id
+id = "00000000000000000000000000000000"
 
 #(可选)
 #[[r2_buckets]]
@@ -38,8 +38,10 @@ ai_model = ""			#ai模型,不填默认使用@cf/meta/llama-3.1-8b-instruct
 analysis_cache = false			#是否开启分析数据缓存
 orm_log = false			#是否sql日志
 domain = ["example.com"]				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
-admin = "admin@example.com"				#管理员的邮箱	示例: admin@example.com
-jwt_secret = "b7f29a1d-18e2-4d3b-941f-f6b2c97c02fd"			#jwt令牌的密钥,随便填一串字符串
+admin = "admin@example.com"
+cors_origins = "http://localhost:5173"
+oauth_state_required = true
+allow_unsigned_resend_webhook = false				#管理员的邮箱	示例: admin@example.com
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"

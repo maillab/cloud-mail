@@ -162,7 +162,7 @@ import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
-import {oauthBindUser, oauthLinuxDoLogin} from "@/request/ouath.js";
+import {oauthBindUser, oauthLinuxDoLogin, oauthLinuxDoState} from "@/request/ouath.js";
 
 const {t} = useI18n();
 const accountStore = useAccountStore();
@@ -178,6 +178,7 @@ const show = ref('login')
 const bindForm = reactive({
   email: '',
   oauthUserId: '',
+  bindToken: '',
   code: ''
 })
 
@@ -261,11 +262,17 @@ const getEmailName = (email) => {
   return email.split('@')[0]
 }
 
-function linuxDoLogin() {
-  const clientId = settingStore.settings.linuxdoClientId
-  const redirectUri = encodeURIComponent(settingStore.settings.linuxdoCallbackUrl)
-  window.location.href =
-      `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email`
+async function linuxDoLogin() {
+  try {
+    const {state} = await oauthLinuxDoState()
+    sessionStorage.setItem('linuxdo_oauth_state', state)
+    const clientId = encodeURIComponent(settingStore.settings.linuxdoClientId)
+    const redirectUri = encodeURIComponent(settingStore.settings.linuxdoCallbackUrl)
+    window.location.href =
+        `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${encodeURIComponent(state)}`
+  } catch (error) {
+    console.warn('OAuth state 获取失败', error)
+  }
 }
 
 linuxDoGetUser();
@@ -274,13 +281,23 @@ async function linuxDoGetUser() {
 
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
+  const state = params.get('state')
 
   if (code) {
+    const expectedState = sessionStorage.getItem('linuxdo_oauth_state')
+    sessionStorage.removeItem('linuxdo_oauth_state')
+    if (!state || !expectedState || state !== expectedState) {
+      ElMessage({message: 'OAuth state 无效，请重新登录', type: 'error', plain: true})
+      const cleanUrl = window.location.origin + window.location.pathname
+      window.history.replaceState({}, '', cleanUrl)
+      return
+    }
 
     oauthLoading.value = true
-    oauthLinuxDoLogin(code).then(data => {
+    oauthLinuxDoLogin(code, state).then(data => {
 
       bindForm.oauthUserId = data.userInfo.oauthUserId;
+      bindForm.bindToken = data.bindToken || '';
 
       if (!data.token) {
         showBindForm.value = true
@@ -351,7 +368,7 @@ function bind() {
 
   }
 
-  const form = {email, oauthUserId: bindForm.oauthUserId, code: bindForm.code}
+  const form = {email, bindToken: bindForm.bindToken, code: bindForm.code}
 
   bindLoading.value = true
   oauthBindUser(form).then(data => {

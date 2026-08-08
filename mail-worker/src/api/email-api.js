@@ -34,3 +34,10 @@ app.put('/email/read', async (c) => {
 	return c.json(result.ok());
 })
 
+// 原来的接口都是列表查询，没有"按 id 查单封邮件"的能力。iOS App 点了推送通知
+// 跳转到具体那封邮件时需要这个（见 CLOUD_MAIL_PUSH_PATCH.md）。
+app.get('/email/detail', async (c) => {
+	const data = await emailService.detail(c, c.req.query(), userContext.getUserId(c));
+	return c.json(result.ok(data));
+});
+

@@ -1,7 +1,23 @@
 import http from '@/axios/index.js';
+import {normalizePageSize} from '@/request/params.js'
 
 export function emailList(accountId, allReceive, emailId, timeSort, size, type) {
-    return http.get('/email/list', {params: {accountId, allReceive, emailId, timeSort, size, type}})
+    const params = {
+        accountId,
+        allReceive,
+        timeSort,
+        size: normalizePageSize(size, 50, 20),
+        type
+    }
+
+    // emailId=0 is an intentional first-page cursor. Descending requests omit
+    // it so the Worker starts from the newest message; ascending requests keep
+    // the explicit zero cursor.
+    if (Number(timeSort) === 1 || Number(emailId) > 0) {
+        params.emailId = emailId
+    }
+
+    return http.get('/email/list', {params})
 }
 
 export function emailDelete(emailIds) {

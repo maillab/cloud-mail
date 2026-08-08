@@ -1,14 +1,22 @@
 import settingService from '../service/setting-service';
 import emailUtils from '../utils/email-utils';
-import {emailConst} from "../const/entity-const";
+import { emailConst } from '../const/entity-const';
+import rateLimitService from '../service/rate-limit-service';
 
 const dbInit = {
-	async init(c) {
+	async init(c, suppliedSecret, legacy = false) {
+		// GET /init/:secret 与 POST /init 共用同一个独立初始化密钥。
+		// 不再回退使用 JWT 密钥，避免扩大 JWT_SECRET 的暴露范围。
+		const expectedSecret = c.env.init_secret;
+		if (typeof expectedSecret !== 'string' || expectedSecret.length < 32) {
+			return c.text('Init secret is missing or too short', 503);
+		}
 
-		const secret = c.req.param('secret');
-
-		if (secret !== c.env.jwt_secret) {
-			return c.text('❌ JWT secret mismatch');
+		// 只有无效认证尝试才消耗公开 IP 限流。CI 使用正确密钥执行幂等迁移时，
+		// 不应被之前的失败探测或连续部署锁死。
+		if (!this.safeEqual(String(suppliedSecret || ''), expectedSecret)) {
+			await rateLimitService.check(c, 'database-init-invalid-secret', { limit: 5, windowSeconds: 3600 });
+			return c.text('Init secret mismatch', 401);
 		}
 
 		await this.intDB(c);
@@ -29,8 +37,93 @@ const dbInit = {
 		await this.v2_8DB(c);
 		await this.v2_9DB(c);
 		await this.v3_0DB(c);
+		await this.v3_1DB(c);
+		await this.v3_2DB(c);
+		await this.v3_3DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	safeEqual(left, right) {
+		if (left.length !== right.length) return false;
+		let diff = 0;
+		for (let index = 0; index < left.length; index += 1) diff |= left.charCodeAt(index) ^ right.charCodeAt(index);
+		return diff === 0;
+	},
+
+	async v3_3DB(c) {
+		const statements = [
+			`DELETE FROM oauth WHERE user_id = 0 AND EXISTS (SELECT 1 FROM oauth o2 WHERE o2.oauth_user_id = oauth.oauth_user_id AND o2.user_id > 0)`,
+			`DELETE FROM oauth WHERE oauth_id NOT IN (SELECT MIN(oauth_id) FROM oauth GROUP BY oauth_user_id)`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_oauth_user_id_unique ON oauth(oauth_user_id) WHERE oauth_user_id IS NOT NULL AND oauth_user_id != ''`,
+			`DELETE FROM device_token WHERE token_id NOT IN (SELECT MAX(token_id) FROM device_token GROUP BY device_token)`,
+			`DROP INDEX IF EXISTS idx_device_token_unique`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_device_token_global_unique ON device_token(device_token)`,
+			`DELETE FROM role_perm WHERE id NOT IN (SELECT MIN(id) FROM role_perm GROUP BY role_id, perm_id)`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_role_perm_unique ON role_perm(role_id, perm_id)`,
+			`UPDATE role SET is_default = 0 WHERE is_default = 1 AND role_id NOT IN (SELECT MIN(role_id) FROM role WHERE is_default = 1)`,
+			`UPDATE role SET is_default = 1 WHERE role_id = (SELECT MIN(role_id) FROM role) AND NOT EXISTS (SELECT 1 FROM role WHERE is_default = 1)`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_role_single_default ON role(is_default) WHERE is_default = 1`,
+			`CREATE INDEX IF NOT EXISTS idx_device_token_user_created ON device_token(user_id, create_time DESC)`,
+			`CREATE INDEX IF NOT EXISTS idx_user_role_state ON user(type, is_del, status)`,
+			`CREATE INDEX IF NOT EXISTS idx_verify_record_updated ON verify_record(update_time)`,
+			`DELETE FROM star WHERE NOT EXISTS (SELECT 1 FROM email WHERE email.email_id = star.email_id)`,
+			`DELETE FROM role_perm WHERE NOT EXISTS (SELECT 1 FROM role WHERE role.role_id = role_perm.role_id) OR NOT EXISTS (SELECT 1 FROM perm WHERE perm.perm_id = role_perm.perm_id)`,
+			`DELETE FROM reg_key WHERE NOT EXISTS (SELECT 1 FROM role WHERE role.role_id = reg_key.role_id)`
+		];
+		for (const statement of statements) {
+			try { await c.env.db.prepare(statement).run(); }
+			catch (error) { console.warn(`跳过安全迁移：${error.message}`); }
+		}
+	},
+
+	async v3_2DB(c) {
+		const statements = [
+			`DELETE FROM star WHERE star_id NOT IN (SELECT MIN(star_id) FROM star GROUP BY user_id, email_id)`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_star_user_email_unique ON star(user_id, email_id)`,
+			`UPDATE verify_record SET count = (SELECT SUM(v2.count) FROM verify_record v2 WHERE v2.ip = verify_record.ip AND v2.type = verify_record.type), update_time = (SELECT MAX(v3.update_time) FROM verify_record v3 WHERE v3.ip = verify_record.ip AND v3.type = verify_record.type) WHERE vr_id IN (SELECT MIN(vr_id) FROM verify_record GROUP BY ip, type)`,
+			`DELETE FROM verify_record WHERE vr_id NOT IN (SELECT MIN(vr_id) FROM verify_record GROUP BY ip, type)`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_verify_record_ip_type ON verify_record(ip, type)`,
+			`CREATE INDEX IF NOT EXISTS idx_oauth_user_id ON oauth(oauth_user_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_oauth_bound_user ON oauth(user_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_email_resend_id ON email(resend_email_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_email_user_type_del_id ON email(user_id, type, is_del, email_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_email_account_del_id ON email(account_id, is_del, email_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_account_user_del_sort_id ON account(user_id, is_del, sort DESC, account_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_attachments_email_user ON attachments(email_id, user_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_attachments_key_user ON attachments(key, user_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_reg_key_expire_count ON reg_key(expire_time, count)`
+		];
+		for (const statement of statements) {
+			try {
+				await c.env.db.prepare(statement).run();
+			} catch (error) {
+				console.warn(`跳过索引或数据清理：${error.message}`);
+			}
+		}
+	},
+
+	// iOS App 推送通知(Phase 7)用的设备注册表。跟其它迁移一样包一层 try/catch——
+	// D1 的 CREATE TABLE IF NOT EXISTS 本身是幂等的，这里主要是防止索引语句在
+	// 极端情况下（比如手动改过表结构）报错时中断后面 settingService.refresh(c)。
+	async v3_1DB(c) {
+		try {
+			await c.env.db.batch([
+				c.env.db.prepare(`
+					CREATE TABLE IF NOT EXISTS device_token (
+						token_id INTEGER PRIMARY KEY AUTOINCREMENT,
+						user_id INTEGER NOT NULL,
+						device_token TEXT NOT NULL,
+						platform TEXT NOT NULL DEFAULT 'ios',
+						create_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+					)
+				`),
+				c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_device_token_unique ON device_token(user_id, device_token)`),
+				c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_device_token_user_id ON device_token(user_id)`)
+			]);
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
 	},
 
 	async v3_0DB(c) {

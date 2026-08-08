@@ -1,7 +1,13 @@
 import http from '@/axios/index.js';
+import {normalizePageSize} from '@/request/params.js'
 
-export function allEmailList(params) {
-    return http.get('/allEmail/list', {params: {...params}})
+export function allEmailList(params = {}) {
+    return http.get('/allEmail/list', {
+        params: {
+            ...params,
+            size: normalizePageSize(params.size, 50, 20),
+        }
+    })
 }
 
 export function allEmailDelete(emailIds) {

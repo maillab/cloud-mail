@@ -1,6 +1,7 @@
 import s3Service from './s3-service';
 import settingService from './setting-service';
 import kvObjService from './kv-obj-service';
+import { normalizeObjectKey, objectToResponse } from '../utils/object-response-utils';
 
 const r2Service = {
 
@@ -54,6 +55,11 @@ const r2Service = {
 		if (storageType === 'S3') {
 			return await s3Service.getObj(c, key);
 		}
+	},
+
+	async response(c, key) {
+		const normalized = normalizeObjectKey(key);
+		return objectToResponse(await this.getObj(c, normalized), normalized);
 	},
 
 	async delete(c, key) {

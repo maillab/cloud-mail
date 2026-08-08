@@ -1,6 +1,6 @@
 import orm from '../entity/orm';
 import perm from '../entity/perm';
-import { eq, ne, and, asc } from 'drizzle-orm';
+import { eq, and, asc } from 'drizzle-orm';
 import rolePerm from '../entity/role-perm';
 import user from '../entity/user';
 import role from '../entity/role';
@@ -9,18 +9,29 @@ import { t } from '../i18n/i18n'
 
 const permService = {
 	async tree(c) {
-		const pList = await orm(c).select().from(perm).where(eq(perm.pid, 0)).orderBy(asc(perm.sort)).all();
-		const cList = await orm(c).select().from(perm).where(ne(perm.pid, 0)).orderBy(asc(perm.sort)).all();
+		// Build the permission hierarchy recursively instead of assuming that the
+		// database only ever has two levels. This keeps Web/iOS role editors stable
+		// when a deployment adds third-level groups or migrates older permission rows.
+		const rows = await orm(c).select().from(perm).orderBy(asc(perm.sort), asc(perm.permId)).all();
+		const nodes = new Map();
 
-		cList.forEach(cItem => {
-			cItem.name = t('perms.' + cItem.name)
-		})
+		for (const row of rows) {
+			nodes.set(row.permId, {
+				...row,
+				name: t('perms.' + row.name),
+				children: []
+			});
+		}
 
-		pList.forEach(pItem => {
-			pItem.name = t('perms.' + pItem.name)
-			pItem.children = cList.filter(cItem => cItem.pid === pItem.permId)
-		})
-		return pList;
+		const roots = [];
+		for (const row of rows) {
+			const node = nodes.get(row.permId);
+			const parent = row.pid ? nodes.get(row.pid) : null;
+			if (parent && parent.permId !== node.permId) parent.children.push(node);
+			else roots.push(node);
+		}
+
+		return roots;
 	},
 
 	async userPermKeys(c, userId) {

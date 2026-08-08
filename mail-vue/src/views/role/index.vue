@@ -144,7 +144,7 @@
 </template>
 <script setup>
 import {Icon} from "@iconify/vue";
-import {defineOptions, nextTick, reactive, ref} from "vue";
+import {computed, defineOptions, nextTick, reactive, ref} from "vue";
 import {roleAdd, roleDelete, rolePermTree, roleRoleList, roleSet, roleSetDef} from "@/request/role.js";
 import loading from '@/components/loading/index.vue';
 import {useRoleStore} from "@/store/role.js";
@@ -157,7 +157,7 @@ defineOptions({
   name: 'role'
 })
 
-const {domainList} = useSettingStore();
+const settingStore = useSettingStore();
 const {t, locale} = useI18n();
 const userStore = useUserStore();
 const roleStore = useRoleStore();
@@ -190,7 +190,10 @@ const form = reactive({
   availDomain: []
 })
 
-let domainOptions = []
+const domainOptions = computed(() => (settingStore.domainList || []).map(domain => {
+  const cleanDomain = String(domain).replace(/^@/, '').trim().toLowerCase();
+  return {label: cleanDomain, value: cleanDomain};
+}).filter(option => option.value))
 
 const expand = ref(false)
 
@@ -202,15 +205,9 @@ rolePermTree().then(tree => {
   treeList.push(...tree)
 })
 
-domainOptions = domainList.map(domain => {
-  const cleanDomain = domain.replace(/^@/, '');
-  return {label: cleanDomain, value: cleanDomain};
-});
-
-
 function availDomainChange() {
   const index = form.availDomain.findIndex(domain => {
-    return !domainOptions.map(option => option.value).includes(domain)
+    return !domainOptions.value.map(option => option.value).includes(domain)
   })
   if (index > -1) {
     form.availDomain.splice(index, 1)
@@ -248,13 +245,14 @@ function setDef(role) {
       plain: true
     })
     getRoleList()
+    roleStore.refreshSelect()
   })
 }
 
 function delRole(role) {
   ElMessageBox.confirm(t('delConfirm', {msg: role.name}), {
     confirmButtonText: t('confirm'),
-    cancelButtonText: t('confirm'),
+    cancelButtonText: t('cancel'),
     type: 'warning'
   }).then(() => {
     roleDelete(role.roleId).then(() => {
@@ -309,11 +307,7 @@ function setRole() {
       plain: true
     })
 
-    const names = roles.value.map(role => role.name)
-
-    if (!names.includes(params.name)) {
-      roleStore.refreshSelect()
-    }
+    roleStore.refreshSelect()
 
     roleFormShow.value = false
     getRoleList()
@@ -345,8 +339,8 @@ function openRoleSet(role) {
   form.sendType = role.sendType
   form.sendCount = role.sendCount
   form.accountCount = role.accountCount
-  form.banEmail = role.banEmail
-  form.availDomain = role.availDomain
+  form.banEmail = [...(role.banEmail || [])]
+  form.availDomain = [...(role.availDomain || [])]
   nextTick(() => {
     tree.value.setCheckedKeys(role.permIds)
   })
@@ -383,7 +377,7 @@ function addRole() {
 
 function refresh() {
   tableLoading.value = true
-  roles.length = 0
+  roles.value.length = 0
   getRoleList()
 }
 

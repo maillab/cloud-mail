@@ -21,6 +21,8 @@ dist
 *.sln
 *.sw?
 
+# Local backend secrets
+mail-worker/.dev.vars
 mail-vue/node_modules
 mail-vue/dist
 .wrangler

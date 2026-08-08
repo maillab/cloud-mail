@@ -844,26 +844,30 @@ function getEmailList(refresh = false) {
     }
     firstLoad.value = false
 
-    let list = data.list.map(item => ({
+    const payload = data && typeof data === 'object' ? data : {};
+    const rawList = Array.isArray(payload.list) ? payload.list : [];
+    let list = rawList.map(item => ({
       ...item,
       checked: false
     }));
-
 
     if (refresh) {
       emailList.length = 0
     }
 
-    latestEmail.value = data.latestEmail
+    latestEmail.value = payload.latestEmail || list[0] || { emailId: 0 }
 
     handleList(list);
     emailList.push(...list);
     if (refresh) scrollbarRef.value?.setScrollTop(0);
 
-    noLoading.value = data.list.length < queryParam.size;
-    followLoading.value = data.list.length >= queryParam.size;
-
-    total.value = data.total;
+    noLoading.value = rawList.length < queryParam.size;
+    followLoading.value = rawList.length >= queryParam.size;
+    total.value = Number(payload.total ?? emailList.length);
+  }).catch(error => {
+    firstLoad.value = false;
+    noLoading.value = emailList.length === 0;
+    console.error('Unable to load email list', error);
   }).finally(() => {
     loading.value = false
     reqLock = false
@@ -889,7 +893,11 @@ function handleList(list) {
     if (email.isDel) {
       email.isDelContent = t('selectDeleted');
     }
-    email.statusIcon = statusIconMap[email.status];
+    email.statusIcon = statusIconMap[Number(email.status)] || {
+      icon: 'mdi:email-outline',
+      color: '#909399',
+      content: t('unknown') || 'Unknown'
+    };
   })
 }
 
