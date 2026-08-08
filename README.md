@@ -3,7 +3,7 @@
     <h1 align="center">Cloud Mail</h1>
     <p align="center">A simple, responsive email service designed to run on Cloudflare Workers 🎉</p> 
     <p align="center">
-       English | <a href="/README.zh-CN.md" style="margin-left: 5px">简体中文</a>
+       English | <a href="/README.zh-CN.md" style="margin-left: 5px">简体中文</a> 
     </p>
     <p align="center">
         <a href="https://github.com/maillab/cloud-mail/tree/main?tab=MIT-1-ov-file" target="_blank" >
@@ -138,22 +138,6 @@ cloud-mail
 
 ```
 
-## Sponsor
-
-<a href="https://doc.skymail.ink/support.html">
-<img width="170px" src="./doc/images/support.png" alt="">
-</a>
-
-## License
-
-This project is licensed under the [MIT](LICENSE) license.
-
-
-
-## Communication
-
-[Telegram](https://t.me/cloud_mail_tg)
-
 ## IMPORTANT
 Please ensure you read [BACKEND_SECURITY_AUDIT.md](./BACKEND_SECURITY_AUDIT.md) prior to deployment. When upgrading, please follow these steps:
 
@@ -163,3 +147,11 @@ Please ensure you read [BACKEND_SECURITY_AUDIT.md](./BACKEND_SECURITY_AUDIT.md) 
 4. Verify email delivery/reception, Webhooks, object storage, and APNs in the staging environment before routing production traffic.
 
 The legacy `GET /api/init/:secret` endpoint and unsigned Resend Webhooks are disabled by default and are not recommended to be re-enabled.
+
+## License
+
+This project is licensed under the [GPLv3](LICENSE) License.
+
+## Upstream
+
+This project is modified from [maillab/cloud-mail](https://github.com/maillab/cloud-mail).
