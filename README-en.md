@@ -29,6 +29,11 @@
     </p>
 </p>
 
+> [!IMPORTANT]
+> This project is a fork of [maillab/cloud-mail](https://github.com/maillab/cloud-mail) with the following key modifications:
+> - **Enhanced Cloud Mail Backend**: Mail APIs, CC/BCC support, notification systems, and security improvements.
+> - **New Feature**: Added compatibility/support for the iOS client **CF Mail**.
+
 ## Description
 With only one domain, you can create multiple different email addresses, similar to major email platforms. This project can be deployed on Cloudflare Workers to reduce server costs and build your own email service.
 ## Project Showcase
@@ -143,6 +148,18 @@ cloud-mail
 
 This project is licensed under the [MIT](LICENSE) license.
 
+
+
 ## Communication
 
 [Telegram](https://t.me/cloud_mail_tg)
+
+## IMPORTANT
+Please ensure you read [BACKEND_SECURITY_AUDIT.md](./BACKEND_SECURITY_AUDIT.md) prior to deployment. When upgrading, please follow these steps:
+
+1. Rotate and configure secrets (such as `jwt_secret`, `init_secret`, and `resend_webhook_secret`) using `wrangler secret put`.
+2. Run the latest database migrations via `POST /api/init` with the `X-Init-Secret` header.
+3. Rebuild and deploy `mail-vue` to enable OAuth state and one-time binding credentials.
+4. Verify email delivery/reception, Webhooks, object storage, and APNs in the staging environment before routing production traffic.
+
+The legacy `GET /api/init/:secret` endpoint and unsigned Resend Webhooks are disabled by default and are not recommended to be re-enabled.
