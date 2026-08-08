@@ -143,24 +143,6 @@ cloud-mail
 └── └── env.release				# 项目配置
 ```
 
-## 赞助
-
-<a href="https://doc.skymail.ink/support.html" >
-<img width="170px" src="./doc/images/support.png" alt="">
-</a>
-
-## 许可证
-
-本项目采用 [MIT](LICENSE) 许可证	
-
-
-## 交流
-
-[Telegram](https://t.me/cloud_mail_tg)
-
-
-
-
 ## 后端安全加固说明
 
 本版本已完成后端深度安全审计，覆盖鉴权与权限、OAuth、注册与 Turnstile、邮件与附件、D1/KV/R2/S3、Resend Webhook、APNs、初始化和敏感配置。
@@ -173,3 +155,11 @@ cloud-mail
 4. 在 staging 环境验证邮件收发、Webhook、对象存储和 APNs 后再切换生产流量。
 
 旧的 `GET /api/init/:secret` 和无签名 Resend Webhook 默认关闭，不建议重新开启。
+
+## 许可证
+
+本项目采用 [GPLv3](LICENSE) 许可证
+
+## Upstream
+
+本项目基于 [maillab/cloud-mail](https://github.com/maillab/cloud-mail) 修改
