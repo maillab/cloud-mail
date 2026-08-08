@@ -1,9 +1,9 @@
 <p align="center">
     <img src="doc/demo/logo.png" width="80px" />
     <h1 align="center">Cloud Mail</h1>
-    <p align="center">基于 Cloudflare 的简约响应式邮箱服务，支持邮件发送、附件收发 🎉</p> 
+    <p align="center">A simple, responsive email service designed to run on Cloudflare Workers 🎉</p> 
     <p align="center">
-        简体中文 | <a href="/README-en.md" style="margin-left: 5px">English </a>
+       <a href="/README.zh-CN.md" style="margin-left: 5px">简体中文</a> | English 
     </p>
     <p align="center">
         <a href="https://github.com/maillab/cloud-mail/tree/main?tab=MIT-1-ov-file" target="_blank" >
@@ -30,146 +30,136 @@
 </p>
 
 > [!IMPORTANT]
-> 本项目基于 [maillab/cloud-mail](https://github.com/maillab/cloud-mail) 修改,主要变更:
-> - **增强 Cloud Mail 后端**: 邮件 API、CC/BCC、通知与安全性改进
-> - **新功能**: 适配iOS客户端 CF Mail
+> This project is a fork of [maillab/cloud-mail](https://github.com/maillab/cloud-mail) with the following key modifications:
+> - **Enhanced Cloud Mail Backend**: Mail APIs, CC/BCC support, notification systems, and security improvements.
+> - **New Feature**: Added compatibility/support for the iOS client **CF Mail**.
 
-## 项目简介
+## Description
+With only one domain, you can create multiple different email addresses, similar to major email platforms. This project can be deployed on Cloudflare Workers to reduce server costs and build your own email service.
+## Project Showcase
 
-只需要一个域名，就可以创建多个不同的邮箱，类似各大邮箱平台，本项目支持署到 Cloudflare Workers ，降低服务器成本，搭建自己的邮箱服务
+- [Live Demo](https://skymail.ink)<br>
+- [Deployment Guide](https://doc.skymail.ink/en/)<br>
 
-## 项目展示
-
-- [在线演示](https://skymail.ink)<br>
-- [部署文档](https://doc.skymail.ink)<br>
 
 | ![](/doc/demo/demo1.png) | ![](/doc/demo/demo2.png) |
-|-----------------------|-----------------------|
+|--------------------------|--------------------------|
 | ![](/doc/demo/demo3.png) | ![](/doc/demo/demo4.png) |
 
+## Features
 
+- **💰 Low-Cost Usage**: No server required — deploy to Cloudflare Workers to reduce costs.
 
+- **💻 Responsive Design**: Automatically adapts to both desktop and most mobile browsers.
 
-## 功能介绍
+- **📧 Email Sending**: Integrated with Resend, supporting bulk email sending and attachments.
 
-- **💰 低成本使用**： 可部署到 Cloudflare Workers 降低服务器成本
+- **🛡️ Admin Features**: Admin controls for user and email management with RBAC-based access control.
 
-- **💻 响应式设计**：响应式布局自动适配PC和大部分手机端浏览器
+- **📦 Attachment Support**: Send and receive attachments, stored and downloaded via R2 object storage.
 
-- **📧 邮件发送**：集成Resend发送邮件，支持群发，内嵌图片和附件发送，发送状态查看
+- **🔔 Email Push**: Forward received emails to Telegram bots or other email providers.
 
-- **🛡️ 管理员功能**：可以对用户，邮件进行管理，RABC权限控制对功能及使用资源限制
+- **📡 Open API**: Supports batch user creation via API and multi-condition email queries
 
-- **📦 附件收发**：支持收发附件，使用R2对象存储保存和下载文件
+- **🔢 Verification Code Recognition**: Auto-detect codes via Workers AI
 
-- **🔔 邮件推送**：接收邮件后可以转发到TG机器人或其他服务商邮箱
+- **📈 Data Visualization**: Use ECharts to visualize system data, including user email growth.
 
-- **📡 开放API**：支持使用API批量生成用户，多条件查询邮件 
+- **🎨 Personalization**: Customize website title, login background, and transparency.
 
-- **🔢 验证码识别**：使用Workers AI，自动识别邮件验证码 
+- **🤖 CAPTCHA**: Integrated with Turnstile CAPTCHA to prevent automated registration.
 
-- **📈 数据可视化**：使用ECharts对系统数据详情，用户邮件增长可视化显示
+- **📜 More Features**: Under development...
 
-- **🎨 个性化设置**：可以自定义网站标题，登录背景，透明度
+## Tech Stack
 
-- **🤖 人机验证**：集成Turnstile人机验证，防止人机批量注册
+- **Platform**: [Cloudflare Workers](https://developers.cloudflare.com/workers/)
 
-- **📜 更多功能**：正在开发中...
+- **Web Framework**: [Hono](https://hono.dev/)
 
+- **ORM**: [Drizzle](https://orm.drizzle.team/)
 
+- **Frontend Framework**: [Vue3](https://vuejs.org/)
 
-## 技术栈
+- **UI Framework**: [Element Plus](https://element-plus.org/)
 
-- **平台**：[Cloudflare Workers](https://developers.cloudflare.com/workers/)
+- **Email Service**: [Resend](https://resend.com/)
 
-- **Web框架**：[Hono](https://hono.dev/)
+- **Cache**: [Cloudflare KV](https://developers.cloudflare.com/kv/)
 
-- **ORM：**[Drizzle](https://orm.drizzle.team/)
+- **Database**: [Cloudflare D1](https://developers.cloudflare.com/d1/)
 
-- **前端框架**：[Vue3](https://vuejs.org/) 
+- **File Storage**: [Cloudflare R2](https://developers.cloudflare.com/r2/)
 
-- **UI框架**：[Element Plus](https://element-plus.org/) 
-
-- **邮件推送：** [Resend](https://resend.com/)
-
-- **缓存**：[Cloudflare KV](https://developers.cloudflare.com/kv/)
-
-- **数据库**：[Cloudflare D1](https://developers.cloudflare.com/d1/)
-
-- **文件存储**：[Cloudflare R2](https://developers.cloudflare.com/r2/)
-
-## 目录结构
+## Project Structure
 
 ```
 cloud-mail
-├── mail-worker				    # worker后端项目
+├── mail-worker				    # Backend worker project
 │   ├── src                  
-│   │   ├── api	 			    # api接口层			
-│   │   ├── const  			    # 项目常量
-│   │   ├── dao                 # 数据访问层
-│   │   ├── email			    # 邮件处理接收
-│   │   ├── entity			    # 数据库实体
-│   │   ├── error			    # 自定义异常
-│   │   ├── hono			    # web框架配置、拦截器、全局异常等
-│   │   ├── i18n			    # 语言国际化
-│   │   ├── init			    # 数据库缓存初始化
-│   │   ├── model			    # 响应体数据封装
-│   │   ├── security			# 身份权限认证
-│   │   ├── service			    # 业务服务层
-│   │   ├── template			# 消息模板
-│   │   ├── utils			    # 工具类
-│   │   └── index.js			# 入口文件
-│   ├── pageckge.json			# 项目依赖
-│   └── wrangler.toml			# 项目配置
+│   │   ├── api	 			    # API layer
+│   │   ├── const  			    # Project constants
+│   │   ├── dao                 # Data access layer
+│   │   ├── email			    # Email processing and handling
+│   │   ├── entity			    # Database entities
+│   │   ├── error			    # Custom exceptions
+│   │   ├── hono			    # Web framework, middleware, error handling
+│   │   ├── i18n			    # Internationalization
+│   │   ├── init			    # Database and cache initialization
+│   │   ├── model			    # Response data models
+│   │   ├── security			# Authentication and authorization
+│   │   ├── service			    # Business logic layer
+│   │   ├── template			# Message templates
+│   │   ├── utils			    # Utility functions
+│   │   └── index.js			# Entry point
+│   ├── package.json			# Project dependencies
+│   └── wrangler.toml			# Project configuration
 │
-├── mail-vue				    # vue前端项目
+├─ mail-vue				        # Frontend Vue project
 │   ├── src
-│   │   ├── axios 			    # axios配置
-│   │   ├── components			# 自定义组件
-│   │   ├── echarts			    # echarts组件导入
-│   │   ├── i18n			    # 语言国际化
-│   │   ├── init			    # 入站初始化
-│   │   ├── layout			    # 主体布局组件
-│   │   ├── perm			    # 权限认证
-│   │   ├── request			    # api接口
-│   │   ├── router			    # 路由配置
-│   │   ├── store			    # 全局状态管理
-│   │   ├── utils			    # 工具类
-│   │   ├── views			    # 页面组件
-│   │   ├── app.vue			    # 入口组件
-│   │   ├── main.js			    # 入口js
-│   │   └── style.css			# 全局css
-│   ├── package.json			# 项目依赖
-└── └── env.release				# 项目配置
+│   │   ├── axios 			    # Axios configuration
+│   │   ├── components			# Custom components
+│   │   ├── echarts			    # ECharts integration
+│   │   ├── i18n			    # Internationalization
+│   │   ├── init			    # Startup initialization
+│   │   ├── layout			    # Main layout components
+│   │   ├── perm			    # Permissions and access control
+│   │   ├── request			    # API request layer
+│   │   ├── router			    # Router configuration
+│   │   ├── store			    # Global state management
+│   │   ├── utils			    # Utility functions
+│   │   ├── views			    # Page components
+│   │   ├── app.vue			    # Root component
+│   │   ├── main.js			    # Entry JS file
+│   │   └── style.css			# Global styles
+│   ├── package.json			# Project dependencies
+└── └── env.release				# Environment configuration
+
 ```
 
-## 赞助
+## Sponsor
 
-<a href="https://doc.skymail.ink/support.html" >
+<a href="https://doc.skymail.ink/support.html">
 <img width="170px" src="./doc/images/support.png" alt="">
 </a>
 
-## 许可证
+## License
 
-本项目采用 [MIT](LICENSE) 许可证	
+This project is licensed under the [MIT](LICENSE) license.
 
 
-## 交流
+
+## Communication
 
 [Telegram](https://t.me/cloud_mail_tg)
 
+## IMPORTANT
+Please ensure you read [BACKEND_SECURITY_AUDIT.md](./BACKEND_SECURITY_AUDIT.md) prior to deployment. When upgrading, please follow these steps:
 
+1. Rotate and configure secrets (such as `jwt_secret`, `init_secret`, and `resend_webhook_secret`) using `wrangler secret put`.
+2. Run the latest database migrations via `POST /api/init` with the `X-Init-Secret` header.
+3. Rebuild and deploy `mail-vue` to enable OAuth state and one-time binding credentials.
+4. Verify email delivery/reception, Webhooks, object storage, and APNs in the staging environment before routing production traffic.
 
-
-## 后端安全加固说明
-
-本版本已完成后端深度安全审计，覆盖鉴权与权限、OAuth、注册与 Turnstile、邮件与附件、D1/KV/R2/S3、Resend Webhook、APNs、初始化和敏感配置。
-
-部署前请务必阅读 [BACKEND_SECURITY_AUDIT.md](./BACKEND_SECURITY_AUDIT.md)。升级时需要：
-
-1. 轮换并通过 `wrangler secret put` 配置 `jwt_secret`、`init_secret`、`resend_webhook_secret` 等 Secret。
-2. 使用 `POST /api/init` 和 `X-Init-Secret` 执行最新数据库迁移。
-3. 重新构建并部署 `mail-vue`，以启用 OAuth state 和一次性绑定凭证。
-4. 在 staging 环境验证邮件收发、Webhook、对象存储和 APNs 后再切换生产流量。
-
-旧的 `GET /api/init/:secret` 和无签名 Resend Webhook 默认关闭，不建议重新开启。
+The legacy `GET /api/init/:secret` endpoint and unsigned Resend Webhooks are disabled by default and are not recommended to be re-enabled.
