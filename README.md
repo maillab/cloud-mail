@@ -29,6 +29,10 @@
     </p>
 </p>
 
+> [!IMPORTANT]
+> 本项目基于 [maillab/cloud-mail](https://github.com/maillab/cloud-mail) 修改,主要变更:
+> - **增强 Cloud Mail 后端**: 邮件 API、CC/BCC、通知与安全性改进
+> - **新功能**: 适配iOS客户端 CF Mail
 
 ## 项目简介
 
