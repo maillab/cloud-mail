@@ -24,6 +24,7 @@ const zh = {
 	senderAccountNotExist: '发件人邮箱不存在',
 	noResendToken: 'Resend未配置，只能给站内邮箱发件',
 	noSendProvider: '发信服务未配置，只能给站内邮箱发件',
+	cfEmailSizeLimit: '邮件内容和附件总大小不能超过5MB',
 	sendEmailNotCurUser: '发件人邮箱非当前用户所有',
 	notExistEmailReply: '邮件不存在无法回复',
 	imageAttLimit: '图片不能超过10个',

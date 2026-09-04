@@ -24,6 +24,7 @@ const en = {
 	senderAccountNotExist: 'Sender email does not exist',
 	noResendToken: 'Resend API token not configured',
 	noSendProvider: 'Email sending service is not configured',
+	cfEmailSizeLimit: 'The total size of the email content and attachments cannot exceed 5MB',
 	sendEmailNotCurUser: 'Sender email does not belong to current user',
 	notExistEmailReply: 'Mail does not exist and cannot be replied to',
 	imageAttLimit: 'The maximum number of image attachments is 10',

@@ -23,6 +23,7 @@ import domainUtils from '../utils/domain-uitls';
 import account from "../entity/account";
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
+import constant from '../const/constant';
 
 const emailService = {
 
@@ -473,9 +474,9 @@ const emailService = {
 	},
 
 	async sendByCloudflareEmail(c, params) {
+
 		const sendForm = {
 			from: { email: params.accountEmail, name: params.name },
-			to: [...params.receiveEmail],
 			subject: params.subject
 		};
 
@@ -499,13 +500,57 @@ const emailService = {
 			};
 		}
 
-		const result = await c.env.email.send(sendForm);
+		//超出cf单封邮件大小限制直接提示，避免拿到无法理解的错误
+		if (this.cloudflareEmailSize(sendForm) > constant.CF_EMAIL_SIZE_LIMIT) {
+			return { error: { message: t('cfEmailSizeLimit') } };
+		}
+
+		//cf单封邮件收件人不能超过50个，超出时分批发送
+		const batchList = [];
+		for (let index = 0; index < params.receiveEmail.length; index += constant.CF_EMAIL_RECIPIENT_LIMIT) {
+			batchList.push(params.receiveEmail.slice(index, index + constant.CF_EMAIL_RECIPIENT_LIMIT));
+		}
+
+		let messageId = null;
+
+		try {
+
+			for (const batch of batchList) {
+				const result = await c.env.email.send({ ...sendForm, to: [...batch] });
+				//分批发送时只保留第一封的消息id
+				messageId = messageId || result?.messageId;
+			}
+
+		} catch (e) {
+			//cf发信失败抛出的是普通异常，统一转换成和resend一样的结构
+			return { error: { message: e.message } };
+		}
 
 		return {
 			data: {
-				id: result.messageId
+				id: messageId
 			}
 		};
+	},
+
+	//估算cf单封邮件的大小，附件为base64需要还原成原始大小
+	cloudflareEmailSize(sendForm) {
+
+		let size = 0;
+
+		if (sendForm.text) {
+			size += new TextEncoder().encode(sendForm.text).length;
+		}
+
+		if (sendForm.html) {
+			size += new TextEncoder().encode(sendForm.html).length;
+		}
+
+		for (const attachment of sendForm.attachments || []) {
+			size += Math.floor(attachment.content.length * 3 / 4);
+		}
+
+		return size;
 	},
 
 	async sendByResend(resendToken, params) {
@@ -530,12 +575,21 @@ const emailService = {
 		return await resend.emails.send(sendForm);
 	},
 
-	async toCloudflareAttachments(attachments) {
-		const arrayBufferAttachments = await this.toArrayBufferAttachments(attachments);
+	async toCloudflareAttachments(attachments = []) {
 
-		return arrayBufferAttachments.map(attachment => {
+		const result = [];
+
+		for (const attachment of attachments) {
+
+			//cf本地开发不能序列化二进制附件，统一使用base64
+			const content = await this.toAttachmentBase64(attachment);
+
+			if (!content) {
+				continue;
+			}
+
 			const item = {
-				content: attachment.content,
+				content,
 				filename: attachment.filename,
 				type: attachment.mimeType || attachment.contentType || attachment.type || 'application/octet-stream',
 				disposition: attachment.contentId ? 'inline' : 'attachment'
@@ -545,8 +599,10 @@ const emailService = {
 				item.contentId = attachment.contentId.replace(/^<|>$/g, '');
 			}
 
-			return item;
-		});
+			result.push(item);
+		}
+
+		return result;
 	},
 
 	async toResendAttachments(attachments = []) {
@@ -563,21 +619,6 @@ const emailService = {
 				content,
 				contentType: attachment.contentType || attachment.mimeType || attachment.type || 'application/octet-stream'
 			});
-		}
-
-		return result;
-	},
-
-	async toArrayBufferAttachments(attachments = []) {
-		const result = [];
-
-		for (const attachment of attachments) {
-			const content = await this.toAttachmentArrayBuffer(attachment);
-			if (!content) {
-				continue;
-			}
-
-			result.push({ ...attachment, content });
 		}
 
 		return result;
