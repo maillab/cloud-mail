@@ -15,9 +15,9 @@
         </div>
       </div>
       <div class="container">
-        <el-input-tag  @add-tag="addTagChange" tag-type="primary" @input="inputChange" size="default" v-model="form.receiveEmail" >
+        <el-input-tag @add-tag="addTagChange" tag-type="primary" @input="inputChange" size="default" v-model="form.receiveEmail">
           <template #prefix>
-            <div class="item-title" >{{ $t('recipient') }}</div>
+            <div class="item-title">{{ $t('recipient') }}</div>
             <el-select
                 ref="mySelect"
                 class="write-select"
@@ -41,6 +41,16 @@
             <div style="display: flex;margin-right: 3px;">
               <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts" />
             </div>
+          </template>
+        </el-input-tag>
+        <el-input-tag size="default" v-model="form.cc">
+          <template #prefix>
+            <div class="item-title">CC</div>
+          </template>
+        </el-input-tag>
+        <el-input-tag size="default" v-model="form.bcc">
+          <template #prefix>
+            <div class="item-title">BCC</div>
           </template>
         </el-input-tag>
         <el-input v-model="form.subject" :placeholder="t('subject')" />
@@ -148,6 +158,8 @@ const backReply = reactive({
 const form = reactive({
   sendEmail: '',
   receiveEmail: [],
+  cc: [],
+  bcc: [],
   accountId: -1,
   name: '',
   subject: '',
@@ -187,18 +199,15 @@ function deleteContact() {
 }
 
 function chooseContact() {
-
   const contactList = contactsTabRef.value.getSelectionRows().map(item => item.email);
   contactList.forEach(item => {
     if (!form.receiveEmail.includes(item)) {
       form.receiveEmail.push(item);
     }
   })
-
   form.receiveEmail = form.receiveEmail.filter(item => {
     return contactList.includes(item) || !writerStore.sendRecipientRecord.includes(item);
   });
-
   showContacts.value = false
 }
 
@@ -219,27 +228,20 @@ const openSelect = () => {
 }
 
 function inputChange(value) {
-
   selectRecipientList.value = writerStore.sendRecipientRecord.filter(item => value && !form.receiveEmail.includes(item) && item.startsWith(value)).slice(0, 10);
-
   if (!selectStatus && selectRecipientList.value.length > 0) {
     openSelect()
   }
-
   if (selectStatus && selectRecipientList.value.length === 0) {
     openSelect()
   }
-
 }
 
 function addTagChange(val) {
-
   const emails = Array.from(new Set(
       val.split(/[,，]/).map(item => item.trim()).filter(item => item)
   ));
-
   form.receiveEmail.splice(form.receiveEmail.length - 1, 1)
-
   let has = false
   emails.forEach(email => {
     if (isEmail(email) && !form.receiveEmail.includes(email)) {
@@ -258,7 +260,6 @@ function clearContent() {
   }).then(() => {
     resetForm()
   })
-
 }
 
 function delAtt(index) {
@@ -271,20 +272,14 @@ function chooseFile() {
   doc.multiple = true;
   doc.click()
   doc.onchange = async (e) => {
-
     const fileList = e.target.files;
-
     for (const file of fileList) {
-
       const size = file.size
       const filename = file.name
       const contentType = file.type
-
       const content = await fileToBase64(file)
       form.attachments.push({content, filename, size, contentType})
-
     }
-
   }
 }
 
@@ -348,7 +343,6 @@ async function sendEmail() {
   })
 
   sending = true
-
   show.value = false
 
   emailSend(form, (e) => {
@@ -367,13 +361,14 @@ async function sendEmail() {
     })
 
     userStore.refreshUserInfo();
-
     addRecipientRecord();
 
     if (form.draftId) {
       form.subject = ''
       form.content = ''
       form.receiveEmail = []
+      form.cc = []
+      form.bcc = []
       draftStore.setDraft = {...toRaw(form)}
     }
 
@@ -403,13 +398,14 @@ function addRecipientRecord() {
   writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.filter(
       email => !form.receiveEmail.includes(email)
   );
-
   writerStore.sendRecipientRecord.unshift(...form.receiveEmail);
   writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.slice(0, 500);
 }
 
 function resetForm() {
   form.receiveEmail = []
+  form.cc = []
+  form.bcc = []
   form.subject = ''
   form.content = ''
   form.manyType = null
@@ -435,36 +431,27 @@ function focusChange() {
 
 function openForward(email) {
   resetForm();
-
   email.subject = email.subject || ''
-
   form.subject = email.subject
   form.sendType = 'forward'
-
   defValue.value = ''
-
   setTimeout(() => {
     defValue.value = `
       ${formatImage(email.content) || `<pre style="font-family: inherit;word-break: break-word;white-space: pre-wrap;margin: 0">${email.text}</pre>`}
     `
     open()
-
     nextTick(() => {
       backReply.content = editor.value.getContent()
       backReply.subject = form.subject
       backReply.receiveEmail = form.receiveEmail
       backReply.sendType = form.sendType
     })
-
   });
 }
 
 function openReply(email) {
-
   resetForm();
-
   email.subject = email.subject || ''
-
   form.receiveEmail.push(email.sendEmail)
   form.subject = (
       email.subject.startsWith('Re:') ||
@@ -473,9 +460,7 @@ function openReply(email) {
       email.subject.startsWith('回复:')) ? email.subject : 'Re: ' + email.subject
   form.sendType = 'reply'
   form.emailId = email.emailId
-
   defValue.value = ''
-
   setTimeout(() => {
     defValue.value = `
     <div></div>
@@ -489,7 +474,6 @@ function openReply(email) {
       </article>
     </blockquote>`
     open()
-
     nextTick(() => {
       backReply.content = editor.value.getContent()
       backReply.subject = form.subject
@@ -497,7 +481,6 @@ function openReply(email) {
       backReply.sendType = form.sendType
     })
   })
-
 }
 
 function formatImage(content) {
@@ -543,26 +526,21 @@ onUnmounted(() => {
 });
 
 function close() {
-
   if (selectStatus) openSelect();
-
   if (!form.content) {
     form.content = editor.value.getContent();
   }
-
   if (form.draftId) {
     draftStore.setDraft = {...toRaw(form)}
     show.value = false
     resetForm()
     return;
   }
-
   if (!(form.content || form.subject || form.receiveEmail.length > 0)) {
     show.value = false
     resetForm()
     return;
   }
-
   if (backReply.sendType === 'reply' || backReply.sendType === 'forward') {
     let subjectFlag = form.subject === backReply.subject
     let contentFlag = editor.value.getContent() === backReply.content
@@ -576,7 +554,6 @@ function close() {
       return;
     }
   }
-
   ElMessageBox.confirm(t('saveDraftConfirm'), {
     confirmButtonText: t('confirm'),
     cancelButtonText: t('cancel'),
@@ -600,9 +577,7 @@ function close() {
       resetForm()
     }
   })
-
 }
-
 </script>
 <style>
 .write-select .el-select-dropdown__list {
@@ -611,7 +586,6 @@ function close() {
 .write-select .el-select-dropdown__item {
   padding: 0 10px 0 10px;
 }
-
 .write-select .el-select-dropdown {
   min-width: 0 !important;
 }
@@ -681,7 +655,6 @@ function close() {
         overflow: hidden;
       }
 
-
       div {
         display: flex;
         align-items: center;
@@ -691,7 +664,7 @@ function close() {
     .container {
       height: 100%;
       display: grid;
-      grid-template-rows: auto auto 1fr auto;
+      grid-template-rows: auto auto auto auto 1fr auto;
       gap: 15px;
 
       .item-title {
@@ -741,7 +714,6 @@ function close() {
       }
     }
   }
-
 }
 
 .email-row {
