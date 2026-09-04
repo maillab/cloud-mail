@@ -165,7 +165,9 @@ const userService = {
 			name: oauth.name,
 			platform: oauth.platform
 		}).from(user).leftJoin(oauth, eq(oauth.userId, user.userId))
-			.where(and(...conditions));
+			.where(and(...conditions))
+			//一个用户可以绑定多个平台，不聚合会按绑定数重复出现
+			.groupBy(user.userId);
 
 
 		if (timeSort) {

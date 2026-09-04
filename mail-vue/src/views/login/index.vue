@@ -167,7 +167,8 @@ import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
-import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
+import {oauthBind, oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
+import {oauthKeys, oauthPlatforms, toOauthAuthorize} from "@/utils/oauth-utils.js";
 
 const {t} = useI18n();
 const accountStore = useAccountStore();
@@ -181,8 +182,6 @@ const oauthLoading = ref(false);
 const showBindForm = ref(false);
 const show = ref('login')
 
-const oauthKeys = ['linuxdo', 'github', 'google']
-
 const oauthProvider = computed(() => {
   const fromState = route.query.state
   if (oauthKeys.includes(fromState)) return fromState
@@ -191,17 +190,13 @@ const oauthProvider = computed(() => {
 })
 
 const oauthProviders = computed(() => {
-  const allProviders = [
-    { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
-    { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
-    { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
-  ]
-  return allProviders.filter(p => settingStore.settings[p.key + 'Switch'] === 0)
+  return oauthPlatforms.filter(p => settingStore.settings[p.key + 'Switch'] === 0)
 })
 
 const bindForm = reactive({
   email: '',
   oauthUserId: '',
+  platform: '',
   code: ''
 })
 
@@ -286,15 +281,7 @@ const getEmailName = (email) => {
 }
 
 function oauthLogin(provider) {
-  const clientId = settingStore.settings[provider + 'ClientId']
-  const redirectUri = encodeURIComponent(window.location.origin + '/login')
-  sessionStorage.setItem('oauthProvider', provider)
-  const authorizeUrls = {
-    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
-    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${provider}`,
-    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
-  }
-  window.location.href = authorizeUrls[provider]
+  toOauthAuthorize(provider, settingStore.settings[provider + 'ClientId'])
 }
 
 const loginFns = {
@@ -316,9 +303,26 @@ async function oauthGetUser() {
   sessionStorage.removeItem('oauthProvider')
   window.history.replaceState({}, '', window.location.origin + window.location.pathname)
 
+  //个人中心发起的绑定，授权后直接绑定到当前登录用户
+  if (sessionStorage.getItem('oauthBind')) {
+    sessionStorage.removeItem('oauthBind')
+    oauthBind({platform: provider, code, redirectUri: window.location.origin + '/login'}).then(() => {
+      ElMessage({
+        message: t('bindSuccessMsg'),
+        type: 'success',
+        plain: true,
+      })
+      router.replace('/settings')
+    }).catch(() => {
+      router.replace('/settings')
+    })
+    return;
+  }
+
   loginFns[provider](code, window.location.origin + '/login').then(data => {
 
     bindForm.oauthUserId = data.userInfo.oauthUserId;
+    bindForm.platform = data.userInfo.platform;
 
     if (!data.token) {
       showBindForm.value = true
@@ -387,7 +391,7 @@ function bind() {
 
   }
 
-  const form = {email, oauthUserId: bindForm.oauthUserId, code: bindForm.code}
+  const form = {email, oauthUserId: bindForm.oauthUserId, platform: bindForm.platform, code: bindForm.code}
 
   bindLoading.value = true
   oauthBindUser(form).then(data => {

@@ -110,6 +110,10 @@ router.beforeEach((to, from, next) => {
     }
 
     if (token && to.path.startsWith('/login')) {
+        //绑定第三方账号授权回调时放行，由登录页完成绑定后再跳回个人中心
+        if (to.query.code && sessionStorage.getItem('oauthBind')) {
+            return next()
+        }
         return next(from.path)
     }
 

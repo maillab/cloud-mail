@@ -30,6 +30,21 @@
         </div>
       </div>
     </div>
+    <div class="oauth-bind" v-if="oauthPlatformList.length > 0">
+      <div class="title">{{$t('accountBind')}}</div>
+      <div class="oauth-item" v-for="item in oauthPlatformList" :key="item.key">
+        <div class="oauth-name">
+          <el-avatar v-if="item.iconType === 'image'" :src="item.icon" :size="20"/>
+          <Icon v-else :icon="item.icon" width="20" height="20"/>
+          <span>{{ item.label }}</span>
+        </div>
+        <div class="oauth-opt">
+          <span class="oauth-username">{{ item.bindRow ? (item.bindRow.username || item.bindRow.name) : $t('notBind') }}</span>
+          <el-button v-if="item.bindRow" @click="unbindConfirm(item)">{{$t('unbind')}}</el-button>
+          <el-button v-else type="primary" @click="bindOauth(item)">{{$t('bind')}}</el-button>
+        </div>
+      </div>
+    </div>
     <div class="language">
       <div class="title">{{$t('language')}}</div>
       <el-select
@@ -61,7 +76,7 @@
   </div>
 </template>
 <script setup>
-import {reactive, ref, defineOptions} from 'vue'
+import {reactive, ref, computed, onMounted, defineOptions} from 'vue'
 import {resetPassword, userDelete} from "@/request/my.js";
 import {useUserStore} from "@/store/user.js";
 import router from "@/router/index.js";
@@ -69,6 +84,9 @@ import {accountSetName} from "@/request/account.js";
 import {useAccountStore} from "@/store/account.js";
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
+import {Icon} from "@iconify/vue";
+import {oauthBindList, oauthUnbind} from "@/request/ouath.js";
+import {oauthPlatforms, toOauthAuthorize} from "@/utils/oauth-utils.js";
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
@@ -157,6 +175,46 @@ const deleteConfirm = () => {
   })
 }
 
+
+const bindList = ref([])
+
+//只显示管理员已开启的第三方平台
+const oauthPlatformList = computed(() => {
+  return oauthPlatforms
+      .filter(item => settingStore.settings[item.key + 'Switch'] === 0)
+      .map(item => ({...item, bindRow: bindList.value.find(row => row.platform === item.key)}))
+})
+
+onMounted(() => {
+  loadBindList()
+})
+
+function loadBindList() {
+  oauthBindList().then(list => {
+    bindList.value = list
+  })
+}
+
+function bindOauth(item) {
+  toOauthAuthorize(item.key, settingStore.settings[item.key + 'ClientId'], true)
+}
+
+function unbindConfirm(item) {
+  ElMessageBox.confirm(t('unbindConfirm', {msg: item.label}), {
+    confirmButtonText: t('confirm'),
+    cancelButtonText: t('cancel'),
+    type: 'warning'
+  }).then(() => {
+    oauthUnbind(item.key).then(() => {
+      ElMessage({
+        message: t('unbindSuccessMsg'),
+        type: 'success',
+        plain: true,
+      })
+      loadBindList()
+    })
+  })
+}
 
 function submitPwd() {
 
@@ -270,6 +328,43 @@ function submitPwd() {
       }
 
       div:last-child {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+
+  .oauth-bind {
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 40px;
+
+    .oauth-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 400px;
+      gap: 20px;
+
+      .oauth-name {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: bold;
+      }
+
+      .oauth-opt {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        overflow: hidden;
+      }
+
+      .oauth-username {
+        color: var(--regular-text-color);
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
