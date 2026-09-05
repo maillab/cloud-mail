@@ -1,0 +1,60 @@
+name: Upstream Sync
+
+permissions:
+  contents: write
+  actions: write   # 触发其他工作流需要
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  sync_latest_from_upstream:
+    name: Sync latest commits from upstream repo
+    runs-on: ubuntu-latest
+    if: ${{ github.event.repository.fork }}   # 如果是 fork 则保留，否则删除
+
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@v6
+
+      - name: Sync upstream changes
+        id: sync
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
+        with:
+          upstream_sync_repo: maillab/cloud-mail
+          upstream_sync_branch: main
+          target_sync_branch: main
+          target_repo_token: ${{ secrets.PAT }}
+          test_mode: false
+
+      # 新增：如果同步有变更，触发部署工作流
+      - name: Trigger deploy-cloudflare.yml
+        if: steps.sync.outputs.has_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy-cloudflare.yml',
+              ref: 'main'
+            });
+
+      # 同步失败时的错误提示（保留你的原逻辑）
+      - name: Sync check
+        if: failure()
+        run: |
+          echo "[Error] 自动同步失败，可能是因为："
+          echo "  1. 您的 fork 仓库与上游仓库存在代码冲突"
+          echo "  2. 网络或权限问题"
+          echo ""
+          echo "[Solution] 请手动解决冲突："
+          echo "  1. 在 GitHub 上点击 'Sync fork' 按钮"
+          echo "  2. 或使用命令行："
+          echo "     git remote add upstream https://github.com/maillab/cloud-mail.git"
+          echo "     git fetch upstream"
+          echo "     git merge upstream/main"
+          echo "     解决冲突后 git push"
+          exit 1
