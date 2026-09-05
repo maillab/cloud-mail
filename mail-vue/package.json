@@ -14,7 +14,7 @@
     "@iconify/vue": "^4.3.0",
     "@vueuse/components": "^14.1.0",
     "@vueuse/core": "^12.0.0",
-    "axios": "1.15.2",
+    "axios": "1.18.0",
     "compressorjs": "^1.2.1",
     "date-time-format-timezone": "^1.0.22",
     "dayjs": "^1.11.13",
