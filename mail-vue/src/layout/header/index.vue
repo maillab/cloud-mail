@@ -10,6 +10,9 @@
       </div>
     </div>
     <div class="toolbar">
+      <div class="search-btn icon-item" @click="searchVisible = true">
+        <Icon icon="iconoir:search"/>
+      </div>
       <div v-if="uiStore.dark" class="sun-icon icon-item" @click="openDark($event)">
         <Icon icon="mingcute:sun-fill"/>
       </div>
@@ -22,14 +25,16 @@
       <el-dropdown ref="userinfoRef" @visible-change="e => userInfoShow = e" :teleported="false" popper-class="detail-dropdown">
         <div class="avatar" @click="userInfoHide" >
           <div class="avatar-text">
-            <div>{{ formatName(userStore.user.email) }}</div>
+            <img v-if="userStore.user.avatar" :src="userStore.user.avatar" class="avatar-img" />
+            <div v-else>{{ formatName(userStore.user.email) }}</div>
           </div>
           <Icon class="setting-icon" icon="mingcute:down-small-fill" width="24" height="24"/>
         </div>
         <template #dropdown>
           <div class="user-details">
             <div class="details-avatar">
-              {{ formatName(userStore.user.email) }}
+              <img v-if="userStore.user.avatar" :src="userStore.user.avatar" class="avatar-img" />
+              <span v-else>{{ formatName(userStore.user.email) }}</span>
             </div>
             <div class="user-name">
               {{ userStore.user.name }}
@@ -38,7 +43,7 @@
               {{ userStore.user.email }}
             </div>
             <div class="detail-user-type">
-              <el-tag>{{ userStore.user.role.name }}</el-tag>
+              <el-tag>{{ roleDisplayName }}</el-tag>
             </div>
             <div class="action-info">
               <div>
@@ -69,6 +74,30 @@
         </template>
       </el-dropdown>
     </div>
+    <!-- 搜索弹窗 -->
+    <el-dialog
+      v-model="searchVisible"
+      title="搜索邮件"
+      width="420px"
+      :show-close="true"
+      class="search-dialog"
+    >
+      <el-input
+        v-model="searchKeyword"
+        placeholder="搜索主题、发件人"
+        clearable
+        @keyup.enter="doDialogSearch"
+      >
+        <template #prefix>
+          <Icon icon="iconoir:search" width="16" height="16"/>
+        </template>
+      </el-input>
+      <template #footer>
+        <el-button @click="doResetSearch">重置</el-button>
+        <el-button @click="searchVisible = false">取消</el-button>
+        <el-button type="primary" @click="doDialogSearch">搜索</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -80,11 +109,13 @@ import {Icon} from "@iconify/vue";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
 import {useRoute} from "vue-router";
-import {computed, ref} from "vue";
+import {computed, ref, onMounted, onUnmounted} from "vue";
 import {useSettingStore} from "@/store/setting.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
 import {setExtend} from "@/utils/day.js"
+import {toDayjsLocale} from "@/utils/day.js"
+import {displayRoleName} from "@/utils/role-utils.js"
 
 const {t} = useI18n();
 const route = useRoute();
@@ -94,6 +125,12 @@ const uiStore = useUiStore();
 const logoutLoading = ref(false)
 const userInfoShow = ref(false)
 const userinfoRef = ref({})
+const searchKeyword = ref('')
+const searchVisible = ref(false)
+
+const roleDisplayName = computed(() => {
+  return displayRoleName(userStore.user.role?.name, t)
+})
 
 const accountCount = computed(() => {
   return userStore.user.role.accountCount
@@ -183,7 +220,7 @@ async function copyEmail(email) {
 }
 
 function changeLang(lang) {
-  setExtend(lang === 'en' ? 'en' : 'zh-cn')
+  setExtend(toDayjsLocale(lang))
   settingStore.lang = lang
 }
 
@@ -234,6 +271,24 @@ function switchDark(nextIsDark, root) {
 
 function openSend() {
   uiStore.writerRef.open()
+}
+
+function doSearch() {
+  uiStore.globalSearchKeyword = searchKeyword.value.trim()
+  uiStore.globalSearchTick++
+}
+
+/** 弹窗搜索：执行后关弹窗 */
+function doDialogSearch() {
+  doSearch()
+  searchVisible.value = false
+}
+
+/** 重置搜索：清空关键词并刷新列表，不关弹窗 */
+function doResetSearch() {
+  searchKeyword.value = ""
+  uiStore.globalSearchKeyword = ""
+  uiStore.globalSearchTick++
 }
 
 function changeAside() {
@@ -361,11 +416,26 @@ function formatName(email) {
   display: grid;
   height: 100%;
   gap: 10px;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: auto auto 1fr auto;
 }
 
 .header.not-send {
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr auto;
+}
+
+/* 搜索按钮（桌面+手机通用） */
+.search-btn {
+  font-size: 22px;
+}
+
+/* 搜索弹窗：桌面端固定宽度，手机端自适应 */
+.search-dialog {
+  --el-dialog-width: 420px;
+}
+@media (max-width: 768px) {
+  .search-dialog {
+    --el-dialog-width: 90%;
+  }
 }
 
 .writer-box {
@@ -461,6 +531,13 @@ function formatName(email) {
       align-items: center;
       border-radius: 8px;
       border: 1px solid var(--dark-border);
+      overflow: hidden;
+
+      .avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
     }
 
     .setting-icon {

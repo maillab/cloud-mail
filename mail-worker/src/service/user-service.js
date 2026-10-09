@@ -46,6 +46,7 @@ const userService = {
 		user.permKeys = permKeys;
 		user.role = roleRow;
 		user.type = userRow.type;
+		user.avatar = userRow.avatar || '';
 
 		if (c.env.admin === userRow.email) {
 			user.role = constant.ADMIN_ROLE
@@ -58,13 +59,32 @@ const userService = {
 
 	async resetPassword(c, params, userId) {
 
-		const { password } = params;
+		const { currentPassword, password } = params;
+
+		if (!currentPassword) {
+			throw new BizError(t('emptyPwd'));
+		}
+
+		// 验证当前密码
+		const userRow = await userService.selectById(c, userId);
+		const valid = await cryptoUtils.verifyPassword(currentPassword, userRow.salt, userRow.password);
+		if (!valid) {
+			throw new BizError(t('currentPwdWrong'));
+		}
 
 		if (password.length < 6) {
 			throw new BizError(t('pwdMinLength'));
 		}
 		const { salt, hash } = await cryptoUtils.hashPassword(password);
 		await orm(c).update(user).set({ password: hash, salt: salt }).where(eq(user.userId, userId)).run();
+	},
+
+	async updateAvatar(c, userId, avatar) {
+		// 限制 base64 长度，防止过大（200KB）
+		if (avatar && avatar.length > 200 * 1024) {
+			throw new BizError(t('avatarTooLarge'));
+		}
+		await orm(c).update(user).set({ avatar }).where(eq(user.userId, userId)).run();
 	},
 
 	selectByEmail(c, email) {
@@ -158,7 +178,22 @@ const userService = {
 
 
 		const query = orm(c).select({
-			...user,
+			// 白名单列：绝不能返回 password / salt（防哈希批量导出离线破解）
+			userId: user.userId,
+			email: user.email,
+			type: user.type,
+			status: user.status,
+			createTime: user.createTime,
+			activeTime: user.activeTime,
+			createIp: user.createIp,
+			activeIp: user.activeIp,
+			os: user.os,
+			browser: user.browser,
+			device: user.device,
+			sort: user.sort,
+			sendCount: user.sendCount,
+			regKeyId: user.regKeyId,
+			isDel: user.isDel,
 			username: oauth.username,
 			trustLevel: oauth.trustLevel,
 			avatar: oauth.avatar,

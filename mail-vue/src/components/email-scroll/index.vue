@@ -84,6 +84,7 @@
                     <span class="email-subject" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread)  ? 'font-weight: bold' : ''">
                       <div class="unread" v-if="!isMobile && (item.unread === EmailUnreadEnum.UNREAD && showUnread) "/>
                       <span v-if="item.code" class="code-tag" @click.stop="copyCode(item.code)">[{{ t('codeLabel') }}{{ item.code }}]</span>
+                      <Icon v-if="isEncryptedMail(item)" icon="mdi:lock" width="15" height="15" class="pgp-lock" :title="t('pgpEncryptedMail')"/>
                       <span class="subject-text">
                         <slot name="subject" :email="item" >
                           {{ item.subject || '\u200B' }}
@@ -245,6 +246,7 @@ import {sleep} from "@/utils/time-utils.js"
 import {fromNow} from "@/utils/day.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import {isPgpMessage} from "@/utils/pgp-utils.js";
 import { UseVirtualList } from '@vueuse/components'
 import { useScroll } from '@vueuse/core'
 
@@ -641,6 +643,10 @@ function rightDelete(emailId) {
 
 function handleSearch(type, value) {
   emit('right-search', type, value);
+}
+
+function isEncryptedMail(item) {
+  return isPgpMessage(item.listText || item.text);
 }
 
 async function copyCode(code) {
@@ -1164,6 +1170,11 @@ function loadData() {
         @media (min-width: 1367px) {
           padding-left: 5px;
         }
+      }
+
+      .pgp-lock {
+        color: #22c55e;
+        flex: 0 0 auto;
       }
 
       .code-tag {

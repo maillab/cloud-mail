@@ -26,6 +26,11 @@
           <Icon icon="solar:star-line-duotone" width="20" height="20" />
           <span class="menu-name" style="margin-left: 16px">{{$t('starred')}}</span>
         </el-menu-item>
+        <el-menu-item @click="router.push({name: 'deleted'})" index="deleted"
+                      :class="route.meta.name === 'deleted' ? 'choose-item' : ''">
+          <Icon icon="mdi:trash-can-outline" width="20" height="20" />
+          <span class="menu-name" style="margin-left: 16px">{{$t('deleted')}}</span>
+        </el-menu-item>
         <el-menu-item @click="router.push({name: 'setting'})" index="setting"
                       :class="route.meta.name === 'setting' ? 'choose-item' : ''">
           <Icon icon="fluent:settings-48-regular" width="20" height="20" />

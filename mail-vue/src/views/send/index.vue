@@ -24,6 +24,7 @@
 <script setup>
 import {useAccountStore} from "@/store/account.js";
 import {useEmailStore} from "@/store/email.js";
+import {useUiStore} from "@/store/ui.js";
 import emailScroll from "@/components/email-scroll/index.vue"
 import {emailList, emailDelete} from "@/request/email.js";
 import {starAdd, starCancel} from "@/request/star.js";
@@ -37,9 +38,14 @@ defineOptions({
 
 const emailStore = useEmailStore();
 const accountStore = useAccountStore();
+const uiStore = useUiStore();
 const sendScroll = ref({})
 const params = reactive({
   timeSort: 0,
+})
+
+watch(() => uiStore.globalSearchTick, () => {
+  sendScroll.value.refreshList();
 })
 
 onMounted(() => {
@@ -74,8 +80,9 @@ function cancelStar(email) {
 function getEmailList(emailId, size) {
   const accountId =  accountStore.currentAccountId;
   const allReceive = accountStore.currentAccount.allReceive;
+  const keyword = uiStore.globalSearchKeyword || undefined;
   return emailStore.fetchList(full =>
-    emailList(accountId, allReceive, emailId, params.timeSort, size, 1, full)
+    emailList(accountId, allReceive, emailId, params.timeSort, size, 1, full, keyword)
   ).then(data => {
     data.latestEmail.reqAccountId = accountId;
     data.latestEmail.allReceive = allReceive;

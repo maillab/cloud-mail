@@ -51,6 +51,16 @@ const routes = [
                     menu: true
                 }
             },
+            {
+                path: '/deleted',
+                name: 'deleted',
+                component: () => import('@/views/deleted/index.vue'),
+                meta: {
+                    title: 'deleted',
+                    name: 'deleted',
+                    menu: true
+                }
+            },
         ]
 
     },
@@ -109,7 +119,11 @@ router.beforeEach((to, from, next) => {
         return
     }
 
-    if (token && to.path.startsWith('/login')) {
+    // OAuth 绑定已有账号流程：已登录用户从个人信息页发起绑定，回调带 code
+    // 回来时必须放行，否则守卫会把用户弹走导致绑定中断。仅当 sessionStorage
+    // 中有绑定标志时放行，避免已登录用户被外部 code 链接切换会话。
+    const isBindCallback = to.query.code && sessionStorage.getItem('oauthBindMode')
+    if (token && to.path.startsWith('/login') && !isBindCallback) {
         return next(from.path)
     }
 

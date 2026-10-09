@@ -65,7 +65,7 @@ const attService = {
 				const file = fileUtils.base64ToFile(src);
 				const buff = await file.arrayBuffer();
 				const cid = uuidv4().replace(/-/g, '');
-				const key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(buff) + fileUtils.getExtFileName(file.name);
+				const key = constant.ATTACHMENT_PREFIX + fileUtils.genObjectName() + fileUtils.getExtFileName(file.name);
 
 				img.setAttribute('src', 'cid:' + cid);
 
@@ -152,7 +152,7 @@ const attService = {
 
 		for (let att of attList) {
 			att.buff = fileUtils.base64ToUint8Array(att.content);
-			att.key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(att.buff) + fileUtils.getExtFileName(att.filename);
+			att.key = constant.ATTACHMENT_PREFIX + fileUtils.genObjectName() + fileUtils.getExtFileName(att.filename);
 			const attData = { userId, accountId, emailId };
 			attData.key = att.key;
 			attData.size = att.buff.length;

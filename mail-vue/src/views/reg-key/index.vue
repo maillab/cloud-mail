@@ -33,7 +33,7 @@
               </div>
               <div class="info-left-item">
                 <div>{{ $t('roleDesc') }}：</div>
-                <el-tag>{{ item.roleName }}</el-tag>
+                <el-tag>{{ displayRoleName(item.roleName, t) }}</el-tag>
               </div>
               <div class="info-left-item">
                 <div>{{ $t('validUntil') }}：</div>
@@ -107,6 +107,7 @@ import {getTextWidth} from "@/utils/text.js";
 import dayjs from "dayjs";
 import {tzDayjs} from "@/utils/day.js";
 import {useI18n} from "vue-i18n";
+import {displayRoleName} from "@/utils/role-utils.js";
 
 defineOptions({
   name: 'reg-key'
@@ -194,13 +195,22 @@ function formatUserCreateTime(regKey) {
   const createTime = tzDayjs(regKey.createTime);
   const currentYear = dayjs().year();
   const expireYear = createTime.year();
+  const lang = settingStore.lang;
 
-  if (settingStore.lang === 'en') {
+  if (lang === 'en') {
 
     if (expireYear === currentYear) {
       return createTime.format('MMM D, HH:mm');
     } else {
       return createTime.format('MMM D, YYYY HH:mm');
+    }
+
+  } else if (lang === 'ko') {
+
+    if (expireYear === currentYear) {
+      return createTime.format('M월 D일 HH:mm');
+    } else {
+      return createTime.format('YYYY년 M월 D일 HH:mm');
     }
 
   } else {
@@ -219,12 +229,19 @@ function formatExpireTime(expireTime) {
   const expireDate = tzDayjs(expireTime);
   const currentYear = dayjs().year();
   const expireYear = expireDate.year();
+  const lang = settingStore.lang;
 
-  if (settingStore.lang === 'en') {
+  if (lang === 'en') {
 
     return expireYear === currentYear
         ? expireDate.format('MMM D')
         : expireDate.format('MMM D, YYYY');
+
+  } else if (lang === 'ko') {
+
+    return expireYear === currentYear
+        ? expireDate.format('M월 D일')
+        : expireDate.format('YYYY년 M월 D일');
 
   } else {
 
@@ -269,7 +286,7 @@ async function copyCode(code) {
   } catch (err) {
     console.error('复制失败:', err);
     ElMessage({
-      message: '复制失败',
+      message: t('copyFailMsg'),
       type: 'error',
       plain: true,
     })

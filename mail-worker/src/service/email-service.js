@@ -23,22 +23,26 @@ import domainUtils from '../utils/domain-uitls';
 import account from "../entity/account";
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
+import pgpService from './pgp-service';
 
 const emailService = {
 
 	async list(c, params, userId) {
 
-		let { emailId, type, accountId, size, timeSort, allReceive, full } = params;
+		let { emailId, type, accountId, size, timeSort, allReceive, full, keyword } = params;
 
 		size = Number(size);
-		type = Number(type);
+		// type='delete' 是字符串，不要转 Number
+		if (type !== 'delete') {
+			type = Number(type);
+		}
 		emailId = Number(emailId) || 0;
 		timeSort = Number(timeSort);
 		accountId = Number(accountId);
 		allReceive = Number(allReceive);
 		full = Number(full);
 
-		if (isNaN(type)) {
+		if (type !== 'delete' && isNaN(type)) {
 			type = 0;
 		}
 
@@ -65,8 +69,8 @@ const emailService = {
 			allReceive = accountRow.allReceive;
 		}
 
-		const filters = this.emailListFilters({ userId, accountId, type, allReceive, emailId, timeSort });
-		const countFilters = this.emailListFilters({ userId, accountId, type, allReceive, withCursor: false });
+		const filters = this.emailListFilters({ userId, accountId, type, allReceive, emailId, timeSort, keyword });
+		const countFilters = this.emailListFilters({ userId, accountId, type, allReceive, keyword, withCursor: false });
 		const columns = full ? emailListColumns : emailBriefColumns;
 
 		const query = orm(c)
@@ -155,15 +159,27 @@ const emailService = {
 		return list;
 	},
 
-	emailListFilters({ userId, accountId, type, allReceive, emailId, timeSort, withCursor = true }) {
+	emailListFilters({ userId, accountId, type, allReceive, emailId, timeSort, keyword, withCursor = true }) {
+		const isDelete = type === 'delete';
 		const conditions = [
 			eq(email.userId, userId),
-			eq(email.type, type),
-			eq(email.isDel, isDel.NORMAL),
+			eq(email.isDel, isDelete ? isDel.DELETE : isDel.NORMAL),
 			eq(account.isDel, isDel.NORMAL),
 		];
+		if (!isDelete) {
+			conditions.push(eq(email.type, type));
+		}
 		if (!allReceive) {
 			conditions.push(eq(email.accountId, accountId));
+		}
+		if (keyword) {
+			conditions.push(
+				or(
+					like(email.subject, `%${keyword}%`),
+					like(email.name, `%${keyword}%`),
+					like(email.sendEmail, `%${keyword}%`)
+				)
+			);
 		}
 		if (withCursor && emailId) {
 			conditions.push(timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId));
@@ -221,24 +237,35 @@ const emailService = {
 	async delete(c, params, userId) {
 		const { emailIds } = params;
 		const emailIdList = emailIds.split(',').map(Number);
-		const { syncDelete } = await settingService.query(c);
 
-		if (syncDelete === settingConst.syncDelete.OPEN) {
-			const owned = await orm(c).select({ emailId: email.emailId }).from(email)
-				.where(and(eq(email.userId, userId), inArray(email.emailId, emailIdList)))
-				.all();
-			const ownedIds = owned.map(row => row.emailId);
-			if (ownedIds.length) {
-				await this.physicsDelete(c, { emailIds: ownedIds.join(',') });
-			}
-			return;
-		}
-
+		// 删除一律先进回收站（isDel=DELETE），彻底删除走 /email/permanent
 		await orm(c).update(email).set({ isDel: isDel.DELETE }).where(
 			and(
 				eq(email.userId, userId),
 				inArray(email.emailId, emailIdList)))
 			.run();
+	},
+
+	async restore(c, params, userId) {
+		const { emailIds } = params;
+		const emailIdList = Array.isArray(emailIds) ? emailIds.map(Number) : String(emailIds).split(',').map(Number);
+		await orm(c).update(email).set({ isDel: isDel.NORMAL }).where(
+			and(
+				eq(email.userId, userId),
+				inArray(email.emailId, emailIdList)))
+			.run();
+	},
+
+	async permanentDelete(c, params, userId) {
+		const { emailIds } = params;
+		const emailIdList = emailIds.split(',').map(Number);
+		const owned = await orm(c).select({ emailId: email.emailId }).from(email)
+			.where(and(eq(email.userId, userId), inArray(email.emailId, emailIdList)))
+			.all();
+		const ownedIds = owned.map(row => row.emailId);
+		if (ownedIds.length) {
+			await this.physicsDelete(c, { emailIds: ownedIds.join(',') });
+		}
 	},
 
 	receive(c, params, cidAttList, r2domain) {
@@ -255,9 +282,12 @@ const emailService = {
 			sendType, //发件类型
 			emailId, //邮件id，如果是回复邮件会带
 			receiveEmail, //收件人邮箱
+			ccEmail = [], //抄送邮箱
+			bccEmail = [], //密送邮箱
 			text, //邮件纯文本
 			content, //邮件内容
 			subject, //邮件标题
+			pgpEncrypt, //是否 PGP 加密
 			attachments = [] //附件
 		} = params;
 
@@ -274,7 +304,8 @@ const emailService = {
 		const roleRow = await roleService.selectById(c, userRow.type);
 
 		//判断接收方是不是全部为站内邮箱
-		const allInternal = receiveEmail.every(email => {
+		const allRecipients = [...receiveEmail, ...ccEmail, ...bccEmail];
+		const allInternal = allRecipients.every(email => {
 			const domain = '@' + emailUtils.getDomain(email);
 			return domainList.includes(domain);
 		});
@@ -301,7 +332,7 @@ const emailService = {
 				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLimit'), 403);
 			}
 
-			if (userRow.sendCount + receiveEmail.length > roleRow.sendCount) {
+			if (userRow.sendCount + allRecipients.length > roleRow.sendCount) {
 				if (roleRow.sendType === 'day') throw new BizError(t('daySendLack'), 403);
 				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLack'), 403);
 			}
@@ -357,6 +388,19 @@ const emailService = {
 
 		let sendResult = {};
 
+		// PGP 加密（仅外发时生效，站内直投不加密）
+		let sendText = text;
+		let sendHtml = html;
+		let sendAttachments = [...imageDataList, ...attachments];
+
+		if (pgpEncrypt) {
+			const plainText = text || pgpService.htmlToText(html);
+			const pgpResult = await pgpService.encryptOutgoing(c, allRecipients, plainText, sendAttachments);
+			sendText = pgpResult.text;
+			sendHtml = undefined;
+			sendAttachments = pgpResult.attachments;
+		}
+
 		//存在站外邮箱时，如果配置了 Cloudflare Email Service 就优先使用，否则使用 Resend
 		if (!allInternal) {
 
@@ -365,10 +409,12 @@ const emailService = {
 					name,
 					accountEmail: accountRow.email,
 					receiveEmail,
+					ccEmail,
+					bccEmail,
 					subject,
-					text,
-					html,
-					attachments: [...imageDataList, ...attachments],
+					text: sendText,
+					html: sendHtml,
+					attachments: sendAttachments,
 					sendType,
 					messageId: emailRow.messageId
 				});
@@ -377,10 +423,12 @@ const emailService = {
 					name,
 					accountEmail: accountRow.email,
 					receiveEmail,
+					ccEmail,
+					bccEmail,
 					subject,
-					text,
-					html,
-					attachments: [...imageDataList, ...attachments],
+					text: sendText,
+					html: sendHtml,
+					attachments: sendAttachments,
 					sendType,
 					messageId: emailRow.messageId
 				});
@@ -401,12 +449,15 @@ const emailService = {
 		html = this.imgReplace(html, imageDataList, r2Domain);
 
 		//封装数据保存到数据库
+		// PGP 加密时，存加密后的内容（站内收件人看到的也是密文，需用私钥解密）
+		const saveText = (pgpEncrypt && sendText !== text) ? sendText : text;
+		const saveHtml = (pgpEncrypt && sendHtml !== html) ? sendHtml : html;
 		const emailData = {};
 		emailData.sendEmail = accountRow.email;
 		emailData.name = name;
 		emailData.subject = subject;
-		emailData.content = html;
-		emailData.text = text;
+		emailData.content = saveHtml;
+		emailData.text = saveText;
 		emailData.accountId = accountId;
 		emailData.status = useCloudflareEmail ? emailConst.status.DELIVERED : emailConst.status.SENT;
 		emailData.type = emailConst.type.SEND;
@@ -420,6 +471,8 @@ const emailService = {
 		});
 
 		emailData.recipient = JSON.stringify(recipient);
+		emailData.cc = JSON.stringify(ccEmail);
+		emailData.bcc = JSON.stringify(bccEmail);
 
 		if (sendType === 'reply') {
 			emailData.inReplyTo = emailRow.messageId;
@@ -428,7 +481,7 @@ const emailService = {
 
 		//如果权限有发送次数增加用户发送次数
 		if (roleRow.sendCount && roleRow.sendType !== 'internal') {
-			await userService.incrUserSendCount(c, receiveEmail.length, userId);
+			await userService.incrUserSendCount(c, allRecipients.length, userId);
 		}
 
 		//保存到数据库并返回结果
@@ -479,6 +532,14 @@ const emailService = {
 			subject: params.subject
 		};
 
+		if (params.ccEmail?.length > 0) {
+			sendForm.cc = [...params.ccEmail];
+		}
+
+		if (params.bccEmail?.length > 0) {
+			sendForm.bcc = [...params.bccEmail];
+		}
+
 		if (params.text) {
 			sendForm.text = params.text;
 		}
@@ -519,6 +580,14 @@ const emailService = {
 			html: params.html,
 			attachments: await this.toResendAttachments(params.attachments)
 		};
+
+		if (params.ccEmail?.length > 0) {
+			sendForm.cc = [...params.ccEmail];
+		}
+
+		if (params.bccEmail?.length > 0) {
+			sendForm.bcc = [...params.bccEmail];
+		}
 
 		if (params.sendType === 'reply') {
 			sendForm.headers = {

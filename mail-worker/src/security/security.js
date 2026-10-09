@@ -16,9 +16,18 @@ const exclude = [
 	'/webhooks',
 	'/init',
 	'/public/genToken',
+	'/public/capabilities',
 	'/telegram',
 	'/test',
-	'/oauth'
+	'/oauth/linuxDo/login',
+	'/oauth/github/login',
+	'/oauth/google/login',
+	// bindUser 是 OAuth 首次绑定邮箱的入口，前端在未登录状态下调用，因此不能要求会话。
+	// 但它的安全性不靠这条豁免：接口内部校验回调签发的一次性绑定票据
+	// （见 oauth-service.bindUser 与 saveAndLogin），没有票据无法调用。
+	'/oauth/bindUser',
+	'/passkey/login/options',
+	'/passkey/login/verify'
 ];
 
 const requirePerms = [

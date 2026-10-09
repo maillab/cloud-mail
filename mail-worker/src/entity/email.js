@@ -13,6 +13,8 @@ export const email = sqliteTable('email', {
 	cc: text('cc').default('[]'),
 	bcc: text('bcc').default('[]'),
 	recipient: text('recipient'),
+	cc: text('cc'),
+	bcc: text('bcc'),
 	toEmail: text('to_email').default('').notNull(),
 	toName: text('to_name').default('').notNull(),
 	inReplyTo: text('in_reply_to').default(''),

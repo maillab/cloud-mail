@@ -1,11 +1,17 @@
 import { createI18n } from 'vue-i18n';
 import en from './en.js'
 import zh from './zh.js'
+import ja from './ja.js'
+import ko from './ko.js'
+import zhTW from './zh-TW.js'
 const i18n = createI18n({
     legacy: false,
     messages: {
         zh,
-        en
+        'zh-TW': zhTW,
+        en,
+        ja,
+        ko
     },
 });
 
