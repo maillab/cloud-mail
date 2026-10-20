@@ -3,6 +3,8 @@ export const setting = sqliteTable('setting', {
 	register: integer('register').default(0).notNull(),
 	receive: integer('receive').default(0).notNull(),
 	title: text('title').default('').notNull(),
+	loginDescription: text('login_description').default('').notNull(),
+	registerDescription: text('register_description').default('').notNull(),
 	manyEmail: integer('many_email').default(0).notNull(),
 	addEmail: integer('add_email').default(0).notNull(),
 	autoRefresh: integer('auto_refresh').default(0).notNull(),

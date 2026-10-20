@@ -29,7 +29,7 @@ const settingService = {
 		const setting = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
 
 		if (!setting) {
-			throw new BizError('数据库未初始化 Database not initialized.');
+			throw new BizError(t('databaseNotInitialized'));
 		}
 
 		let domainList = c.env.domain;
@@ -196,6 +196,8 @@ const settingService = {
 		return {
 			register: settingRow.register,
 			title: settingRow.title,
+					loginDescription: settingRow.loginDescription,
+					registerDescription: settingRow.registerDescription,
 			manyEmail: settingRow.manyEmail,
 			addEmail: settingRow.addEmail,
 			autoRefresh: settingRow.autoRefresh,
