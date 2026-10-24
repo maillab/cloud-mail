@@ -2,13 +2,22 @@ import settingService from '../service/setting-service';
 import emailUtils from '../utils/email-utils';
 import {emailConst} from "../const/entity-const";
 
+// 对两边做 HMAC 后再比较, 避免时序泄露密钥长度和内容
+async function safeEqual(a, b) {
+	const encoder = new TextEncoder();
+	const key = await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+	const [x, y] = await Promise.all([
+		crypto.subtle.sign('HMAC', key, encoder.encode(a)),
+		crypto.subtle.sign('HMAC', key, encoder.encode(b))
+	]);
+	return crypto.subtle.timingSafeEqual(x, y);
+}
+
 const dbInit = {
-	async init(c) {
+	async init(c, secret) {
 
-		const secret = c.req.param('secret');
-
-		if (secret !== c.env.jwt_secret) {
-			return c.text('❌ JWT secret mismatch');
+		if (!c.env.jwt_secret || !await safeEqual(secret, c.env.jwt_secret)) {
+			return '❌ JWT secret mismatch';
 		}
 
 		await this.intDB(c);
@@ -34,7 +43,7 @@ const dbInit = {
 		await this.v3_3DB(c);
 		await this.v3_4DB(c);
 		await settingService.refresh(c);
-		return c.text('success');
+		return '✅ success';
 	},
 
 	async v3_4DB(c) {
