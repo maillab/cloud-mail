@@ -188,6 +188,8 @@ const publicService = {
 		if (!await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password)) {
 			throw new BizError(t('IncorrectPwd'));
 		}
+
+		await userService.rehashPasswordIfNeeded(c, userRow, password);
 	}
 
 }
