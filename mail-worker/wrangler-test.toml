@@ -39,7 +39,8 @@ analysis_cache = false			#是否开启分析数据缓存
 orm_log = false			#是否sql日志
 domain = ["example.com"]				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
 admin = "admin@example.com"				#管理员的邮箱	示例: admin@example.com
-jwt_secret = "b7f29a1d-18e2-4d3b-941f-f6b2c97c02fd"			#jwt令牌的密钥,随便填一串字符串
+#jwt_secret 不要写在这里, 请使用: wrangler secret put jwt_secret --config wrangler-test.toml
+#Do not put jwt_secret here; use: wrangler secret put jwt_secret --config wrangler-test.toml
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"
