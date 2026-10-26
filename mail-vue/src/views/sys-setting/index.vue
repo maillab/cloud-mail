@@ -205,6 +205,22 @@
                 </div>
               </div>
               <div class="setting-item">
+                <div>
+                  <span>{{ $t('mailjetSending') }}</span>
+                  <el-tooltip effect="dark" :content="$t('mailjetSendingDesc')">
+                    <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+                  </el-tooltip>
+                </div>
+                <div>
+                  <el-button class="opt-button" style="margin-top: 0" @click="showMailjetList = true" size="small" type="primary">
+                    <Icon icon="ic:round-list" width="18" height="18"/>
+                  </el-button>
+                  <el-button class="opt-button" style="margin-top: 0" @click="mailjetTokenFormShow = true" size="small" type="primary">
+                    <Icon icon="material-symbols:add-rounded" width="16" height="16"/>
+                  </el-button>
+                </div>
+              </div>
+              <div class="setting-item">
                 <div><span>{{ $t('blackList') }}</span></div>
                 <div>
                   <el-button class="opt-button" style="margin-top: 0" @click="openBlackListForm" size="small"
@@ -502,6 +518,17 @@
           <el-button type="primary" :loading="settingLoading" @click="saveResendToken">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
+      <el-dialog v-model="mailjetTokenFormShow" :title="$t('mailjetSending')" width="340" @closed="cleanMailjetTokenForm">
+        <form @submit.prevent="saveMailjetToken">
+          <el-select style="margin-bottom: 15px" v-model="mailjetTokenForm.domain" :placeholder="$t('domain')">
+            <el-option v-for="item in settingStore.domainList" :key="item" :label="item" :value="item"/>
+          </el-select>
+          <el-input type="password" show-password autocomplete="new-password" placeholder="API Key" v-model="mailjetTokenForm.apiKey"/>
+          <el-input style="margin-top: 15px" type="password" show-password autocomplete="new-password" placeholder="Secret Key" v-model="mailjetTokenForm.secretKey"/>
+          <p>{{ $t('mailjetCredentialsDesc') }}</p>
+          <el-button type="primary" native-type="submit" :loading="settingLoading">{{ $t('save') }}</el-button>
+        </form>
+      </el-dialog>
       <el-dialog v-model="turnstileShow" :title="$t('addTurnstileSecret')" width="340"
                  @closed="turnstileForm.secretKey = '';turnstileForm.siteKey = ''">
         <form @submit.prevent>
@@ -725,6 +752,13 @@ Authorization: &lt;secret&gt;</pre>
                            :show-overflow-tooltip="true"/>
         </el-table>
       </el-dialog>
+      <el-dialog v-model="showMailjetList" :title="$t('mailjetSending')">
+        <el-table :data="mailjetList">
+          <el-table-column property="domain" :label="$t('domain')" :show-overflow-tooltip="true"/>
+          <el-table-column property="apiKey" label="API Key"/>
+          <el-table-column property="secretKey" label="Secret Key"/>
+        </el-table>
+      </el-dialog>
       <el-dialog v-model="regVerifyCountShow" :title="$t('rulesVerifyTitle',{count: regVerifyCount})"
                  @closed="regVerifyCount = setting.regVerifyCount">
         <form @submit.prevent>
@@ -944,6 +978,8 @@ const accountStore = useAccountStore();
 const userStore = useUserStore();
 const editTitleShow = ref(false)
 const resendTokenFormShow = ref(false)
+const mailjetTokenFormShow = ref(false)
+const showMailjetList = ref(false)
 const blackFormShow = ref(false)
 const autoCleanShow = ref(false)
 const aiCodeFilterShow = ref(false)
@@ -978,6 +1014,11 @@ const regVerifyCountShow = ref(false)
 const resendTokenForm = reactive({
   domain: '',
   token: '',
+})
+const mailjetTokenForm = reactive({
+  domain: '',
+  apiKey: '',
+  secretKey: '',
 })
 const turnstileForm = reactive({
   siteKey: '',
@@ -1085,6 +1126,7 @@ function getSettings() {
     setting.value = settingData
     settingStore.domainList = settingData.domainList;
     resendTokenForm.domain = setting.value.domainList[0]
+    mailjetTokenForm.domain = setting.value.domainList[0]
     loginOpacity.value = setting.value.loginOpacity
     minEmailPrefix.value = setting.value.minEmailPrefix
     firstLoading.value = false
@@ -1126,6 +1168,11 @@ function resetAddS3Form() {
   s3.s3SecretKey = ''
   s3.forcePathStyle = setting.value.forcePathStyle
 }
+
+const mailjetList = computed(() => Object.entries(setting.value.mailjetTokens || {}).map(([domain, credentials]) => ({
+  domain,
+  ...credentials,
+})))
 
 const resendList = computed(() => {
 
@@ -1636,9 +1683,26 @@ function saveResendToken() {
   editSetting(settingForm)
 }
 
+function saveMailjetToken() {
+  const {domain} = mailjetTokenForm
+  const apiKey = mailjetTokenForm.apiKey.trim()
+  const secretKey = mailjetTokenForm.secretKey.trim()
+  if (!domain || Boolean(apiKey) !== Boolean(secretKey)) {
+    ElMessage.error(t('mailjetCredentialsRequired'))
+    return
+  }
+  editSetting({mailjetTokens: {[domain.slice(1)]: apiKey ? {apiKey, secretKey} : null}})
+}
+
+function cleanMailjetTokenForm() {
+  mailjetTokenForm.apiKey = ''
+  mailjetTokenForm.secretKey = ''
+}
+
 function backupSetting() {
   const settingForm = {...setting.value}
   delete settingForm.resendTokens
+  delete settingForm.mailjetTokens
   delete settingForm.siteKey
   delete settingForm.secretKey
   backup = JSON.stringify(setting.value)
@@ -1663,6 +1727,7 @@ function change(e) {
   delete settingForm.s3SecretKey
   delete settingForm.tgBotToken
   delete settingForm.resendTokens
+  delete settingForm.mailjetTokens
   editSetting(settingForm, false)
 }
 
@@ -1702,6 +1767,8 @@ function editSetting(settingForm, refreshStatus = true) {
     }
     editTitleShow.value = false
     resendTokenFormShow.value = false
+    mailjetTokenFormShow.value = false
+    cleanMailjetTokenForm()
     turnstileShow.value = false
     tgSettingShow.value = false
     thirdEmailShow.value = false

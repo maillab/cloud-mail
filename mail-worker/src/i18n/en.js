@@ -25,6 +25,7 @@ const en = {
 	senderAccountNotExist: 'Sender email does not exist',
 	noResendToken: 'Resend API token not configured',
 	noSendProvider: 'Email sending service is not configured',
+	invalidMailjetCredentials: 'Provide both the Mailjet API Key and Secret Key; use null to delete the configuration',
 	sendEmailNotCurUser: 'Sender email does not belong to current user',
 	notExistEmailReply: 'Mail does not exist and cannot be replied to',
 	imageAttLimit: 'The maximum number of image attachments is 10',

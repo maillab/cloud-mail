@@ -10,6 +10,7 @@ import BizError from '../error/biz-error';
 import emailUtils from '../utils/email-utils';
 import fileUtils from '../utils/file-utils';
 import { Resend } from 'resend';
+import mailjetService from './mailjet-service';
 import attService from './att-service';
 import { parseHTML } from 'linkedom';
 import userService from './user-service';
@@ -345,7 +346,7 @@ const emailService = {
 			attachments = [] //附件
 		} = params;
 
-		const { resendTokens, r2Domain, send, domainList } = await settingService.query(c);
+		const { resendTokens, mailjetTokens = {}, r2Domain, send, domainList } = await settingService.query(c);
 
 		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
 
@@ -412,10 +413,11 @@ const emailService = {
 
 		const domain = emailUtils.getDomain(accountRow.email);
 		const resendToken = resendTokens[domain];
-		const useCloudflareEmail = !!c.env.email;
+		const mailjetToken = mailjetTokens[domain];
+		const useCloudflareEmail = !!c.env.email && !mailjetToken;
 
 		//如果接收方存在站外邮箱，又没有发信服务
-		if (!useCloudflareEmail && !resendToken && !allInternal) {
+		if (!useCloudflareEmail && !mailjetToken && !resendToken && !allInternal) {
 			throw new BizError(t('noSendProvider'));
 		}
 
@@ -461,7 +463,7 @@ const emailService = {
 		const separate = params.manyType === 'divide';
 		// sendParams 用于渠道请求，saveParams 保留保存记录所需的账号、权限和附件数据。
 		const context = {
-			separate, allInternal, useCloudflareEmail, resendToken, sendParams,
+			separate, allInternal, useCloudflareEmail, resendToken, mailjetToken, sendParams,
 			saveParams: {
 				accountId, userId, name, subject, text, html,
 				sendEmail: accountRow.email,
@@ -471,10 +473,12 @@ const emailService = {
 			}
 		};
 
-		// 全部站内收件人走本地投递；存在站外收件人时优先 CF，其次 Resend。
+		// 全部站内收件人走本地投递；站外优先使用域名指定的 Mailjet，其次 CF、Resend。
 		let deliveries;
 		if (allInternal) {
 			deliveries = this.sendInternal(c, context);
+		} else if (mailjetToken) {
+			deliveries = this.sendMailjet(c, context);
 		} else if (useCloudflareEmail) {
 			deliveries = this.sendCloudflare(c, context);
 		} else {
@@ -583,7 +587,47 @@ const emailService = {
 		yield { emails };
 	},
 
-	// 三个渠道共用的发件记录保存：恢复正文图片 URL、保存附件并更新发送计数。
+	// Mailjet 每次最多提交 50 封独立邮件，保存同一批中所有成功项后再返回失败。
+	async *sendMailjet(c, { separate, mailjetToken, sendParams, saveParams }) {
+		const attachments = await this.toResendAttachments(sendParams.attachments);
+		const recipientGroups = separate
+			? sendParams.receiveEmail.map(address => [address])
+			: [sendParams.receiveEmail];
+		for (let offset = 0; offset < recipientGroups.length; offset += 50) {
+			const groups = recipientGroups.slice(offset, offset + 50);
+			let results;
+			try {
+				results = await mailjetService.send(mailjetToken, groups.map(receiveEmail =>
+					mailjetService.buildMessage({ ...sendParams, receiveEmail, attachments })
+				));
+			} catch (error) {
+				if (!separate) throw error;
+				yield { error: { message: error.message } };
+				return;
+			}
+			let sendError;
+			const emails = [];
+			for (let index = 0; index < groups.length; index++) {
+				const result = results[index];
+				if (result?.Status !== 'success') {
+					sendError ||= { message: mailjetService.errorMessage(result) };
+					continue;
+				}
+				const recipient = result.To?.[0];
+				const id = recipient?.MessageUUID || recipient?.MessageID;
+				emails.push(await this.saveSentEmail(c, {
+					...saveParams, receiveEmail: groups[index], providerId: id ? `mailjet:${id}` : undefined
+				}));
+			}
+			if (emails.length > 0) yield { emails };
+			if (sendError) {
+				yield { error: sendError };
+				return;
+			}
+		}
+	},
+
+	// 各渠道共用的发件记录保存：恢复正文图片 URL、保存附件并更新发送计数。
 	async saveSentEmail(c, params) {
 		const {
 			accountId, userId, name, subject, text, html, sendEmail, receiveEmail,

@@ -16,6 +16,7 @@ const settingService = {
 	async refresh(c) {
 		const settingRow = await orm(c).select().from(setting).get();
 		settingRow.resendTokens = JSON.parse(settingRow.resendTokens);
+		settingRow.mailjetTokens = JSON.parse(settingRow.mailjetTokens || '{}');
 		settingRow.r2Domain = '';
 		c.set('setting', settingRow);
 		await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
@@ -60,6 +61,7 @@ const settingService = {
 		}
 
 		setting.projectLink = projectLink;
+		setting.mailjetTokens ||= {};
 
 		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
 
@@ -69,11 +71,11 @@ const settingService = {
 
 	async get(c, showSiteKey = false) {
 
-		const [settingRow, recordList] = await Promise.all([
+		const [rawSettingRow, recordList] = await Promise.all([
 			await this.query(c),
 			verifyRecordService.selectListByIP(c)
 		]);
-
+		const settingRow = { ...rawSettingRow, resendTokens: { ...rawSettingRow.resendTokens } };
 
 		if (!showSiteKey) {
 			settingRow.siteKey = settingRow.siteKey ? `${settingRow.siteKey.slice(0, 6)}******` : null;
@@ -84,6 +86,9 @@ const settingService = {
 		Object.keys(settingRow.resendTokens).forEach(key => {
 			settingRow.resendTokens[key] = `${settingRow.resendTokens[key].slice(0, 12)}******`;
 		});
+		settingRow.mailjetTokens = Object.fromEntries(Object.keys(settingRow.mailjetTokens || {}).map(domain => [
+			domain, { apiKey: '******', secretKey: '******' }
+		]));
 
 		settingRow.s3AccessKey = settingRow.s3AccessKey ? `${settingRow.s3AccessKey.slice(0, 12)}******` : null;
 		settingRow.s3SecretKey = settingRow.s3SecretKey ? `${settingRow.s3SecretKey.slice(0, 12)}******` : null;
@@ -117,6 +122,26 @@ const settingService = {
 		Object.keys(resendTokens).forEach(domain => {
 			if (!resendTokens[domain]) delete resendTokens[domain];
 		});
+		if (params.mailjetTokens !== undefined) {
+			if (!params.mailjetTokens || typeof params.mailjetTokens !== 'object' || Array.isArray(params.mailjetTokens)) {
+				throw new BizError(t('invalidMailjetCredentials'));
+			}
+			const mailjetTokens = { ...settingData.mailjetTokens };
+			for (const [domain, credentials] of Object.entries(params.mailjetTokens)) {
+				if (credentials === null) {
+					delete mailjetTokens[domain];
+					continue;
+				}
+				if (!credentials || typeof credentials.apiKey !== 'string' || typeof credentials.secretKey !== 'string'
+					|| !/^[\x21-\x7e]+$/.test(credentials.apiKey.trim()) || credentials.apiKey.includes(':')
+					|| !/^[\x21-\x7e]+$/.test(credentials.secretKey.trim())
+					|| credentials.apiKey.includes('*') || credentials.secretKey.includes('*')) {
+					throw new BizError(t('invalidMailjetCredentials'));
+				}
+				mailjetTokens[domain] = { apiKey: credentials.apiKey.trim(), secretKey: credentials.secretKey.trim() };
+			}
+			params.mailjetTokens = JSON.stringify(mailjetTokens);
+		}
 
 		if (Array.isArray(params.emailPrefixFilter)) {
 			params.emailPrefixFilter = params.emailPrefixFilter + '';

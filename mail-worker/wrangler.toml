@@ -6,21 +6,20 @@ keep_vars = true
 [observability]
 enabled = true
 
-#[[d1_databases]]
-#binding = "db"			#d1数据库绑定名默认不可修改
-#database_name = ""		#d1数据库名字
-#database_id = ""		#d1数据库id
+# [[d1_databases]]
+# binding = "db"			#d1数据库绑定名默认不可修改
 
-#[[kv_namespaces]]
-#binding = "kv"			#kv绑定名默认不可修改
-#id = ""					#kv数据库id
+# [[kv_namespaces]]
+# binding = "kv"			#kv绑定名默认不可修改
 
-#[[r2_buckets]]
-#binding = "r2"			#r2对象存储绑定名默认不可修改
-#bucket_name = ""		#r2对象存储桶的名字
+# [[r2_buckets]]
+# binding = "r2"			#r2对象存储绑定名默认不可修改
 
-#[[send_email]]
-#name = "email"			#CF发件, 配置后优先使用
+# #[[send_email]]
+# #name = "email"			#CF发件, 配置后优先使用
+
+# [[send_email]]
+# name = "forward"		#站内转发到已验证的其他邮箱，不限制单个地址
 
 [[send_email]]
 name = "forward"		#站内转发到已验证的其他邮箱，不限制单个地址
@@ -39,12 +38,15 @@ crons = ["0 * * * *"]	#每小时执行；resetDaySendCount 仅在 UTC 0 点生�
 
 
 [vars]
-#ai_model = ""			#ai模型,不填默认使用@cf/meta/llama-3.1-8b-instruct-fast
-#analysis_cache = false			#是否开启分析数据缓存
-#orm_log = false			#是否sql日志
-#domain = []				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
-#admin = ""					#管理员的邮箱	示例: admin@example.com
-#jwt_secret = ""			#jwt令牌的密钥,随便填一串字符串
+# ai_model = "@cf/meta/llama-3.1-8b-instruct-fast"			#ai模型,不填默认使用@cf/meta/llama-3.1-8b-instruct-fast
+# analysis_cache = false			#是否开启分析数据缓存
+# orm_log = false			#是否sql日志
+
+
+# 保留控制台已有的资源绑定和运行时配置；Git 集成只更新代码。
+# 此处覆盖 Wrangler 的 keep_bindings，因此也包含变量及密钥类型。
+[unsafe.metadata]
+keep_bindings = ["plain_text", "json", "secret_text", "secret_key", "kv_namespace", "d1", "r2_bucket", "send_email", "ai"]
 
 [build]
-command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"
+command = "pnpm run build"

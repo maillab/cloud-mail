@@ -33,8 +33,16 @@ const dbInit = {
 		await this.v3_2DB(c);
 		await this.v3_3DB(c);
 		await this.v3_4DB(c);
+		await this.mailjetDB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async mailjetDB(c) {
+		const { results } = await c.env.db.prepare('PRAGMA table_info(setting)').all();
+		if (!results.some(column => column.name === 'mailjet_tokens')) {
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN mailjet_tokens TEXT NOT NULL DEFAULT '{}';`).run();
+		}
 	},
 
 	async v3_4DB(c) {
