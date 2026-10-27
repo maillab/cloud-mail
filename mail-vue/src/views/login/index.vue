@@ -1,188 +1,119 @@
 <template>
-  <div id="login-box" :style=" background ? 'background: var(--el-bg-color)' : ''" v-loading="oauthLoading" element-loading-text="登录中...">
-    <div id="background-wrap" v-if="!settingStore.settings.background">
-      <div class="x1 cloud"></div>
-      <div class="x2 cloud"></div>
-      <div class="x3 cloud"></div>
-      <div class="x4 cloud"></div>
-      <div class="x5 cloud"></div>
-    </div>
-    <div v-else :style="background"></div>
-    <div class="form-wrapper">
-      <div class="container">
-        <span class="form-title">{{ settingStore.settings.title }}</span>
-        <span class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</span>
-        <span class="form-desc" v-else>{{ $t('regTitle') }}</span>
-        <div v-show="show === 'login'">
-          <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="form.email"
-                    type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="submit">
-            <template #append v-if="!hideLoginDomain">
-              <div @click.stop="openSelect">
-                <el-select
-                    v-if="show === 'login'"
-                    ref="mySelect"
-                    v-model="suffix"
-                    :placeholder="$t('select')"
-                    class="select"
-                >
-                  <el-option
-                      v-for="item in domainList"
-                      :key="item"
-                      :label="item"
-                      :value="item"
-                  />
-                </el-select>
-                <div style="color: var(--el-text-color-primary)">
-                  <span>{{ suffix }}</span>
-                  <Icon class="setting-icon" icon="mingcute:down-small-fill" width="20" height="20"/>
-                </div>
-              </div>
-            </template>
-          </el-input>
-          <el-input v-model="form.password" :placeholder="$t('password')" type="password" autocomplete="off" @keyup.enter="submit">
-          </el-input>
-          <el-button class="btn" type="primary" @click="submit" :loading="loginLoading"
-          >{{ $t('loginBtn') }}
-          </el-button>
-          <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
-            <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
-            <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
-            {{ p.label }}
-          </el-button>
+  <div id="login-box" class="login-surface" v-loading="oauthLoading" element-loading-text="Signing in...">
+    <main class="login-layout">
+      <img class="login-brand-logo" src="/xpass-logo.png" alt="XPass" />
+      <section class="login-brand">
+        <div class="login-brand-copy">
+          <div class="login-brand-kicker"><span></span> INTERNAL WORKSPACE.</div>
+          <h1>The event ends.<br /><em>The relationship shouldn’t.</em></h1>
+          <p>Powering the infrastructure behind seamless event commerce and organizer success.</p>
         </div>
-        <div v-show="show !== 'login'">
-          <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="registerForm.email" type="text" :placeholder="$t('emailAccount')"
-                    autocomplete="off" @keyup.enter="submitRegister">
-            <template #append v-if="!hideLoginDomain">
-              <div @click.stop="openSelect">
-                <el-select
-                    v-if="show !== 'login'"
-                    ref="mySelect"
-                    v-model="suffix"
-                    :placeholder="$t('select')"
-                    class="select"
-                >
-                  <el-option
-                      v-for="item in domainList"
-                      :key="item"
-                      :label="item"
-                      :value="item"
-                  />
-                </el-select>
-                <div>
-                  <span>{{ suffix }}</span>
-                  <Icon class="setting-icon" icon="mingcute:down-small-fill" width="20" height="20"/>
-                </div>
-              </div>
-            </template>
-          </el-input>
-          <el-input v-model="registerForm.password" :placeholder="$t('password')" type="password" autocomplete="off" @keyup.enter="submitRegister"/>
-          <el-input v-model="registerForm.confirmPassword" :placeholder="$t('confirmPwd')" type="password"
-                    autocomplete="off" @keyup.enter="submitRegister"/>
-          <el-input v-if="settingStore.settings.regKey === 0" v-model="registerForm.code" :placeholder="$t('regKey')"
-                    type="text" autocomplete="off" @keyup.enter="submitRegister"/>
-          <el-input v-if="settingStore.settings.regKey === 2" v-model="registerForm.code"
-                    :placeholder="$t('regKeyOptional')" type="text" autocomplete="off" @keyup.enter="submitRegister"/>
-          <div v-show="verifyShow"
-               ref="turnstileContainer"
-               :key="turnstileContainerKey"
-               class="register-turnstile"
-               :data-sitekey="settingStore.settings.siteKey"
-               data-callback="onTurnstileSuccess"
-               data-error-callback="onTurnstileError"
-               data-after-interactive-callback="loadAfter"
-               data-before-interactive-callback="loadBefore"
-          >
-            <span style="font-size: 12px;color: #F56C6C" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('regBtn')}) }}</span>
-          </div>
-          <el-button class="btn" style="margin: 0" type="primary" @click="submitRegister" :loading="registerLoading"
-          >{{ $t('regBtn') }}
-          </el-button>
-          <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
-            <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
-            <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
-            {{ p.label }}
-          </el-button>
-        </div>
-        <template v-if="settingStore.settings.register === 0">
-          <div class="switch" @click="show = 'register'" v-if="show === 'login'">{{ $t('noAccount') }}
-            <span>{{ $t('regSwitch') }}</span></div>
-          <div class="switch" @click="show = 'login'" v-else>{{ $t('hasAccount') }} <span>{{ $t('loginSwitch') }}</span>
-          </div>
-        </template>
-      </div>
-    </div>
-    <el-dialog class="bind-dialog" v-model="showBindForm"  title="注册邮箱" >
-      <div class="bind-container">
-        <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="bindForm.email" type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="bind">
-          <template #append v-if="!hideLoginDomain">
-            <div @click.stop="openSelect">
-              <el-select
-                  ref="mySelect"
-                  v-model="suffix"
-                  :placeholder="$t('select')"
-                  class="select"
+      </section>
+      <section class="login-panel">
+        <div class="login-card">
+          <h2>Sign In</h2>
+          <p class="login-card-description">
+            Sign in to continue.
+          </p>
+
+          <form class="auth-form" @submit.prevent="submit">
+            <div class="auth-field">
+              <label for="login-username">{{ hideLoginDomain ? $t('emailAccount') : 'Username' }}</label>
+              <el-input
+                id="login-username"
+                v-model="form.email"
+                type="text"
+                :placeholder="hideLoginDomain ? 'name@company.com' : 'your.name'"
+                autocomplete="username"
+                autocapitalize="none"
+                spellcheck="false"
+                @keyup.enter="submit"
               >
-                <el-option
-                    v-for="item in domainList"
-                    :key="item"
-                    :label="item"
-                    :value="item"
-                />
+                <template v-if="!hideLoginDomain" #append>
+                  <div class="domain-picker" @click.stop="openSelect">
+                    <el-select ref="mySelect" v-model="suffix" :placeholder="$t('select')" class="select">
+                      <el-option v-for="item in domainList" :key="item" :label="item" :value="item" />
+                    </el-select>
+                    <span>{{ suffix }}</span>
+                    <Icon icon="mingcute:down-small-fill" width="16" height="16" />
+                  </div>
+                </template>
+              </el-input>
+            </div>
+            <div class="auth-field">
+              <label for="login-password">{{ $t('password') }}</label>
+              <el-input
+                id="login-password"
+                v-model="form.password"
+                type="password"
+                show-password
+                :placeholder="$t('password')"
+                autocomplete="current-password"
+                @keyup.enter="submit"
+              />
+            </div>
+            <el-button class="auth-submit" type="primary" native-type="submit" :loading="loginLoading">
+              {{ loginLoading ? 'Signing in…' : 'Sign in' }}
+            </el-button>
+            <div v-if="oauthProviders.length" class="oauth-list">
+              <el-button v-for="p in oauthProviders" :key="p.key" class="oauth-button" @click="oauthLogin(p.key)">
+                <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" />
+                <Icon v-else :icon="p.icon" width="18" height="18" />
+                {{ p.label }}
+              </el-button>
+            </div>
+          </form>
+
+        </div>
+        <div class="login-brand-footer">Confidential system. Access limited to authorized personnel.</div>
+      </section>
+    </main>
+    <el-dialog class="bind-dialog" v-model="showBindForm" title="Connect your email">
+      <div class="bind-container">
+        <el-input v-model="bindForm.email" type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="bind">
+          <template v-if="!hideLoginDomain" #append>
+            <div class="domain-picker" @click.stop="openSelect">
+              <el-select ref="mySelect" v-model="suffix" :placeholder="$t('select')" class="select">
+                <el-option v-for="item in domainList" :key="item" :label="item" :value="item" />
               </el-select>
-              <div>
-                <span>{{ suffix }}</span>
-                <Icon class="setting-icon" icon="mingcute:down-small-fill" width="20" height="20"/>
-              </div>
+              <span>{{ suffix }}</span>
+              <Icon icon="mingcute:down-small-fill" width="16" height="16" />
             </div>
           </template>
         </el-input>
-        <el-input v-if="settingStore.settings.regKey === 0" v-model="bindForm.code" :placeholder="$t('regKey')"
-                  type="text" autocomplete="off" @keyup.enter="bind"/>
-        <el-input v-if="settingStore.settings.regKey === 2" v-model="bindForm.code"
-                  :placeholder="$t('regKeyOptional')" type="text" autocomplete="off" @keyup.enter="bind"/>
-        <el-button class="btn" type="primary" @click="bind" :loading="bindLoading"
-        >绑定
-        </el-button>
+        <el-input v-if="settingStore.settings.regKey === 0" v-model="bindForm.code" :placeholder="$t('regKey')" type="text" autocomplete="off" @keyup.enter="bind" />
+        <el-input v-if="settingStore.settings.regKey === 2" v-model="bindForm.code" :placeholder="$t('regKeyOptional')" type="text" autocomplete="off" @keyup.enter="bind" />
+        <el-button class="auth-submit" type="primary" :loading="bindLoading" @click="bind">Connect account</el-button>
       </div>
     </el-dialog>
-    <a v-show="settingStore.settings.projectLink" class="github" href="https://github.com/maillab/cloud-mail">
-      <Icon icon="mingcute:github-line" color="#1890ff" width="20" height="20" />
-    </a>
   </div>
 </template>
 
 <script setup>
 import router from "@/router";
 import {useRoute} from "vue-router";
-import {computed, nextTick, reactive, ref} from "vue";
+import {computed, reactive, ref} from "vue";
 import {login} from "@/request/login.js";
-import {register} from "@/request/login.js";
 import {websiteConfig} from "@/request/setting.js";
 import {isEmail} from "@/utils/verify-utils.js";
 import {useSettingStore} from "@/store/setting.js";
 import {useAccountStore} from "@/store/account.js";
 import {useUserStore} from "@/store/user.js";
-import {useUiStore} from "@/store/ui.js";
 import {Icon} from "@iconify/vue";
-import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
 import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
-import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
 
 const {t} = useI18n();
 const accountStore = useAccountStore();
 const userStore = useUserStore();
-const uiStore = useUiStore();
 const settingStore = useSettingStore();
 const route = useRoute();
 const loginLoading = ref(false)
 const bindLoading = ref(false)
 const oauthLoading = ref(false);
 const showBindForm = ref(false);
-const show = ref('login')
 
 const oauthKeys = ['linuxdo', 'github', 'google']
 
@@ -215,89 +146,10 @@ const form = reactive({
 });
 const mySelect = ref()
 const suffix = ref('')
-const registerForm = reactive({
-  email: '',
-  password: '',
-  confirmPassword: '',
-  code: null
-})
 const domainList = settingStore.domainList;
-const registerLoading = ref(false)
 suffix.value = domainList[0]
-const verifyShow = ref(false)
-let verifyToken = ''
-let turnstileId = null
-let botJsError = ref(false)
-let verifyErrorCount = 0
-let turnstileRecoveryAttempted = false
-const turnstileContainer = ref(null)
-const turnstileContainerKey = ref(0)
-
-async function recoverTurnstile() {
-  if (turnstileRecoveryAttempted) return
-  turnstileRecoveryAttempted = true
-  botJsError.value = false
-  verifyToken = ''
-  turnstileId = null
-  turnstileContainerKey.value++
-  try {
-    const api = await reloadTurnstileScript()
-    await nextTick()
-    if (show.value === 'login' || !turnstileContainer.value) return
-    turnstileId = api.render(turnstileContainer.value)
-  } catch (error) {
-    botJsError.value = true
-    console.warn('Turnstile recovery failed', error)
-  } finally {
-    turnstileRecoveryAttempted = false
-  }
-}
-
-window.onTurnstileSuccess = (token) => {
-  verifyToken = token;
-};
-
-window.onTurnstileError = (e) => {
-  if (verifyErrorCount >= 4) {
-    return
-  }
-  verifyErrorCount++
-  console.warn('人机验加载失败', e)
-  setTimeout(() => {
-    nextTick(() => {
-      if (!turnstileId) {
-        turnstileId = window.turnstile.render('.register-turnstile')
-      } else {
-        window.turnstile.reset(turnstileId);
-      }
-    })
-  }, 1500)
-};
-
-window.loadAfter = (e) => {
-  console.log('loadAfter')
-}
-
-window.loadBefore = (e) => {
-  console.log('loadBefore')
-}
-
-const loginOpacity = computed(() => {
-  const opacity = settingStore.settings.loginOpacity
-  return uiStore.dark ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`
-})
 
 const hideLoginDomain = computed(() => settingStore.settings.loginDomain === 1)
-
-const background = computed(() => {
-
-  return settingStore.settings.background ? {
-    'background-image': `url(${cvtR2Url(settingStore.settings.background)})`,
-    'background-repeat': 'no-repeat',
-    'background-size': 'cover',
-    'background-position': 'center'
-  } : ''
-})
 
 const openSelect = () => {
   mySelect.value.toggleMenu()
@@ -350,7 +202,7 @@ async function oauthGetUser() {
       showBindForm.value = true
       oauthLoading.value = false
       ElMessage({
-        message: '请注册绑定一个邮箱',
+        message: 'Register an email address to connect this account.',
         type: 'warning',
         duration: 4000,
         plain: true,
@@ -476,7 +328,6 @@ async function saveToken(token) {
     router.addRoute('layout', routerData);
   });
   await router.replace({name: 'layout'})
-  uiStore.showNotice()
   oauthLoading.value = false;
   bindLoading.value = false;
 }
@@ -488,162 +339,12 @@ function refreshWebsiteConfig() {
     if (!suffix.value && setting.domainList.length > 0) {
       suffix.value = setting.domainList[0]
     }
-    document.title = setting.title
+    document.title = 'XPass Mail'
   }).catch(e => {
     console.error(e)
   })
 }
 
-
-function submitRegister() {
-
-  if (registerLoading.value) return
-
-  if (!registerForm.email) {
-    ElMessage({
-      message: t('emptyEmailMsg'),
-      type: 'error',
-      plain: true,
-    })
-    return
-  }
-
-  console.log(registerForm.email)
-
-  if (getEmailName(registerForm.email).length < settingStore.settings.minEmailPrefix) {
-    ElMessage({
-      message: t('minEmailPrefix', {msg: settingStore.settings.minEmailPrefix}),
-      type: 'error',
-      plain: true,
-    })
-    return
-  }
-
-  const email = getFullEmail(registerForm.email);
-
-  if (!isEmail(email)) {
-    ElMessage({
-      message: t('notEmailMsg'),
-      type: 'error',
-      plain: true,
-    })
-    return
-  }
-
-  if (!registerForm.password) {
-    ElMessage({
-      message: t('emptyPwdMsg'),
-      type: 'error',
-      plain: true,
-    })
-    return
-  }
-
-  if (registerForm.password.length < 6) {
-    ElMessage({
-      message: t('pwdLengthMsg'),
-      type: 'error',
-      plain: true,
-    })
-    return
-  }
-
-  if (registerForm.password !== registerForm.confirmPassword) {
-
-    ElMessage({
-      message: t('confirmPwdFailMsg'),
-      type: 'error',
-      plain: true,
-    })
-    return
-  }
-
-  if (settingStore.settings.regKey === 0) {
-
-    if (!registerForm.code) {
-
-      ElMessage({
-        message: t('emptyRegKeyMsg'),
-        type: 'error',
-        plain: true,
-      })
-      return
-    }
-
-  }
-
-  if (!verifyToken && (settingStore.settings.registerVerify === 0 || (settingStore.settings.registerVerify === 2 && settingStore.settings.regVerifyOpen))) {
-    if (turnstileRecoveryAttempted) return
-    if (!verifyShow.value) {
-      verifyShow.value = true
-      nextTick(() => {
-        if (!turnstileId) {
-          try {
-            turnstileId = window.turnstile.render('.register-turnstile')
-          } catch (e) {
-            botJsError.value = true
-            console.log('人机验证js加载失败')
-            recoverTurnstile()
-          }
-        } else {
-          window.turnstile.reset('.register-turnstile')
-        }
-      })
-    } else if (botJsError.value) {
-      recoverTurnstile()
-    } else {
-      ElMessage({
-        message: t('botVerifyMsg'),
-        type: "error",
-        plain: true
-      })
-    }
-    return;
-  }
-
-  registerLoading.value = true
-
-  const form = {
-    email,
-    password: registerForm.password,
-    token: verifyToken,
-    code: registerForm.code
-  }
-
-  register(form).then(({regVerifyOpen}) => {
-    show.value = 'login'
-    registerForm.email = ''
-    registerForm.password = ''
-    registerForm.confirmPassword = ''
-    registerForm.code = ''
-    registerLoading.value = false
-    verifyToken = ''
-    settingStore.settings.regVerifyOpen = regVerifyOpen
-    verifyShow.value = false
-    ElMessage({
-      message: t('regSuccessMsg'),
-      type: 'success',
-      plain: true,
-    })
-  }).catch(res => {
-
-    registerLoading.value = false
-
-    if (res.code === 400) {
-      verifyToken = ''
-      settingStore.settings.regVerifyOpen = true
-      if (turnstileId) {
-        window.turnstile.reset(turnstileId)
-      } else {
-        nextTick(() => {
-          turnstileId = window.turnstile.render('.register-turnstile')
-        })
-      }
-      verifyShow.value = true
-
-    }
-  });
-}
 
 </script>
 
@@ -656,6 +357,819 @@ function submitRegister() {
 .no-autofill-pwd {
   .el-input__inner {
     -webkit-text-security: disc !important;
+  }
+}
+</style>
+
+<style scoped>
+#login-box {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
+  background: #050403;
+  color: #f2ebe5;
+  font-family: Manrope, Inter, "Segoe UI", sans-serif;
+}
+
+.login-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+  align-items: center;
+  gap: clamp(56px, 9vw, 132px);
+  width: min(1120px, 100%);
+  height: 100%;
+  min-height: 0;
+  margin: 0 auto;
+  padding: 48px;
+}
+
+.login-brand {
+  display: flex;
+  min-width: 0;
+  height: min(590px, 76vh);
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0;
+  margin: 0;
+  padding: 4px 0;
+  font: inherit;
+}
+
+.login-brand-logo {
+  width: 144px !important;
+  height: 42px !important;
+  border-radius: 0 !important;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.login-brand-copy {
+  max-width: 460px;
+}
+
+.login-brand-kicker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 22px;
+  color: #c1b4aa;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
+.login-brand-kicker span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff5500;
+}
+
+.login-brand-copy h1 {
+  max-width: 12ch;
+  margin: 0;
+  color: #f2ebe5;
+  font: 700 clamp(38px, 5vw, 60px)/1.08 "Space Grotesk", Manrope, sans-serif;
+  letter-spacing: -.05em;
+}
+
+.login-brand-copy h1 em,
+.login-brand em {
+  color: #ff8751;
+  font-style: normal;
+}
+
+.login-brand-copy p {
+  max-width: 380px;
+  margin: 20px 0 0;
+  color: #b2a49a;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.login-brand-footer {
+  color: #857970;
+  font-size: 12px;
+}
+
+.login-panel {
+  display: block;
+  width: 100%;
+  padding: 0;
+}
+
+.login-card {
+  width: 100%;
+  max-width: none;
+  max-height: min(760px, calc(100svh - 48px));
+  overflow: hidden;
+  padding: 32px;
+  border: 1px solid rgba(194, 125, 79, .2);
+  border-radius: 12px;
+  background: #100e0c;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
+}
+
+.login-logo {
+  display: none;
+  width: 132px;
+  height: 42px;
+  margin: 0 auto 24px;
+  object-fit: contain;
+}
+
+.login-card h2 {
+  margin: 0;
+  color: #f2ebe5;
+  font: 700 25px/1.25 Manrope, sans-serif;
+  letter-spacing: -.025em;
+}
+
+.login-card-description {
+  margin: 8px 0 0;
+  color: #b2a49a;
+  font-size: 13px;
+}
+
+.auth-form {
+  gap: 16px;
+  margin-top: 25px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-field > label {
+  color: #e6ded7;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.auth-field :deep(.el-input__wrapper) {
+  min-height: 44px;
+  border-radius: 7px;
+  background: #0d0a08;
+  box-shadow: 0 0 0 1px rgba(194, 125, 79, .26) inset;
+}
+
+.auth-field :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #ff5500 inset, 0 0 0 3px rgba(255, 85, 0, .12);
+}
+
+.auth-field :deep(.el-input__inner) {
+  color: #f2ebe5;
+  font-size: 13px;
+}
+
+.auth-field :deep(.el-input__inner::placeholder) {
+  color: #857970;
+}
+
+.auth-field :deep(.el-input-group__append) {
+  border-left: 1px solid rgba(194, 125, 79, .2);
+  border-radius: 0 7px 7px 0;
+  background: #18110d;
+  color: #c1b4aa;
+}
+
+.auth-submit {
+  min-height: 44px;
+  border: 1px solid #ff5500;
+  border-radius: 7px;
+  background: #ff5500;
+  color: #160d08;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+.auth-submit:hover,
+.auth-submit:focus {
+  border-color: #ff8244;
+  background: #ff8244;
+  color: #160d08;
+}
+
+.oauth-list {
+  display: grid;
+  gap: 9px;
+}
+
+.oauth-button {
+  min-height: 42px;
+  border: 1px solid rgba(194, 125, 79, .22);
+  border-radius: 7px;
+  background: #18110d;
+  color: #f2ebe5;
+}
+
+.oauth-button:hover {
+  border-color: rgba(194, 125, 79, .38);
+  background: #211811;
+  color: #fff;
+}
+
+.auth-switch {
+  margin-top: 18px;
+  color: #b2a49a;
+  font-size: 12px;
+  text-align: center;
+}
+
+.auth-switch button {
+  color: #ff8751;
+}
+
+.login-card.registering {
+  overflow-y: auto;
+}
+
+@media (max-width: 800px) {
+  .login-layout {
+    grid-template-columns: minmax(0, 420px);
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .login-brand {
+    display: none;
+  }
+
+  .login-logo {
+    display: block;
+  }
+
+  .login-card h2,
+  .login-card-description {
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  #login-box {
+    overflow: hidden;
+  }
+
+  .login-layout {
+    padding: 12px;
+  }
+
+  .login-card {
+    max-height: calc(100svh - 24px);
+    padding: 24px 20px;
+    border-radius: 9px;
+  }
+}
+</style>
+
+<style scoped>
+#login-box {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
+  color: #f2ebe5;
+  background: #181614;
+}
+
+.login-layout {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  place-items: center;
+  padding: 16px;
+}
+
+.login-panel {
+  display: block;
+  width: min(420px, 100%);
+  padding: 0;
+}
+
+.login-card {
+  width: 100%;
+  max-width: none;
+  max-height: calc(100svh - 32px);
+  overflow: hidden;
+  padding: 22px 26px;
+  border: 1px solid #403731;
+  border-radius: 14px;
+  background: #211e1b;
+}
+
+.login-logo {
+  display: block;
+  width: min(190px, 60%);
+  height: 54px;
+  margin: 0 auto 12px;
+  object-fit: contain;
+}
+
+.login-card h2 {
+  margin: 0;
+  color: #f2ebe5;
+  font-size: 24px;
+  text-align: center;
+}
+
+.login-card-description {
+  margin: 6px 0 0;
+  color: #b2a49a;
+  font-size: 13px;
+  text-align: center;
+}
+
+.auth-form {
+  display: grid;
+  gap: 13px;
+  margin-top: 18px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 7px;
+}
+
+.auth-field > label {
+  color: #e6ded7;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.auth-field :deep(.el-input__wrapper) {
+  min-height: 42px;
+  border-radius: 7px;
+  background: #181614;
+  box-shadow: 0 0 0 1px #443a33 inset;
+}
+
+.auth-field :deep(.el-input__inner) {
+  color: #f2ebe5;
+}
+
+.auth-field :deep(.el-input-group__append) {
+  border: 0;
+  border-left: 1px solid #403731;
+  background: #302a26;
+  color: #c1b4aa;
+}
+
+.domain-picker {
+  position: relative;
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.domain-picker .select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.auth-submit {
+  width: 100%;
+  min-height: 42px;
+  margin: 2px 0 0 !important;
+  border-color: #ff5500;
+  border-radius: 7px;
+  background: #ff5500;
+  color: #fff;
+  font-weight: 700;
+}
+
+.auth-submit:hover,
+.auth-submit:focus {
+  border-color: #e94c00;
+  background: #e94c00;
+  color: #fff;
+}
+
+.oauth-list {
+  display: grid;
+  gap: 8px;
+}
+
+.oauth-button {
+  width: 100%;
+  min-height: 40px;
+  margin: 0 !important;
+  border: 1px solid #51453d;
+  border-radius: 7px;
+  background: #302a26;
+  color: #f2ebe5;
+}
+
+.oauth-button:hover {
+  border-color: #766354;
+  background: #39312c;
+  color: #fff;
+}
+
+.auth-switch {
+  margin-top: 14px;
+  color: #b2a49a;
+  font-size: 12px;
+  text-align: center;
+}
+
+.auth-switch button {
+  margin-left: 4px;
+  padding: 0;
+  background: none;
+  color: #ff7b3d;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.register-turnstile {
+  margin-bottom: 0;
+}
+
+.verify-error {
+  color: #f87171;
+  font-size: 12px;
+}
+
+.bind-container {
+  display: grid;
+  gap: 14px;
+}
+
+.bind-dialog :deep(.el-dialog) {
+  border: 1px solid #403731;
+  border-radius: 12px;
+  background: #211e1b;
+}
+
+.bind-dialog :deep(.el-dialog__title),
+.bind-dialog :deep(.el-dialog__body) {
+  color: #f2ebe5;
+}
+
+.login-card.registering {
+  overflow-y: auto;
+}
+
+@media (max-width: 720px) {
+  .login-layout {
+    padding: 12px;
+  }
+
+  .login-card {
+    max-height: calc(100svh - 24px);
+    padding: 20px;
+  }
+}
+</style>
+
+<style scoped>
+#login-box {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
+  background: #181614;
+}
+
+.login-layout {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  place-items: center;
+  padding: 16px;
+}
+
+.login-panel {
+  display: block;
+  width: min(420px, 100%);
+  padding: 0;
+}
+
+.login-card {
+  width: 100%;
+  max-width: none;
+  max-height: calc(100svh - 32px);
+  overflow: hidden;
+  padding: 22px 26px;
+  border-color: #403731;
+  border-radius: 14px;
+  background: #211e1b;
+}
+
+.login-logo {
+  display: block;
+  width: min(190px, 60%);
+  height: 64px;
+  margin: 0 auto 14px;
+  object-fit: contain;
+}
+
+.login-card h2 {
+  text-align: center;
+}
+
+.login-card-description {
+  margin-top: 6px;
+  text-align: center;
+}
+
+.auth-form {
+  gap: 13px;
+  margin-top: 18px;
+}
+
+.auth-switch {
+  margin-top: 14px;
+}
+
+.login-card.registering {
+  overflow-y: auto;
+}
+
+@media (max-width: 720px) {
+  #login-box {
+    overflow: hidden;
+  }
+
+  .login-layout {
+    display: grid;
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .login-card {
+    max-height: calc(100svh - 24px);
+    padding: 20px;
+  }
+}
+</style>
+
+<style scoped>
+#login-box {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #15171a;
+  color: #f0f1f2;
+}
+
+.login-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+  align-items: center;
+  gap: clamp(56px, 9vw, 132px);
+  width: min(1120px, 100%);
+  height: 100%;
+  min-height: 0;
+  margin: 0 auto;
+  padding: 48px;
+}
+
+.login-brand {
+  display: flex;
+  min-width: 0;
+  height: min(590px, 76vh);
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.login-brand-logo {
+  position: fixed;
+  top: clamp(24px, 3.5vw, 48px);
+  left: clamp(24px, 3.5vw, 48px);
+  z-index: 3;
+  width: 144px;
+  height: 42px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.login-brand-copy {
+  max-width: 460px;
+}
+
+.login-brand-kicker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 22px;
+  color: #c2c5ca;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.login-brand-kicker span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff5500;
+}
+
+.login-brand-copy h1 {
+  margin: 0;
+  color: #f0f1f2;
+  font-size: clamp(40px, 5vw, 62px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -.055em;
+}
+
+.login-brand-copy h1 em {
+  color: #ff8751;
+  font-style: normal;
+}
+
+.login-brand-copy p {
+  max-width: 380px;
+  margin: 20px 0 0;
+  color: #9da2aa;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.login-brand-footer {
+  color: #737982;
+  font-size: 12px;
+}
+
+.login-panel {
+  width: 100%;
+  padding: 0;
+}
+
+.login-card {
+  max-height: min(760px, calc(100svh - 48px));
+  padding: 32px;
+  border: 1px solid #30343a;
+  border-radius: 10px;
+  background: #1c1f23;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .18);
+}
+
+.login-logo {
+  display: none;
+  width: 132px;
+  height: 42px;
+  margin: 0 0 24px;
+}
+
+.login-card h2 {
+  color: #f0f1f2;
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -.025em;
+  text-align: left;
+}
+
+.login-card-description {
+  margin-top: 6px;
+  color: #969ba3;
+  font-size: 13px;
+  text-align: left;
+}
+
+.auth-form {
+  gap: 15px;
+  margin-top: 26px;
+}
+
+.auth-field > label {
+  color: #d7d9dc;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.auth-field :deep(.el-input__wrapper) {
+  min-height: 43px;
+  border-radius: 6px;
+  background: #17191c;
+  box-shadow: 0 0 0 1px #34383e inset;
+}
+
+.auth-field :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #ff5500 inset, 0 0 0 3px rgba(255, 85, 0, .12);
+}
+
+.auth-field :deep(.el-input__inner) {
+  color: #f0f1f2;
+}
+
+.auth-field :deep(.el-input__inner::placeholder) {
+  color: #696f78;
+}
+
+.auth-field :deep(.el-input-group__append) {
+  border-left: 1px solid #34383e;
+  border-radius: 0 6px 6px 0;
+  background: #25282d;
+  color: #c2c5ca;
+}
+
+.auth-submit {
+  min-height: 43px;
+  border: 1px solid #ff5500;
+  border-radius: 6px;
+  background: #ff5500;
+  font-size: 13px;
+  font-weight: 650;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+.auth-submit:hover,
+.auth-submit:focus {
+  border-color: #e94c00;
+  background: #e94c00;
+}
+
+.oauth-list {
+  gap: 9px;
+}
+
+.oauth-button {
+  min-height: 41px;
+  border: 1px solid #34383e;
+  border-radius: 6px;
+  background: #22252a;
+  color: #e2e4e7;
+}
+
+.oauth-button:hover {
+  border-color: #4a4f57;
+  background: #282c31;
+  color: #fff;
+}
+
+.auth-switch {
+  margin-top: 18px;
+  color: #9297a0;
+  font-size: 12px;
+}
+
+.auth-switch button {
+  color: #ff8751;
+}
+
+.login-card.registering {
+  overflow-y: auto;
+}
+
+@media (max-width: 800px) {
+  .login-layout {
+    grid-template-columns: minmax(0, 420px);
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .login-brand {
+    display: none;
+  }
+
+  .login-logo {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .login-card h2,
+  .login-card-description {
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-layout {
+    padding: 12px;
+  }
+
+  .login-card {
+    max-height: calc(100svh - 24px);
+    padding: 24px 20px;
+    border-radius: 8px;
   }
 }
 </style>
@@ -676,7 +1190,7 @@ function submitRegister() {
 }
 
 .container {
-  background: v-bind(loginOpacity);
+  background: rgba(33, 30, 27, .96);
   padding-left: 40px;
   padding-right: 40px;
   display: flex;
@@ -773,23 +1287,6 @@ function submitRegister() {
   top: 6px;
 }
 
-.github {
-  position: fixed;
-  width: 35px;
-  height: 35px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 50%;
-  background: var(--el-bg-color);
-  bottom: 10px;
-  right: 10px;
-  z-index: 1000;
-  border: 1px solid var(--el-border-color-light);
-  box-shadow: var(--el-box-shadow-light);
-  cursor: pointer;
-}
-
 :deep(.el-input-group__append) {
   padding: 0 !important;
   padding-left: 8px !important;
@@ -826,7 +1323,7 @@ function submitRegister() {
 
 
 #login-box {
-  background: linear-gradient(to bottom, #2980b9, #6dd5fa, #fff);
+  background: #15171a;
   font: 100% Arial, sans-serif;
   height: 100%;
   margin: 0;
@@ -836,45 +1333,16 @@ function submitRegister() {
   grid-template-columns: 1fr;
 }
 
+.login-background-image {
+  position: fixed;
+  inset: 0;
+  opacity: .16;
+  pointer-events: none;
+}
 
 #background-wrap {
   height: 100%;
   z-index: 0;
-}
-
-@keyframes animateCloud {
-  0% {
-    margin-left: -500px;
-  }
-
-  100% {
-    margin-left: 100%;
-  }
-}
-
-.x1 {
-  animation: animateCloud 30s linear infinite;
-  transform: scale(0.65);
-}
-
-.x2 {
-  animation: animateCloud 15s linear infinite;
-  transform: scale(0.3);
-}
-
-.x3 {
-  animation: animateCloud 25s linear infinite;
-  transform: scale(0.5);
-}
-
-.x4 {
-  animation: animateCloud 13s linear infinite;
-  transform: scale(0.4);
-}
-
-.x5 {
-  animation: animateCloud 20s linear infinite;
-  transform: scale(0.55);
 }
 
 .cloud {
@@ -910,4 +1378,650 @@ function submitRegister() {
   top: -90px;
 }
 
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  font: 800 22px/1 var(--font-display, 'Manrope', sans-serif);
+  letter-spacing: -.7px;
+}
+
+.login-brand img {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+.login-brand em {
+  color: #ff5500;
+  font-style: normal;
+}
+
+#login-box {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  color: #f2ebe5;
+  font-family: 'DM Sans', sans-serif;
+  background:
+    radial-gradient(ellipse at 18% 18%, rgba(255, 85, 0, .12), transparent 34%),
+    radial-gradient(ellipse at 82% 84%, rgba(120, 75, 47, .11), transparent 32%),
+    #181614;
+}
+
+#background-wrap,
+.cloud {
+  display: none;
+}
+
+.form-wrapper {
+  inset: 0;
+  width: 100%;
+  padding: 24px;
+}
+
+.container {
+  width: min(450px, 100%);
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 36px;
+  border: 1px solid #403731;
+  border-radius: 18px;
+  background: rgba(33, 30, 27, .96);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .38);
+}
+
+.container .form-title {
+  color: #f2ebe5;
+  font: 800 27px/1.2 'Manrope', sans-serif;
+  letter-spacing: -.7px;
+}
+
+.container .form-desc {
+  margin-top: 8px;
+  margin-bottom: 24px;
+  color: #b2a49a;
+}
+
+.container .btn {
+  min-height: 42px;
+  height: auto;
+  margin-top: 4px;
+  border-color: #51453d;
+  border-radius: 9px;
+  background: #302a26;
+  color: #f2ebe5;
+}
+
+.container :deep(.el-button--primary) {
+  border-color: #ff5500;
+  background: #ff5500;
+  color: #fff;
+  font-weight: 700;
+}
+
+.container :deep(.el-button--primary:hover) {
+  border-color: #e94c00;
+  background: #e94c00;
+}
+
+.container :deep(.el-input__wrapper),
+.container :deep(.el-input-group__append) {
+  border-color: #443a33;
+  background: #282320;
+  box-shadow: 0 0 0 1px #443a33 inset;
+}
+
+.container :deep(.el-input__inner),
+.container :deep(.el-input-group__append) {
+  color: #f2ebe5;
+}
+
+.container :deep(.el-input__inner::placeholder) {
+  color: #a99b91;
+}
+
+.container .switch {
+  color: #b2a49a;
+}
+
+.container .switch span {
+  color: #ff7b3d;
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 28px 22px;
+  }
+
+  .login-brand {
+    margin-bottom: 26px;
+  }
+}
+
+#login-box {
+  position: relative;
+  inset: auto;
+  display: block;
+  width: 100%;
+  min-height: 100dvh;
+  height: auto;
+  overflow: hidden;
+  color: #f2ebe5;
+  background:
+    radial-gradient(ellipse at 18% 18%, rgba(255, 85, 0, .12), transparent 34%),
+    radial-gradient(ellipse at 82% 84%, rgba(120, 75, 47, .11), transparent 32%),
+    #181614;
+  font-family: 'DM Sans', Manrope, sans-serif;
+}
+
+.login-background-image {
+  z-index: 0;
+  background-size: cover !important;
+  background-position: center !important;
+  opacity: .14;
+}
+
+.login-top-actions {
+  position: absolute;
+  top: 24px;
+  right: max(24px, calc((100vw - 1152px) / 2));
+  z-index: 2;
+}
+
+.login-language {
+  padding: 8px 12px;
+  border: 1px solid #403731;
+  border-radius: 8px;
+  background: rgba(33, 30, 27, .85);
+  color: #b2a49a;
+  font-size: 12px;
+}
+
+.login-layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(400px, .92fr);
+  gap: 48px;
+  width: min(1152px, 100%);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 72px 32px 88px;
+}
+
+.login-story {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.login-story-copy {
+  max-width: 520px;
+  margin: auto 0;
+  padding: 76px 0;
+}
+
+.login-eyebrow {
+  margin-bottom: 18px;
+  color: #ff7b3d;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.login-story-copy h1 {
+  margin: 0;
+  color: #f2ebe5;
+  font: 700 clamp(38px, 5vw, 60px)/1.06 'Space Grotesk', Manrope, sans-serif;
+  letter-spacing: -.045em;
+}
+
+.login-story-copy h1 span {
+  color: #ff5500;
+}
+
+.login-story-description {
+  max-width: 390px;
+  margin: 24px 0 0;
+  color: #b2a49a;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.login-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px 0;
+}
+
+.login-brand-mobile {
+  display: none;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 430px;
+  padding: 34px;
+  border: 1px solid #403731;
+  border-radius: 14px;
+  background: rgba(33, 30, 27, .94);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .38);
+}
+
+.login-card h2 {
+  margin: 0;
+  color: #f2ebe5;
+  font: 700 26px/1.25 Manrope, sans-serif;
+  letter-spacing: -.025em;
+}
+
+.login-card-description {
+  margin: 9px 0 0;
+  color: #b2a49a;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.auth-form {
+  display: grid;
+  gap: 18px;
+  margin-top: 26px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-field > label {
+  color: #e6ded7;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.auth-field :deep(.el-input__wrapper) {
+  min-height: 44px;
+  border-radius: 7px;
+  background: #181614;
+  box-shadow: 0 0 0 1px #443a33 inset;
+}
+
+.auth-field :deep(.el-input__inner) {
+  color: #f2ebe5;
+  font-size: 13px;
+}
+
+.auth-field :deep(.el-input__inner::placeholder) {
+  color: #857970;
+}
+
+.auth-field :deep(.el-input-group__append) {
+  border: 0;
+  border-left: 1px solid #403731;
+  border-radius: 0 7px 7px 0;
+  background: #302a26;
+  box-shadow: none;
+}
+
+.domain-picker {
+  position: relative;
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 6px;
+  color: #c1b4aa;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.domain-picker .select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.auth-submit {
+  width: 100%;
+  min-height: 44px;
+  margin: 2px 0 0 !important;
+  border-color: #ff5500;
+  border-radius: 7px;
+  background: #ff5500;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auth-submit:hover,
+.auth-submit:focus {
+  border-color: #e94c00;
+  background: #e94c00;
+  color: #fff;
+}
+
+.oauth-list {
+  display: grid;
+  gap: 9px;
+}
+
+.oauth-button {
+  width: 100%;
+  min-height: 42px;
+  margin: 0 !important;
+  border: 1px solid #51453d;
+  border-radius: 7px;
+  background: #302a26;
+  color: #f2ebe5;
+  font-size: 13px;
+}
+
+.oauth-button:hover {
+  border-color: #766354;
+  background: #39312c;
+  color: #fff;
+}
+
+.oauth-button :deep(.el-avatar) {
+  margin-right: 2px;
+}
+
+.auth-switch {
+  margin-top: 22px;
+  color: #b2a49a;
+  font-size: 12px;
+  text-align: center;
+}
+
+.auth-switch button {
+  margin-left: 4px;
+  padding: 0;
+  background: none;
+  color: #ff7b3d;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.auth-switch button:hover {
+  color: #ff9b6b;
+}
+
+.login-footer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 22px 24px;
+  color: #857970;
+  font-size: 11px;
+  text-align: center;
+}
+
+.register-turnstile {
+  margin-bottom: 0;
+}
+
+.verify-error {
+  color: #f87171;
+  font-size: 12px;
+}
+
+.bind-container {
+  display: grid;
+  gap: 14px;
+}
+
+.bind-dialog :deep(.el-dialog) {
+  border: 1px solid #403731;
+  border-radius: 12px;
+  background: #211e1b;
+}
+
+.bind-dialog :deep(.el-dialog__title),
+.bind-dialog :deep(.el-dialog__body) {
+  color: #f2ebe5;
+}
+
+@media (max-width: 900px) {
+  .login-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, .9fr);
+    gap: 28px;
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .login-card {
+    padding: 28px;
+  }
+}
+
+@media (max-width: 720px) {
+  #login-box {
+    overflow: auto;
+  }
+
+  .login-top-actions {
+    top: 18px;
+    right: 18px;
+  }
+
+  .login-layout {
+    display: flex;
+    min-height: 100dvh;
+    flex-direction: column;
+    justify-content: center;
+    padding: 64px 18px 72px;
+  }
+
+  .login-story {
+    display: none;
+  }
+
+  .login-panel {
+    display: block;
+    padding: 0;
+  }
+
+  .login-brand-mobile {
+    display: flex;
+    justify-content: center;
+    margin: 0 auto 24px;
+  }
+
+  .login-card {
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 28px 24px;
+  }
+
+  .login-footer {
+    padding: 16px 20px;
+  }
+}
+
+</style>
+
+<style scoped>
+#login-box {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
+  background: #181614;
+}
+
+.login-layout {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  place-items: center;
+  padding: 16px;
+}
+
+.login-panel {
+  display: block;
+  width: min(420px, 100%);
+  padding: 0;
+}
+
+.login-card {
+  max-height: calc(100svh - 32px);
+  overflow: hidden;
+  padding: 22px 26px;
+}
+
+.login-logo {
+  height: 54px;
+  margin-bottom: 12px;
+}
+
+.auth-form {
+  gap: 13px;
+  margin-top: 18px;
+}
+
+@media (max-width: 720px) {
+  .login-layout {
+    padding: 12px;
+  }
+
+  .login-card {
+    max-height: calc(100svh - 24px);
+    padding: 20px;
+  }
+}
+</style>
+
+<style scoped>
+#login-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow: hidden;
+  background: #151311;
+}
+
+.login-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+  gap: clamp(32px, 6vw, 88px);
+  width: min(1120px, 100%);
+  height: 100%;
+  min-height: 0;
+  padding: 40px;
+  box-sizing: border-box;
+}
+
+.login-brand {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  height: min(590px, 76vh);
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.login-brand-copy {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.login-brand-logo {
+  width: 144px;
+  height: 42px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.login-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.login-brand-footer {
+  text-align: center;
+}
+
+.login-card {
+  width: 100%;
+  max-width: none;
+  max-height: calc(100svh - 48px);
+  overflow: auto;
+}
+
+.login-logo {
+  display: none;
+}
+
+@media (min-width: 801px) and (max-height: 700px) {
+  .login-brand {
+    height: auto;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  .login-brand-copy {
+    position: static;
+    transform: none;
+  }
+
+  .login-brand-copy h1 {
+    font-size: clamp(34px, 4vw, 48px);
+  }
+
+  .login-brand-copy p {
+    margin-top: 14px;
+  }
+}
+
+@media (max-width: 800px) {
+  .login-layout {
+    grid-template-columns: minmax(0, 420px);
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .login-brand {
+    display: none;
+  }
+
+  .login-panel {
+    width: 100%;
+  }
+
+  .login-card h2,
+  .login-card-description {
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-layout {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px;
+  }
+
+  .login-card {
+    max-height: calc(100svh - 24px);
+    padding: 22px 20px;
+  }
+}
 </style>

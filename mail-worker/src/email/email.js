@@ -43,16 +43,13 @@ export async function email(message, env, ctx) {
 			return;
 		}
 
-		const reader = message.raw.getReader();
-		let content = '';
-
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			content += new TextDecoder().decode(value);
+		const email = await PostalMime.parse(message.raw);
+		const recipientEmail = String(message.to || '').trim().toLowerCase();
+		const senderEmail = String(email.from?.address || '').trim();
+		if (!recipientEmail || !senderEmail) {
+			message.setReject('Invalid sender or recipient address');
+			return;
 		}
-
-		const email = await PostalMime.parse(content);
 
 
 		const blockFlag = checkBlock(blackSubject, blackContent, blackFrom, email);
@@ -62,13 +59,20 @@ export async function email(message, env, ctx) {
 			return;
 		}
 
-		let account = await accountService.selectByEmailIncludeDel({ env: env }, message.to);
+		let account = await accountService.selectByEmailIncludeDel({ env: env }, recipientEmail);
 
 		if (!account) {
-			const baseEmail = emailUtils.getBaseEmail(message.to);
-			if (baseEmail && baseEmail !== message.to) {
+			const baseEmail = emailUtils.getBaseEmail(recipientEmail);
+			if (baseEmail && baseEmail !== recipientEmail) {
 				account = await accountService.selectByEmailIncludeDel({ env: env }, baseEmail);
 			}
+		}
+
+		if (!account && isConfiguredDomain(recipientEmail, env.domain) && env.admin) {
+			account = await accountService.selectByEmailIncludeDel(
+				{ env: env },
+				String(env.admin).trim().toLowerCase()
+			);
 		}
 
 		if (!account && noRecipient === settingConst.noRecipient.CLOSE) {
@@ -82,11 +86,11 @@ export async function email(message, env, ctx) {
 			 userRow = await userService.selectByIdIncludeDel({ env: env }, account.userId);
 		}
 
-		if (account && userRow.email !== env.admin) {
+		if (account && userRow.email?.toLowerCase() !== String(env.admin || '').trim().toLowerCase()) {
 
 			let { banEmail, availDomain } = await roleService.selectByUserId({ env: env }, account.userId);
 
-			if (!roleService.hasAvailDomainPerm(availDomain, message.to)) {
+			if (!roleService.hasAvailDomainPerm(availDomain, recipientEmail)) {
 				message.setReject('The recipient is not authorized to use this domain.');
 				return;
 			}
@@ -99,16 +103,16 @@ export async function email(message, env, ctx) {
 		}
 
 
-		if (!email.to) {
-			email.to = [{ address: message.to, name: emailUtils.getName(message.to)}]
+		if (!email.to?.length) {
+			email.to = [{ address: recipientEmail, name: emailUtils.getName(recipientEmail)}]
 		}
 
-		const toName = email.to.find(item => item.address === message.to)?.name || '';
+		const toName = email.to.find(item => item.address?.toLowerCase() === recipientEmail)?.name || '';
 		const code = await aiService.extractCode({ env }, email, { aiCode, aiCodeFilter });
 		const fromAddress = email.from?.address || '';
 
 		const params = {
-			toEmail: message.to,
+			toEmail: recipientEmail,
 			toName: toName,
 			sendEmail: fromAddress,
 			name: email.from?.name || emailUtils.getName(fromAddress),
@@ -125,6 +129,8 @@ export async function email(message, env, ctx) {
 			messageId: email.messageId,
 			userId: account ? account.userId : 0,
 			accountId: account ? account.accountId : 0,
+			mailboxFolder: 'inbox',
+			category: emailUtils.classifyIncomingEmail(email.from.address, email.headers),
 			isDel: isDel.DELETE,
 			status: emailConst.status.SAVING
 		};
@@ -163,9 +169,9 @@ export async function email(message, env, ctx) {
 
 		if (ruleType === settingConst.ruleType.RULE) {
 
-			const emails = ruleEmail.split(',');
+			const emails = ruleEmail.split(',').map(item => item.trim().toLowerCase());
 
-			if (!emails.includes(message.to)) {
+			if (!emails.includes(recipientEmail)) {
 				return;
 			}
 
@@ -202,6 +208,12 @@ export async function email(message, env, ctx) {
 		console.error('邮件接收异常: ', e);
 		throw e
 	}
+}
+
+function isConfiguredDomain(address, configuredDomains) {
+	const domain = emailUtils.getDomain(address).toLowerCase();
+	return Array.isArray(configuredDomains)
+		&& configuredDomains.some(item => String(item).trim().replace(/^@/, '').toLowerCase() === domain);
 }
 
 function checkBlock(blackSubjectStr, blackContentStr, blackFromStr, email) {

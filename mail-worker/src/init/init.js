@@ -33,15 +33,108 @@ const dbInit = {
 		await this.v3_2DB(c);
 		await this.v3_3DB(c);
 		await this.v3_4DB(c);
+		await this.v3_5DB(c);
+		await this.v3_6DB(c);
+		await this.v3_7DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
 
+	async v3_7DB(c) {
+		try {
+			await c.env.db.prepare(`ALTER TABLE user ADD COLUMN signature TEXT NOT NULL DEFAULT '';`).run();
+		} catch (error) {
+			if (!error.message?.toLowerCase().includes('duplicate column')) {
+				throw error;
+			}
+		}
+	},
+
+	async v3_6DB(c) {
+		for (const [column, definition] of [
+			['signature_image_key', 'TEXT'],
+			['signature_text', "TEXT NOT NULL DEFAULT ''"]
+		]) {
+			try {
+				await c.env.db.prepare(`ALTER TABLE account ADD COLUMN ${column} ${definition};`).run();
+			} catch (error) {
+				if (!error.message?.toLowerCase().includes('duplicate column')) {
+					throw error;
+				}
+			}
+		}
+	},
+
+	async v3_5DB(c) {
+		for (const [column, definition] of [
+			['mailbox_folder', "TEXT NOT NULL DEFAULT ''"],
+			['category', "TEXT NOT NULL DEFAULT 'primary'"],
+			['category_override', 'INTEGER NOT NULL DEFAULT 0'],
+			['snoozed_until', 'TEXT']
+		]) {
+			try {
+				await c.env.db.prepare(`ALTER TABLE email ADD COLUMN ${column} ${definition};`).run();
+			} catch (error) {
+				if (!error.message?.toLowerCase().includes('duplicate column')) {
+					throw error;
+				}
+			}
+		}
+
+		await c.env.db.batch([
+			c.env.db.prepare(`UPDATE email SET mailbox_folder = CASE WHEN is_del != 0 THEN 'trash' WHEN type = ${emailConst.type.SEND} THEN 'sent' ELSE 'inbox' END WHERE mailbox_folder = '';`),
+			c.env.db.prepare(`CREATE TABLE IF NOT EXISTS mail_folder (
+				folder_id INTEGER PRIMARY KEY AUTOINCREMENT,
+				user_id INTEGER NOT NULL,
+				name TEXT NOT NULL,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+				UNIQUE(user_id, name)
+			);`),
+			c.env.db.prepare(`CREATE TABLE IF NOT EXISTS email_folder (
+				email_id INTEGER NOT NULL,
+				user_id INTEGER NOT NULL,
+				folder_id INTEGER NOT NULL,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+				PRIMARY KEY(email_id, folder_id)
+			);`),
+			c.env.db.prepare(`CREATE TABLE IF NOT EXISTS email_template (
+				template_id INTEGER PRIMARY KEY AUTOINCREMENT,
+				user_id INTEGER NOT NULL,
+				name TEXT NOT NULL,
+				subject TEXT NOT NULL DEFAULT '',
+				content TEXT NOT NULL DEFAULT '',
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+				UNIQUE(user_id, name)
+			);`),
+			c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_folder_user ON email_folder(user_id, folder_id, email_id);`),
+			c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_mailbox_folder ON email(user_id, mailbox_folder, email_id);`),
+			c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_category ON email(user_id, category, email_id);`),
+			c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_snoozed_until ON email(user_id, snoozed_until);`),
+			c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_template_user ON email_template(user_id, template_id);`)
+		]);
+	},
+
 	async v3_4DB(c) {
+		for (const sql of [
+			`ALTER TABLE user ADD COLUMN signature_image_key TEXT;`,
+			`ALTER TABLE user ADD COLUMN signature_text TEXT NOT NULL DEFAULT '';`
+		]) {
+			try {
+				await c.env.db.prepare(sql).run();
+			} catch (error) {
+				if (!error.message?.toLowerCase().includes('duplicate column')) {
+					throw error;
+				}
+			}
+		}
+
 		try {
 			await c.env.db.prepare(`ALTER TABLE email ADD COLUMN sender_email TEXT NOT NULL DEFAULT '';`).run();
-		} catch (e) {
-			console.warn(`跳过字段：${e.message}`);
+		} catch (error) {
+			if (!error.message?.toLowerCase().includes('duplicate column')) {
+				throw error;
+			}
 		}
 	},
 
@@ -275,10 +368,6 @@ const dbInit = {
 
 	async v1_6DB(c) {
 
-		const noticeContent = '本项目仅供学习交流，禁止用于违法业务\n' +
-			'<br>\n' +
-			'请遵守当地法规，作者不承担任何法律责任'
-
 		const ADD_COLUMN_SQL_LIST = [
 			`ALTER TABLE setting ADD COLUMN reg_verify_count INTEGER NOT NULL DEFAULT 1;`,
 			`ALTER TABLE setting ADD COLUMN add_verify_count INTEGER NOT NULL DEFAULT 1;`,
@@ -289,7 +378,7 @@ const dbInit = {
 				type INTEGER NOT NULL DEFAULT 0,
 				update_time DATETIME DEFAULT CURRENT_TIMESTAMP
       )`,
-			`ALTER TABLE setting ADD COLUMN notice_title TEXT NOT NULL DEFAULT 'Cloud Mail';`,
+			`ALTER TABLE setting ADD COLUMN notice_title TEXT NOT NULL DEFAULT 'XPass';`,
 			`ALTER TABLE setting ADD COLUMN notice_content TEXT NOT NULL DEFAULT '';`,
 			`ALTER TABLE setting ADD COLUMN notice_type TEXT NOT NULL DEFAULT 'none';`,
 			`ALTER TABLE setting ADD COLUMN notice_duration INTEGER NOT NULL DEFAULT 0;`,
@@ -311,7 +400,6 @@ const dbInit = {
 		});
 
 		await Promise.all(promises);
-		await c.env.db.prepare(`UPDATE setting SET notice_content = ? WHERE notice_content = '';`).bind(noticeContent).run();
 		try {
 			await c.env.db.batch([
 				c.env.db.prepare(`DROP INDEX IF EXISTS idx_account_email`),
@@ -577,10 +665,11 @@ const dbInit = {
         INSERT INTO role (
           role_id, name, key, create_time, sort, description, user_id, is_default, send_count, send_type, account_count
         ) VALUES (
-          1, '普通用户', NULL, '0000-00-00 00:00:00', 0, '只有普通使用权限', 0, 1, NULL, 'ban', 10
+          1, 'User', NULL, '0000-00-00 00:00:00', 0, 'Standard user access', 0, 1, NULL, 'ban', 10
         )
       `).run();
 		}
+		await c.env.db.prepare(`UPDATE role SET name = 'User', description = 'Standard user access' WHERE name = '普通用户'`).run();
 
 		// 创建 role_perm 表并初始化数据
 		await c.env.db.prepare(`
@@ -662,6 +751,9 @@ const dbInit = {
 			status INTEGER DEFAULT 0 NOT NULL,
 			create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
 			active_time DATETIME,
+			signature_image_key TEXT,
+			signature_text TEXT NOT NULL DEFAULT '',
+			signature TEXT NOT NULL DEFAULT '',
 			is_del INTEGER DEFAULT 0 NOT NULL
 		  )
 		`).run();
@@ -696,7 +788,7 @@ const dbInit = {
 			  INSERT INTO setting (
 				register, receive, add_email, many_email, title, auto_refresh, register_verify, add_email_verify
 			  )
-			  SELECT 0, 0, 0, 0, 'Cloud Mail', 0, 1, 1
+			  SELECT 0, 0, 0, 0, 'XPass', 0, 1, 1
 			  WHERE NOT EXISTS (SELECT 1 FROM setting)
 			`).run();
 		} catch (e) {

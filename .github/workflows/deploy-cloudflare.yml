@@ -206,6 +206,24 @@ jobs:
           sed -i "s|\${D1_DATABASE_ID}|$D1_ID|g" "$CONFIG_FILE"
           echo "✅ Setup completed."
 
+      - name: Apply account signature schema before deployment
+        working-directory: ./mail-worker
+        run: |
+          SCHEMA=$(pnpm wrangler d1 execute "$NAME" --remote --config wrangler-action.toml \
+            --command "SELECT 'table' AS kind, name FROM sqlite_master WHERE type = 'table' AND name = 'account' UNION ALL SELECT 'column', name FROM pragma_table_info('account') WHERE name IN ('signature_image_key', 'signature_text')" \
+            --json)
+
+          if echo "$SCHEMA" | jq -e '[.[]?.results[]? | select(.kind == "table")] | length > 0' >/dev/null; then
+            if ! echo "$SCHEMA" | jq -e '[.[]?.results[]? | select(.kind == "column" and .name == "signature_image_key")] | length > 0' >/dev/null; then
+              pnpm wrangler d1 execute "$NAME" --remote --config wrangler-action.toml \
+                --command "ALTER TABLE account ADD COLUMN signature_image_key TEXT"
+            fi
+            if ! echo "$SCHEMA" | jq -e '[.[]?.results[]? | select(.kind == "column" and .name == "signature_text")] | length > 0' >/dev/null; then
+              pnpm wrangler d1 execute "$NAME" --remote --config wrangler-action.toml \
+                --command "ALTER TABLE account ADD COLUMN signature_text TEXT NOT NULL DEFAULT ''"
+            fi
+          fi
+
       - name: 🚀 开始部署 / Start deployment
         id: deploy
         working-directory: ./mail-worker
@@ -236,8 +254,8 @@ jobs:
           echo "🛠️ Starting database initialization..."
           sleep 15
           
-          WORKER_URL="${CUSTOM_DOMAIN:+https://$CUSTOM_DOMAIN}"
-          WORKER_URL="${WORKER_URL:-${{ steps.deploy.outputs.worker_url }}}"
+          WORKER_URL="${{ steps.deploy.outputs.worker_url }}"
+          WORKER_URL="${WORKER_URL:-${CUSTOM_DOMAIN:+https://$CUSTOM_DOMAIN}}"
           
           if [ -z "$WORKER_URL" ]; then
             echo "❌ Preview URL not available. Please set CUSTOM_DOMAIN."

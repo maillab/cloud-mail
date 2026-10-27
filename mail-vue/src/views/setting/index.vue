@@ -32,19 +32,31 @@
         </div>
       </div>
     </div>
-    <div class="language">
-      <div class="title">{{$t('language')}}</div>
-      <div class="language-row setting-row">
-        <div>{{$t('preferredLanguage')}}</div>
-        <el-select
-            :model-value="langSelect"
-            class="language-select"
-            placeholder="Select"
-            @change="changeLang"
-        >
-          <el-option label="中文" value="zh" @pointerdown.prevent.stop="changeLang('zh')"/>
-          <el-option label="English" value="en" @pointerdown.prevent.stop="changeLang('en')"/>
-        </el-select>
+    <div class="preference-item signature-preference">
+      <div class="title">{{ $t('emailSignature') }}</div>
+      <div class="signature-editor">
+        <label>{{ $t('signaturePictureOptional') }}</label>
+        <input
+          ref="signatureFileRef"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          class="signature-file-input"
+          @change="selectSignatureImage"
+        />
+        <div class="signature-image-row">
+          <img v-if="signaturePreview" :src="signaturePreview" alt="Signature preview" />
+          <el-button @click="signatureFileRef?.click()">{{ $t('chooseImage') }}</el-button>
+          <el-button v-if="signaturePreview" @click="clearSignatureImage">{{ $t('removeImage') }}</el-button>
+        </div>
+        <div class="signature-helper">{{ $t('signatureHelper') }}</div>
+        <label>{{ $t('signatureTextLabel') }}</label>
+        <el-input v-model="signatureText" type="textarea" :rows="3" maxlength="2000" show-word-limit />
+        <label>{{ $t('signatureHtmlLabel') }}</label>
+        <el-input v-model="signature" type="textarea" :rows="5" maxlength="10000" show-word-limit />
+        <div class="signature-helper">{{ $t('signatureHtmlHelper') }}</div>
+        <el-button class="signature-save" type="primary" :loading="signatureSaving" @click="saveSignature">
+          {{ $t('saveSignature') }}
+        </el-button>
       </div>
     </div>
     <div class="preference-item">
@@ -53,7 +65,7 @@
     </div>
     <div class="preference-item">
       <div class="title">{{$t('noticeTitle')}}</div>
-      <div class="language-row setting-row">
+      <div class="notice-row setting-row">
         <div>{{$t('noticeInfo')}}</div>
         <div>
           <el-button @click="uiStore.showNotice()">{{$t('viewNotice')}}</el-button>
@@ -82,25 +94,33 @@
 </template>
 <script setup>
 import {reactive, ref, defineOptions} from 'vue'
-import {resetPassword, userDelete} from "@/request/my.js";
+import {resetPassword, updateSignature, userDelete} from "@/request/my.js";
 import {useUserStore} from "@/store/user.js";
 import router from "@/router/index.js";
 import {accountSetName} from "@/request/account.js";
 import {useAccountStore} from "@/store/account.js";
 import {useI18n} from "vue-i18n";
-import {useSettingStore} from "@/store/setting.js";
 import {useUiStore} from "@/store/ui.js";
 import ThemeSelector from "@/components/theme-selector/index.vue";
+import {fileToBase64} from '@/utils/file-utils.js';
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
-const settingStore = useSettingStore()
 const uiStore = useUiStore()
 const userStore = useUserStore();
 const setPwdLoading = ref(false)
 const setNameShow = ref(false)
 const accountName = ref(null)
-const langSelect = ref(settingStore.lang)
+const signatureText = ref('')
+const signature = ref(userStore.user.signature || '')
+const signaturePreview = ref('')
+const signatureImageData = ref('')
+const removeSignatureImage = ref(false)
+const signatureSaving = ref(false)
+const signatureFileRef = ref()
+
+signatureText.value = userStore.user.signature_text || ''
+signaturePreview.value = userStore.user.signature_image_url || ''
 
 defineOptions({
   name: 'setting'
@@ -109,6 +129,63 @@ defineOptions({
 function showSetName() {
   accountName.value = userStore.user.name
   setNameShow.value = true
+}
+
+async function selectSignatureImage(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    ElMessage({message: t('signatureImageTypeError'), type: 'error', plain: true})
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage({message: t('signatureImageSizeError'), type: 'error', plain: true})
+    return
+  }
+  try {
+    const imageData = await fileToBase64(file, true)
+    signatureImageData.value = imageData
+    signaturePreview.value = imageData
+    removeSignatureImage.value = false
+  } catch (error) {
+    console.error('Failed to read signature image:', error)
+    ElMessage({message: t('signatureImageTypeError'), type: 'error', plain: true})
+  }
+}
+
+function clearSignatureImage() {
+  signatureImageData.value = ''
+  signaturePreview.value = ''
+  removeSignatureImage.value = true
+}
+
+async function saveSignature() {
+  if (signatureSaving.value) return
+  signatureSaving.value = true
+  const params = {
+    signatureText: signatureText.value,
+    signature: signature.value,
+    removeSignatureImage: removeSignatureImage.value,
+  }
+  if (signatureImageData.value) {
+    params.signatureImageData = signatureImageData.value
+  }
+  try {
+    const user = await updateSignature(params)
+    userStore.user = user
+    signatureText.value = user.signature_text || ''
+    signature.value = user.signature || ''
+    signaturePreview.value = user.signature_image_url || ''
+    signatureImageData.value = ''
+    removeSignatureImage.value = false
+    ElMessage({message: t('signatureSaveSuccess'), type: 'success', plain: true})
+  } catch (error) {
+    console.error('Failed to save signature:', error)
+    ElMessage({message: error.message || t('signatureSaveFailed'), type: 'error', plain: true})
+  } finally {
+    signatureSaving.value = false
+  }
 }
 
 function setName() {
@@ -143,17 +220,6 @@ function setName() {
   }).catch(() => {
     userStore.user.name = name
   })
-}
-
-function changeLang(lang) {
-  let setting = {}
-  try {
-    setting = JSON.parse(localStorage.getItem('setting') || '{}')
-  } catch (e) {
-    setting = {}
-  }
-  localStorage.setItem('setting', JSON.stringify({...setting, lang}))
-  window.location.reload()
 }
 
 const pwdShow = ref(false)
@@ -295,14 +361,49 @@ function submitPwd() {
     }
   }
 
-  .preference-item,
-  .language {
+  .preference-item {
     display: flex;
     flex-direction: column;
     gap: 20px;
     margin-bottom: 40px;
     align-items: flex-start;
 
+  }
+
+  .signature-editor {
+    display: grid;
+    width: min(520px, 100%);
+    gap: 10px;
+    color: var(--el-text-color-primary);
+  }
+
+  .signature-file-input {
+    display: none;
+  }
+
+  .signature-image-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+
+    img {
+      width: min(250px, 100%);
+      max-height: 100px;
+      object-fit: contain;
+      object-position: left center;
+      border: 1px solid var(--el-border-color);
+      border-radius: 6px;
+    }
+  }
+
+  .signature-helper {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+  }
+
+  .signature-save {
+    justify-self: start;
   }
 
   .setting-row {
@@ -329,11 +430,6 @@ function submitPwd() {
       grid-template-columns: 120px minmax(0, 1fr);
       column-gap: 24px;
     }
-  }
-
-  .language-select {
-    width: 110px;
-    max-width: 100%;
   }
 
   .del-email {

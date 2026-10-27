@@ -12,6 +12,7 @@ import turnstileService from './turnstile-service';
 import roleService from './role-service';
 import { t } from '../i18n/i18n';
 import verifyRecordService from './verify-record-service';
+import signatureService from './signature-service';
 
 const accountService = {
 
@@ -111,7 +112,7 @@ const accountService = {
 		return orm(c).select().from(account).where(sql`${account.email} COLLATE NOCASE = ${email}`).get();
 	},
 
-	list(c, params, userId) {
+	async list(c, params, userId) {
 
 		let { accountId, size, lastSort } = params;
 
@@ -131,7 +132,7 @@ const accountService = {
 			lastSort = 9999999999;
 		}
 
-		return orm(c).select().from(account).where(
+		const rows = await orm(c).select().from(account).where(
 			and(
 				eq(account.userId, userId),
 				eq(account.isDel, isDel.NORMAL),
@@ -146,6 +147,52 @@ const accountService = {
 			.orderBy(desc(account.sort), asc(account.accountId))
 			.limit(size)
 			.all();
+		return rows.map(({signatureImageKey, signatureText, ...row}) => ({
+			...row,
+			signatureImageUrl: signatureService.imageUrl(c.req.url, signatureImageKey),
+			signatureText: signatureText || ''
+		}));
+	},
+
+	async updateSignature(c, params, userId) {
+		const accountId = Number(params.accountId);
+		if (!Number.isSafeInteger(accountId) || accountId <= 0) {
+			throw new BizError('Invalid account.', 400);
+		}
+		const accountRow = await this.selectById(c, accountId);
+		if (!accountRow || accountRow.userId !== userId) {
+			throw new BizError('Account not found.', 404);
+		}
+
+		const signatureText = params.signatureText === undefined
+			? accountRow.signatureText || ''
+			: signatureService.normalizeText(params.signatureText);
+		const previousKey = accountRow.signatureImageKey;
+		let signatureImageKey = previousKey;
+		let uploadedKey = null;
+		if (params.signatureImageData) {
+			uploadedKey = await signatureService.saveImage(c, userId, params.signatureImageData);
+			signatureImageKey = uploadedKey;
+		} else if (params.removeSignatureImage === true) {
+			signatureImageKey = null;
+		}
+
+		try {
+			await orm(c).update(account).set({signatureImageKey, signatureText})
+				.where(and(eq(account.accountId, accountId), eq(account.userId, userId))).run();
+		} catch (error) {
+			if (uploadedKey) await signatureService.deleteImage(c, uploadedKey);
+			throw error;
+		}
+
+		if (previousKey && previousKey !== signatureImageKey) {
+			await signatureService.deleteImage(c, previousKey);
+		}
+		return {
+			accountId,
+			signatureImageUrl: signatureService.imageUrl(c.req.url, signatureImageKey),
+			signatureText
+		};
 	},
 
 	async delete(c, params, userId) {

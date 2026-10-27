@@ -18,6 +18,20 @@
         <Icon v-perm="'email:delete'" class="icon delete" icon="fluent:mail-read-20-regular" width="21" height="21"
               v-if="getSelectedMailsIds().length > 0 && showUnread"
               @click="handleRead"/>
+        <el-dropdown
+            v-if="mailboxActions.length && getSelectedMailsIds().length"
+            trigger="click"
+            @command="applyMailboxAction"
+        >
+          <el-button size="small" plain>{{ $t('organize') }}</el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item v-for="action in mailboxActions" :key="action.value" :command="action.value">
+                {{ action.label }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
 
       <div class="header-right">
@@ -38,7 +52,7 @@
                         :key="keyCount"
         >
           <template #default="{ data: item, index }" >
-            <div :class="['email-row', props.type, { 'right-checked': item.rightChecked }]"
+            <div :class="['email-row', props.type, { 'right-checked': item.rightChecked, 'selected-email': item.emailId === selectedEmailId }]"
                  :data-checked="item.checked"
                  @click="jumpDetails(item)"
                  v-if="!item.expand"
@@ -56,7 +70,8 @@
               <div v-if="!showStar"></div>
               <div class="title" :class="accountShow ? 'title-column' : 'title-column'">
 
-                <div class="email-sender" :style=" (showStatus ? 'gap: 10px;' : '') + ((item.unread === EmailUnreadEnum.UNREAD && showUnread)  ? 'font-weight: bold' : '')">
+                <div class="email-sender" :style=" (showStatus ? 'gap: 10px;' : '') + ((item.type === 0 && item.unread === EmailUnreadEnum.UNREAD && showUnread)  ? 'font-weight: bold' : '')">
+                  <span class="sender-avatar" aria-hidden="true">{{ senderInitial(item) }}</span>
                   <div class="email-status" v-if="showStatus">
                     <el-tooltip v-if="item.statusIcon" effect="dark" :content="item.statusIcon.content">
                       <Icon :icon="item.statusIcon.icon" :style="`color: ${item.statusIcon.color}`" width="20" height="20"/>
@@ -70,7 +85,7 @@
                   <div v-else></div>
                   <span class="name">
                     <span>
-                      <div class="unread" v-if="isMobile && (item.unread === EmailUnreadEnum.UNREAD && showUnread) "/>
+                      <div class="unread" v-if="isMobile && item.type === 0 && item.unread === EmailUnreadEnum.UNREAD && showUnread "/>
                       <slot name="name" :email="item"><span v-html="item.nameHtml"></span></slot>
                     </span>
                     <span>
@@ -81,8 +96,8 @@
                 </div>
                 <div>
                   <div class="email-text">
-                    <span class="email-subject" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread)  ? 'font-weight: bold' : ''">
-                      <div class="unread" v-if="!isMobile && (item.unread === EmailUnreadEnum.UNREAD && showUnread) "/>
+                    <span class="email-subject" :style="(item.type === 0 && item.unread === EmailUnreadEnum.UNREAD && showUnread)  ? 'font-weight: bold' : ''">
+                      <div class="unread" v-if="!isMobile && item.type === 0 && item.unread === EmailUnreadEnum.UNREAD && showUnread "/>
                       <span v-if="item.code" class="code-tag" @click.stop="copyCode(item.code)">[{{ t('codeLabel') }}{{ item.code }}]</span>
                       <span class="subject-text">
                         <slot name="subject" :email="item" >
@@ -110,6 +125,27 @@
               </div>
               <div class="email-right" :style="showUserInfo ? 'align-self: start;':''">
                 <span class="email-time" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread) ? 'font-weight: bold' : ''">{{ item.formatCreateTime }}</span>
+              </div>
+              <div v-if="type === 'email' && mailboxAction" class="row-quick-actions" @click.stop>
+                <button
+                  type="button"
+                  aria-label="Archive message"
+                  title="Archive"
+                  @click="quickAction(item, 'archive')"
+                ><Icon icon="fluent:archive-20-regular" width="17" height="17" /></button>
+                <button
+                  v-if="item.unread === EmailUnreadEnum.UNREAD"
+                  type="button"
+                  aria-label="Mark as read"
+                  title="Mark as read"
+                  @click="quickAction(item, 'read')"
+                ><Icon icon="fluent:mail-read-20-regular" width="17" height="17" /></button>
+                <button
+                  type="button"
+                  aria-label="Delete message"
+                  title="Delete"
+                  @click="quickAction(item, 'delete')"
+                ><Icon icon="uiw:delete" width="15" height="15" /></button>
               </div>
             </div>
             <skeletonBlock v-else-if="item.expand === 'loading'"
@@ -252,6 +288,11 @@ const props = defineProps({
   getEmailList: Function,
   emailDelete: Function,
   emailRead: Function,
+  mailboxAction: Function,
+  mailboxActions: {
+    type: Array,
+    default: () => []
+  },
   starAdd: Function,
   starCancel: Function,
   cancelSuccess: Function,
@@ -295,6 +336,10 @@ const props = defineProps({
   showUnread: {
     type: Boolean,
     default: false
+  },
+  selectedEmailId: {
+    type: Number,
+    default: 0
   },
   highlightText: {
     type: String,
@@ -699,6 +744,22 @@ function handleDelete() {
   })
 }
 
+async function applyMailboxAction(action) {
+  const ids = getSelectedMailsIds();
+  if (!ids.length || !props.mailboxAction) return;
+  try {
+    await props.mailboxAction(ids, action);
+    refreshList();
+  } catch (error) {
+    console.error(error);
+    ElMessage({
+      message: error.message || t('actionFailed'),
+      type: 'error',
+      plain: true
+    });
+  }
+}
+
 function deleteEmail(emailIds) {
   emailIds.forEach(emailId => {
     emailList.forEach((item, index) => {
@@ -807,6 +868,30 @@ function jumpDetails(email) {
   emit('jump', email)
 }
 
+function senderInitial(item) {
+  return String(item.name || item.sendEmail || item.toEmail || '?').trim().charAt(0).toUpperCase() || '?'
+}
+
+async function quickAction(item, action) {
+  try {
+    if (action === 'archive') {
+      await props.mailboxAction([item.emailId], 'archive')
+      if (emailStore.contentData.email?.emailId === item.emailId) emailStore.contentData.email = null
+    } else if (action === 'delete') {
+      await props.emailDelete([item.emailId])
+      if (emailStore.contentData.email?.emailId === item.emailId) emailStore.contentData.email = null
+    } else {
+      await props.emailRead([item.emailId])
+      item.unread = EmailUnreadEnum.READ
+      emailStore.markListRead(item.emailId)
+    }
+    window.dispatchEvent(new Event('mailbox:updated'))
+    refreshList()
+  } catch (error) {
+    console.error('Could not update message:', error)
+    ElMessage({message: error.message || 'Could not update the message.', type: 'error', plain: true})
+  }
+}
 
 function getEmailList(refresh = false) {
 
@@ -970,6 +1055,7 @@ function renderHighlight(value) {
   color: var(--el-text-color-primary);
   overflow: hidden;
   height: 100%;
+  background: var(--el-bg-color);
 }
 
 .scroll {
@@ -1031,16 +1117,16 @@ function renderHighlight(value) {
 
 :deep(.email-row) {
   display: flex;
-  padding: 8px 0;
+  padding: 9px 10px 9px 12px;
   justify-content: space-between;
   box-shadow: var(--header-actions-border);
   cursor: pointer;
   align-items: center;
   position: relative;
   transition: background 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-  height: 48px;
+  height: 74px;
   @media (max-width: 1366px) {
-    height: 83px;
+    height: 88px;
   }
 
   @media (pointer: coarse) {
@@ -1062,6 +1148,15 @@ function renderHighlight(value) {
     color: var(--email-scroll-content-color);
     @media (max-width: 1366px) {
       flex-direction: column;
+    }
+
+    :deep(.email-row.selected-email) {
+      background: rgba(255, 85, 0, .075);
+      box-shadow: inset 2px 0 #ff5500, inset 0 -1px 0 #3a2f28;
+    }
+
+    .email-container :deep(.email-row.selected-email:hover) {
+      background: rgba(255, 85, 0, .11);
     }
 
     .user, .account {
@@ -1131,7 +1226,7 @@ function renderHighlight(value) {
     .email-sender {
       color: var(--el-text-color-primary);
       display: grid;
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: 26px auto minmax(0, 1fr) auto;
 
       .email-status {
         display: flex;
@@ -1141,6 +1236,20 @@ function renderHighlight(value) {
           flex-direction: row;
           gap: 5px;
         }
+      }
+
+      .sender-avatar {
+        display: grid;
+        width: 25px;
+        height: 25px;
+        place-items: center;
+        align-self: start;
+        border: 1px solid rgba(194, 125, 79, .18);
+        border-radius: 50%;
+        background: rgba(194, 125, 79, .1);
+        color: #d7a47f;
+        font-size: 10px;
+        font-weight: 700;
       }
 
       .name {
@@ -1248,14 +1357,17 @@ function renderHighlight(value) {
       }
 
       .email-content {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
         overflow: hidden;
-        white-space: nowrap;
+        white-space: normal;
         text-overflow: ellipsis;
-        padding-left: 10px;
+        padding-left: 0;
         color: var(--email-scroll-content-color);
+        line-height: 1.4;
         @media (max-width: 1366px) {
-          padding-left: 0;
-          margin-top: 0;
+          margin-top: 2px;
         }
       }
     }
@@ -1278,6 +1390,43 @@ function renderHighlight(value) {
     @media (max-width: 1366px) {
       display: none;
     }
+  }
+
+  .row-quick-actions {
+    position: absolute;
+    top: 9px;
+    right: 7px;
+    z-index: 2;
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--el-border-color);
+    border-radius: 6px;
+    background: var(--el-bg-color-overlay);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .12s ease;
+  }
+
+  .row-quick-actions button {
+    display: grid;
+    width: 27px;
+    height: 27px;
+    place-items: center;
+    border-radius: 4px;
+    color: var(--el-text-color-secondary);
+    cursor: pointer;
+  }
+
+  .row-quick-actions button:hover {
+    background: var(--el-fill-color-light);
+    color: var(--el-text-color-primary);
+  }
+
+  &:hover .row-quick-actions,
+  &:focus-within .row-quick-actions {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   &:hover {
@@ -1333,7 +1482,9 @@ function renderHighlight(value) {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 15px;
-  padding: 3px 15px;
+  min-height: 46px;
+  padding: 5px 13px;
+  background: var(--el-bg-color);
   box-shadow: var(--header-actions-border);
 
   .header-left {
@@ -1363,6 +1514,12 @@ function renderHighlight(value) {
   .icon {
     font-size: 18px;
     cursor: pointer;
+    color: var(--el-text-color-secondary);
+    transition: color .15s ease, background-color .15s ease;
+  }
+
+  .icon:hover {
+    color: var(--el-text-color-primary);
   }
 
   .reload {
@@ -1419,6 +1576,46 @@ ul {
   list-style: none;
   padding: 0;
   margin: 0;
+}
+
+:deep(.email-row) {
+  height: 82px;
+  padding: 10px 12px;
+  box-shadow: inset 0 -1px 0 #f0edeb;
+}
+
+:deep(.email-row.selected-email),
+:deep(.email-row.selected-email:hover) {
+  background: #fff3ec;
+  box-shadow: inset 3px 0 #ff5500, inset 0 -1px 0 #f0edeb;
+}
+
+:deep(.email-row .sender-avatar) {
+  border-color: #e8e2de;
+  background: #f3efec;
+  color: #5e5752;
+}
+
+:deep(.email-row .email-subject) {
+  color: #36312e;
+  font-size: 12px;
+}
+
+:deep(.email-row .email-content) {
+  color: #817a75;
+  font-size: 11px;
+}
+
+:deep(.email-row .email-time),
+:deep(.email-row .phone-time) {
+  color: #817a75;
+  font-size: 10px;
+}
+
+:deep(.email-row .row-quick-actions) {
+  border-color: #e7e2de;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(35, 29, 25, .08);
 }
 
 </style>

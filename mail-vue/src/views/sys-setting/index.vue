@@ -1159,7 +1159,7 @@ function getUpdate() {
     setTimeout(() => {
       getUpdate()
     }, 2000)
-    console.error('检查更新失败：', e)
+    console.error('Update check failed:', e)
   })
 }
 

@@ -281,12 +281,12 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 .email-search {
   position: absolute;
-  left: -1;
+  left: 50%;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%);
   z-index: 10;
-  width: min(450px, calc(100% - 20px));
-  height: 36px;
+  width: min(400px, calc(100% - 32px));
+  height: 38px;
   @media (max-width: 1080px) {
     width: min(400px, calc(100% - 20px));
   }
@@ -294,15 +294,22 @@ onBeforeUnmount(() => {
 
 @media (min-width: 768px) {
   .email-search.account-show {
-    left: 259px;
+    left: 50%;
   }
 }
 
 .search-placeholder {
   width: 100%;
-  height: 36px;
-  border-radius: 6px;
+  height: 38px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 7px;
   box-sizing: border-box;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+
+.search-placeholder:hover {
+  border-color: #4a4f57;
+  background: var(--el-bg-color-overlay);
 }
 
 .search-placeholder {
@@ -390,7 +397,7 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   --el-card-bg-color: var(--el-bg-color-overlay);
   background-color: var(--el-card-bg-color) !important;
-  border-radius: 6px !important;
+  border-radius: 8px !important;
   border: 1px solid var(--el-border-color) !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important;
   overflow: hidden;

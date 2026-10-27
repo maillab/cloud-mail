@@ -3,14 +3,21 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="theme-color" content="#F1F1F1" id="theme-color-meta">
-  <meta name="description" content="Cloud Mail 是一个 Serverless 响应式邮箱服务，支持邮件发送，可部署到 Cloudflare 平台，降低服务器成本。Cloud Mail is a serverless responsive email service that supports email sending and can be deployed on Cloudflare to reduce server costs.">
-  <title>Cloud Mail</title>
-  <link rel="icon" href="/public/mail.png" type="image/png">
+  <meta name="theme-color" content="#050403" id="theme-color-meta">
+  <meta name="description" content="XPass secure email for your team.">
+  <title>XPass Mail</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <script>
     const uiStoreStr =  localStorage.getItem('ui')
-    let isDark = false
+    let isDark = true
     if (uiStoreStr) {
       const uiStore =  JSON.parse(uiStoreStr)
       isDark = uiStore.dark
@@ -18,16 +25,15 @@
       root.setAttribute('class', isDark ? 'dark' : '');
     }
     const metaTag = document.getElementById('theme-color-meta');
-    const isMobile =  !window.matchMedia("(pointer: fine) and (hover: hover)").matches;
-    metaTag.setAttribute('content', isDark ? (isMobile ? '#141414' : '#000000') : (isMobile ? '#191A23' : '#F1F1F1'));
+    metaTag.setAttribute('content', isDark ? '#050403' : '#F1F1F1');
   </script>
 </head>
 <style>
   html {
-    background: #FFFFFF;
+    background: #050403;
   }
   .dark {
-    background: #141414;
+    background: #050403;
   }
   #loading-first {
     position: fixed;
@@ -67,7 +73,7 @@
     height: 4px;
     overflow: hidden;
     border-radius: 999px;
-    background: rgba(64, 158, 255, 0.18);
+    background: rgba(255, 85, 0, 0.18);
   }
 
   .loading-progress::before {
@@ -78,7 +84,7 @@
     width: 100%;
     height: 100%;
     border-radius: inherit;
-    background: #409EFF;
+    background: #FF5500;
     transform: scaleX(0);
     transform-origin: left center;
     animation: loading-progress-grow 2.4s linear forwards;
@@ -91,7 +97,7 @@
     width: 24px;
     height: 100%;
     border-radius: inherit;
-    background: rgba(64, 158, 255, 0.45);
+    background: rgba(255, 85, 0, 0.45);
     filter: blur(4px);
     transform: translateX(-24px);
     animation: loading-progress-peg 2.4s linear forwards;
@@ -130,7 +136,7 @@
 <body>
 <div id="loading-first" >
   <div class="loading-icon">
-    <img class="loading-image" src="/mail-pwa.png" alt="Cloud Mail">
+    <img class="loading-image" src="/xpass-logo.png" alt="XPass">
     <div class="loading-progress" aria-hidden="true"></div>
   </div>
 </div>

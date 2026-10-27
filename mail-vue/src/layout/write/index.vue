@@ -43,7 +43,19 @@
             </div>
           </template>
         </el-input-tag>
-        <el-input v-model="form.subject" :placeholder="t('subject')" />
+        <div class="subject-row">
+          <el-input v-model="form.subject" :placeholder="t('subject')" />
+          <el-select
+            v-if="templates.length"
+            v-model="selectedTemplateId"
+            placeholder="Insert template"
+            clearable
+            @change="applyTemplate"
+          >
+            <el-option v-for="template in templates" :key="template.templateId"
+                       :label="template.name" :value="template.templateId" />
+          </el-select>
+        </div>
         <tinyEditor :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
         <div class="button-item">
           <div class="att-add" @click="chooseFile">
@@ -52,6 +64,7 @@
           <div class="att-clear" @click="clearContent">
             <Icon icon="icon-park-outline:clear-format" width="24" height="24 "/>
           </div>
+          <el-button plain @click="saveCurrentAsTemplate">Save as template</el-button>
           <div class="att-list">
             <div class="att-item" v-for="(item,index) in form.attachments" :key="index">
               <Icon v-bind="getIconByName(item.filename)"/>
@@ -124,6 +137,9 @@ import dayjs from "dayjs";
 import {useI18n} from "vue-i18n";
 import router from "@/router/index.js";
 import {ElMessageBox} from "element-plus";
+import {ElMessage} from "element-plus";
+import {mailboxTemplates, mailboxTemplateSave} from "@/request/mailbox.js";
+import {sanitizeSignatureHtml} from "@/utils/email-html.js";
 
 defineExpose({
   open,
@@ -147,6 +163,9 @@ let sending = false
 const defValue = ref('')
 const contactsTabRef = ref({})
 const showContacts = ref(false)
+const templates = ref([])
+const selectedTemplateId = ref(null)
+const quotedContent = ref('')
 const mySelect = ref()
 let selectStatus = false
 const backReply = reactive({
@@ -183,6 +202,53 @@ const sendButtonLabel = computed(() => {
 
 function selectSendMode(mode) {
   form.manyType = mode
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character])
+}
+
+function getComposeSignatureHtml() {
+  const account = accountStore.currentAccount || {}
+  const user = userStore.user || {}
+  const accountHasSignature = Boolean(account.signatureText || account.signatureImageUrl)
+  const profile = accountHasSignature ? account : user
+  const htmlSignature = accountHasSignature ? '' : sanitizeSignatureHtml(user.signature || '')
+  if (htmlSignature) return htmlSignature
+
+  const text = profile.signatureText || profile.signature_text || ''
+  const imageUrl = profile.signatureImageUrl || profile.signature_image_url
+  if (!text && !imageUrl) return ''
+
+  const textHtml = text
+    ? `<div style="font-size: 14px; color: #333333; margin-bottom: 6px;">${escapeHtml(text).replace(/\r\n?|\n/g, '<br>')}</div>`
+    : ''
+  const imageHtml = imageUrl
+    ? `<img src="${escapeHtml(imageUrl)}" width="250" alt="Signature" style="max-width: 250px; height: auto; display: block; border: 0;" />`
+    : ''
+  return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #e5e5e5; font-family: sans-serif;">${textHtml}${imageHtml}</div>`
+}
+
+function composeWithSignature(bodyContent = '', quote = '') {
+  const signature = getComposeSignatureHtml()
+  let content = bodyContent || ''
+  if (signature) {
+    content += `${content ? '<br><br>' : '<div><br><br></div>'}${signature}`
+  }
+  if (quote) {
+    content += `${content ? '<br><br>' : ''}${quote}`
+  }
+  return content
+}
+
+function newDraftContent() {
+  return composeWithSignature()
 }
 
 function openContacts() {
@@ -222,6 +288,60 @@ function chooseContact() {
   });
 
   showContacts.value = false
+}
+
+async function applyTemplate(templateId) {
+  const template = templates.value.find(item => item.templateId === templateId)
+  if (!template) return
+  const source = `${template.subject || ''}\n${template.content || ''}`
+  const variables = [...new Set([...source.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)].map(match => match[1]))]
+  const recipient = form.receiveEmail[0] || ''
+  const values = {
+    sender_name: form.name,
+    recipient_name: recipient
+      ? recipient.split('@')[0].replace(/[._+-]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())
+      : undefined
+  }
+  try {
+    for (const variable of variables) {
+      if (values[variable] !== undefined) continue
+      const {value} = await ElMessageBox.prompt(`Enter a value for ${variable}.`, 'Template variable', {
+        inputValue: '',
+        confirmButtonText: 'Insert',
+        cancelButtonText: 'Cancel'
+      })
+      values[variable] = value
+    }
+  } catch (action) {
+    if (action === 'cancel' || action === 'close') return
+    throw action
+  }
+  const substitute = value => value.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => values[key] || '')
+  form.subject = substitute(template.subject || '')
+  defValue.value = composeWithSignature(substitute(template.content || ''), quotedContent.value)
+  selectedTemplateId.value = null
+}
+
+async function saveCurrentAsTemplate() {
+  const content = editor.value.getContent()
+  if (!form.subject.trim() && !content.trim()) {
+    ElMessage({message: 'Add a subject or message before saving a template.', type: 'warning'})
+    return
+  }
+  try {
+    const {value: name} = await ElMessageBox.prompt('Name this reusable template.', 'Save as template', {
+      inputValue: form.subject || '',
+      confirmButtonText: 'Save',
+      cancelButtonText: 'Cancel',
+      inputValidator: value => !!value?.trim() || 'Enter a template name.'
+    })
+    await mailboxTemplateSave({name: name.trim(), subject: form.subject, content})
+    templates.value = await mailboxTemplates()
+    ElMessage({message: 'Template saved.', type: 'success'})
+  } catch (action) {
+    if (action === 'cancel' || action === 'close') return
+    ElMessage({message: action?.message || 'Could not save the template.', type: 'error'})
+  }
 }
 
 function clearSelectContact() {
@@ -278,7 +398,7 @@ function clearContent() {
     cancelButtonText: t('cancel'),
     type: 'warning'
   }).then(() => {
-    resetForm()
+    resetForm(newDraftContent())
   })
 
 }
@@ -331,6 +451,8 @@ async function sendEmail() {
   }
 
   form.content = editor.value.getContent();
+  form.text = editor.value.getText();
+  const signatureIncluded = Boolean(getComposeSignatureHtml())
 
   if (!form.content) {
     ElMessage({
@@ -362,7 +484,7 @@ async function sendEmail() {
 
   show.value = false
 
-  emailSend(form, (e) => {
+  emailSend({...toRaw(form), signatureIncluded}, (e) => {
     percent.value = Math.round((e.loaded * 98) / e.total)
   }).then(result => {
     const emailList = Array.isArray(result) ? result : result.emails
@@ -431,20 +553,24 @@ function addRecipientRecord() {
   writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.slice(0, 500);
 }
 
-function resetForm() {
+function resetForm(initialContent = '') {
   form.receiveEmail = []
   form.subject = ''
   form.content = ''
+  form.text = ''
   form.manyType = 'together'
   form.attachments = []
   form.sendType = ''
   form.emailId = 0
   form.draftId = null
+  defValue.value = initialContent
+  selectedTemplateId.value = null
+  quotedContent.value = ''
   backReply.content = ''
   backReply.subject = ''
   backReply.receiveEmail = []
   backReply.sendType = ''
-  editor.value.clearEditor()
+  editor.value.setContent(initialContent)
 }
 
 function change(content, text) {
@@ -464,12 +590,11 @@ function openForward(email) {
   form.subject = email.subject
   form.sendType = 'forward'
 
-  defValue.value = ''
-
   setTimeout(() => {
-    defValue.value = `
+    quotedContent.value = `
       ${formatImage(email.content) || `<pre style="font-family: inherit;word-break: break-word;white-space: pre-wrap;margin: 0">${email.text}</pre>`}
     `
+    defValue.value = composeWithSignature('', quotedContent.value)
     open()
 
     nextTick(() => {
@@ -497,20 +622,18 @@ function openReply(email) {
   form.sendType = 'reply'
   form.emailId = email.emailId
 
-  defValue.value = ''
-
   setTimeout(() => {
-    defValue.value = `
-    <div></div>
+    quotedContent.value = `
     <div>
     <br>
         ${formatDetailDate(email.createTime)} ${email.name} &lt${email.sendEmail}&gt ${t('wrote')}:
     </div>
     <blockquote class="mceNonEditable" style="margin: 0 0 0 0.8ex;border-left: 1px solid rgb(204,204,204);padding-left: 1ex;">
-      <articl>
+      <article>
           ${formatImage(email.content) || `<pre style="font-family: inherit;word-break: break-word;white-space: pre-wrap;margin: 0">${email.text}</pre>`}
       </article>
     </blockquote>`
+    defValue.value = composeWithSignature('', quotedContent.value)
     open()
 
     nextTick(() => {
@@ -530,6 +653,12 @@ function formatImage(content) {
 }
 
 function open() {
+  if (!form.sendType) {
+    resetForm(newDraftContent())
+  }
+  mailboxTemplates()
+    .then(templateRows => templates.value = templateRows)
+    .catch(error => console.error(error))
   if (!accountStore.currentAccount.email) {
     form.sendEmail = userStore.user.email;
     form.accountId = userStore.user.account.accountId;
@@ -545,8 +674,15 @@ function open() {
 
 function openDraft(draft) {
   Object.assign(form, {...draft, manyType: draft.manyType || 'together'})
+  quotedContent.value = ''
+  if (!form.content) {
+    form.content = newDraftContent()
+  }
   defValue.value = ''
-  setTimeout(() => defValue.value = form.content)
+  setTimeout(() => {
+    defValue.value = form.content
+    editor.value.setContent(form.content)
+  })
   show.value = true;
   editor.value.focus()
 }
@@ -559,6 +695,9 @@ const handleKeyDown = (event) => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
+  mailboxTemplates()
+    .then(templateRows => templates.value = templateRows)
+    .catch(error => console.error(error))
 });
 
 onUnmounted(() => {
@@ -716,6 +855,12 @@ function close() {
       display: grid;
       grid-template-rows: auto auto 1fr auto;
       gap: 15px;
+
+      .subject-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(150px, 230px);
+        gap: 10px;
+      }
 
       .item-title {
       }

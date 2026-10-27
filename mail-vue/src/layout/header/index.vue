@@ -1,7 +1,7 @@
 <template>
   <div class="header">
     <div class="header-btn">
-      <hanburger @click="changeAside"></hanburger>
+      <hanburger @toggle-click="changeAside"></hanburger>
       <span class="breadcrumb-item">{{ $t(route.meta.title) }}</span>
     </div>
     <div v-perm="'email:send'" class="writer-box">
@@ -104,7 +104,6 @@ import {computed, onBeforeUnmount, onMounted, ref} from "vue";
 import {useSettingStore} from "@/store/setting.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
-import {setExtend} from "@/utils/day.js"
 import emailSearch from '@/components/email-search/index.vue'
 import {useEmailStore} from '@/store/email.js'
 import {useSendStore} from '@/store/send.js'
@@ -226,15 +225,6 @@ async function copyEmail(email) {
       plain: true,
     })
   }
-}
-
-function changeLang(lang) {
-  setExtend(lang === 'en' ? 'en' : 'zh-cn')
-  settingStore.lang = lang
-}
-
-function openSend() {
-  uiStore.writerRef.open()
 }
 
 function changeAside() {
@@ -403,8 +393,14 @@ onBeforeUnmount(() => {
   display: grid;
   height: 100%;
   gap: 10px;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   position: relative;
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+}
+
+.header.not-send {
+  grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
 @media (max-width: 767px) {
@@ -425,6 +421,15 @@ onBeforeUnmount(() => {
 .writer-box {
   display: none;
 
+  .writer {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #ff5500, #c43b00);
+    transition: all 0.3s ease;
+  }
+
   @media (max-width: 767px) {
     cursor: pointer;
     display: flex;
@@ -436,17 +441,10 @@ onBeforeUnmount(() => {
     .writer {
       width: 32px;
       height: 32px;
-      padding: 0;
-      border: none;
-      background: transparent;
-      box-shadow: none;
-      --el-button-bg-color: transparent;
-      --el-button-border-color: transparent;
-      --el-button-hover-bg-color: transparent;
-      --el-button-hover-border-color: transparent;
-      --el-button-active-bg-color: transparent;
-      --el-button-active-border-color: transparent;
-      --el-button-outline-color: transparent;
+      border-radius: 8px;
+      border: 1px solid #ff5500;
+      color: #fff;
+      background: var(--el-color-primary);
     }
   }
 }
@@ -460,7 +458,7 @@ onBeforeUnmount(() => {
 
 .breadcrumb-item {
   font-weight: bold;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--el-text-color-primary);
   overflow: hidden;
   white-space: nowrap;
@@ -505,7 +503,7 @@ onBeforeUnmount(() => {
       display: flex;
       justify-content: center;
       align-items: center;
-      border-radius: 8px;
+      border-radius: 7px;
       border: 1px solid var(--dark-border);
     }
 
@@ -520,6 +518,7 @@ onBeforeUnmount(() => {
 }
 
 .el-tooltip__trigger:first-child:focus-visible {
-  outline: unset;
+  outline: 2px solid rgba(255, 85, 0, .72);
+  outline-offset: 3px;
 }
 </style>

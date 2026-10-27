@@ -112,15 +112,15 @@ function changeDark(nextIsDark, origin) {
   display: flex;
   aspect-ratio: 1.6;
   overflow: hidden;
-  border: 1px solid #dfe1e5;
+  border: 1px solid #e5d9d0;
   border-radius: 4px;
-  background: #ffffff;
+  background: #fffaf6;
 
   i {
     display: block;
     height: 6px;
     border-radius: 2px;
-    background: #e2e4e8;
+    background: #eadfd6;
   }
 
   .preview-sidebar {
@@ -129,10 +129,10 @@ function changeDark(nextIsDark, origin) {
     gap: 8px;
     width: 28%;
     padding: 12px 6px;
-    background: #f0f1f3;
+    background: #f2e9e2;
 
     i:first-child {
-      background: #91caff;
+      background: #ff5500;
     }
   }
 
@@ -149,18 +149,18 @@ function changeDark(nextIsDark, origin) {
   }
 
   &.preview-dark {
-    background: #202124;
-    border-color: #45474b;
+    background: #181614;
+    border-color: #403731;
 
     i {
-      background: #505359;
+      background: #403731;
     }
 
     .preview-sidebar {
-      background: #303236;
+      background: #1d1a18;
 
       i:first-child {
-        background: #409eff;
+        background: #ff5500;
       }
     }
   }

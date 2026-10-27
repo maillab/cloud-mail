@@ -23,6 +23,7 @@ import domainUtils from '../utils/domain-uitls';
 import account from "../entity/account";
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
+import signatureService from './signature-service';
 import webhookService from './webhook-service';
 import forwardMime from '../utils/forward-mime';
 
@@ -42,6 +43,11 @@ const emailService = {
 			searchType,
 			startDate,
 			endDate,
+			folderKey,
+			customFolderId,
+			unreadOnly,
+			starredOnly,
+			hasAttachments,
 		} = params;
 
 		size = Number(size);
@@ -58,6 +64,11 @@ const emailService = {
 
 		if (isNaN(accountId)) {
 			throw new BizError(t('emptyAccountId'));
+		}
+
+		if (folderKey === 'custom'
+			&& (!Number.isSafeInteger(Number(customFolderId)) || Number(customFolderId) <= 0)) {
+			throw new BizError('Invalid folder.', 400);
 		}
 
 		if (isNaN(size)) {
@@ -90,6 +101,11 @@ const emailService = {
 			searchType,
 			startDate,
 			endDate,
+			folderKey,
+			customFolderId,
+			unreadOnly,
+			starredOnly,
+			hasAttachments,
 		});
 		const countFilters = this.emailListFilters({
 			userId,
@@ -101,6 +117,11 @@ const emailService = {
 			searchType,
 			startDate,
 			endDate,
+			folderKey,
+			customFolderId,
+			unreadOnly,
+			starredOnly,
+			hasAttachments,
 		});
 		const columns = full ? emailListColumns : emailBriefColumns;
 
@@ -143,13 +164,9 @@ const emailService = {
 			emailId: email.emailId,
 			accountId: email.accountId,
 			userId: email.userId,
-		}).from(email).where(
-			and(
-				eq(email.userId, userId),
-				eq(email.type, type),
-				eq(email.isDel, isDel.NORMAL),
-				allReceive ? undefined : eq(email.accountId, accountId)
-			))
+		}).from(email)
+			.innerJoin(account, eq(account.accountId, email.accountId))
+			.where(and(...countFilters))
 			.orderBy(desc(email.emailId)).limit(1).get();
 
 		let [list, totalRow, latestEmail] = await Promise.all([listQuery, totalQuery, latestEmailQuery]);
@@ -202,15 +219,68 @@ const emailService = {
 		searchType,
 		startDate,
 		endDate,
+		folderKey,
+		customFolderId,
+		unreadOnly,
+		starredOnly,
+		hasAttachments,
 	}) {
 		const conditions = [
 			eq(email.userId, userId),
-			eq(email.type, type),
-			eq(email.isDel, isDel.NORMAL),
 			eq(account.isDel, isDel.NORMAL),
 		];
+		const folder = folderKey || (type === emailConst.type.SEND ? 'sent' : 'inbox');
+		if (folder === 'trash') {
+			conditions.push(or(eq(email.mailboxFolder, 'trash'), eq(email.isDel, isDel.DELETE)));
+		} else {
+			conditions.push(eq(email.isDel, isDel.NORMAL));
+		}
+		if (folder === 'sent') {
+			conditions.push(eq(email.type, emailConst.type.SEND), eq(email.mailboxFolder, 'sent'));
+		} else if (folder === 'all-unread') {
+			conditions.push(eq(email.type, emailConst.type.RECEIVE), eq(email.unread, emailConst.unread.UNREAD));
+			conditions.push(ne(email.mailboxFolder, 'trash'));
+		} else if (folder === 'archive' || folder === 'spam' || folder === 'trash') {
+			conditions.push(eq(email.mailboxFolder, folder));
+		} else if (folder === 'snoozed') {
+			conditions.push(sql`${email.snoozedUntil} IS NOT NULL AND julianday(${email.snoozedUntil}) > julianday('now')`);
+		} else if (folder === 'newsletter' || folder === 'notification') {
+			conditions.push(eq(email.type, emailConst.type.RECEIVE), eq(email.category, folder));
+			conditions.push(ne(email.mailboxFolder, 'trash'));
+		} else if (folder === 'outbox') {
+			conditions.push(eq(email.type, emailConst.type.SEND), inArray(email.status, [emailConst.status.DELAYED, emailConst.status.SAVING]));
+		} else if (customFolderId) {
+			conditions.push(ne(email.mailboxFolder, 'trash'));
+			conditions.push(sql`EXISTS (
+				SELECT 1 FROM email_folder
+				WHERE email_folder.email_id = ${email.emailId}
+					AND email_folder.user_id = ${userId}
+					AND email_folder.folder_id = ${Number(customFolderId)}
+			)`);
+		} else {
+			conditions.push(eq(email.type, emailConst.type.RECEIVE), eq(email.mailboxFolder, 'inbox'));
+			conditions.push(sql`(${email.snoozedUntil} IS NULL OR julianday(${email.snoozedUntil}) <= julianday('now'))`);
+		}
 		if (!allReceive) {
 			conditions.push(eq(email.accountId, accountId));
+		}
+		if (unreadOnly === 'true' || unreadOnly === true) {
+			conditions.push(eq(email.type, emailConst.type.RECEIVE), eq(email.unread, emailConst.unread.UNREAD));
+		}
+		if (starredOnly === 'true' || starredOnly === true) {
+			conditions.push(sql`EXISTS (
+				SELECT 1 FROM star
+				WHERE star.email_id = ${email.emailId}
+					AND star.user_id = ${userId}
+			)`);
+		}
+		if (hasAttachments === 'true' || hasAttachments === true) {
+			conditions.push(sql`EXISTS (
+				SELECT 1 FROM attachments
+				WHERE attachments.email_id = ${email.emailId}
+					AND attachments.user_id = ${userId}
+					AND attachments.type = ${attConst.type.ATT}
+			)`);
 		}
 		if (withCursor && emailId) {
 			conditions.push(timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId));
@@ -308,7 +378,7 @@ const emailService = {
 		const emailIdList = emailIds.split(',').map(Number);
 		const { syncDelete } = await settingService.query(c);
 
-		if (syncDelete === settingConst.syncDelete.OPEN) {
+		if (params.permanent === 'true' || syncDelete === settingConst.syncDelete.OPEN) {
 			const owned = await orm(c).select({ emailId: email.emailId }).from(email)
 				.where(and(eq(email.userId, userId), inArray(email.emailId, emailIdList)))
 				.all();
@@ -319,11 +389,15 @@ const emailService = {
 			return;
 		}
 
-		await orm(c).update(email).set({ isDel: isDel.DELETE }).where(
+		await orm(c).update(email).set({ mailboxFolder: 'trash', snoozedUntil: null }).where(
 			and(
 				eq(email.userId, userId),
 				inArray(email.emailId, emailIdList)))
 			.run();
+		const placeholders = emailIdList.map(() => '?').join(',');
+		await c.env.db.prepare(
+			`DELETE FROM email_folder WHERE user_id = ? AND email_id IN (${placeholders})`
+		).bind(userId, ...emailIdList).run();
 	},
 
 	receive(c, params, cidAttList, r2domain) {
@@ -342,12 +416,11 @@ const emailService = {
 			text, //邮件纯文本
 			content, //邮件内容
 			subject, //邮件标题
-			attachments = [] //附件
+			attachments = [], //附件
+			signatureIncluded = false
 		} = params;
 
 		const { resendTokens, r2Domain, send, domainList } = await settingService.query(c);
-
-		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
 
 		//判断是否关闭发件功能
 		if (send === settingConst.send.CLOSE) {
@@ -355,6 +428,26 @@ const emailService = {
 		}
 
 		const userRow = await userService.selectById(c, userId);
+		const accountRow = await accountService.selectById(c, accountId);
+		if (!accountRow) {
+			throw new BizError(t('senderAccountNotExist'));
+		}
+		if (accountRow.userId !== userId) {
+			throw new BizError(t('sendEmailNotCurUser'));
+		}
+
+		const accountHasSignature = accountRow.signatureText || accountRow.signatureImageKey;
+		const signatureProfile = accountHasSignature ? accountRow : userRow;
+		const signatureHtml = accountHasSignature
+			? signatureService.html(accountRow, c.req.url)
+			: userRow.signature || signatureService.html(userRow, c.req.url);
+		if (signatureIncluded !== true) {
+			content = `${content || ''}${signatureHtml}`;
+			if (!accountHasSignature && !userRow.signature && signatureProfile.signatureText) {
+				text = `${text || ''}\n\n${signatureProfile.signatureText}`;
+			}
+		}
+		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
 		const roleRow = await roleService.selectById(c, userRow.type);
 
 		//判断接收方是不是全部为站内邮箱
@@ -390,16 +483,6 @@ const emailService = {
 				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLack'), 403);
 			}
 
-		}
-
-		const accountRow = await accountService.selectById(c, accountId);
-
-		if (!accountRow) {
-			throw new BizError(t('senderAccountNotExist'));
-		}
-
-		if (accountRow.userId !== userId) {
-			throw new BizError(t('sendEmailNotCurUser'));
 		}
 
 		if (c.env.admin !== userRow.email) {
@@ -596,6 +679,7 @@ const emailService = {
 		const emailData = {
 			sendEmail, name, subject, text, accountId, userId,
 			content: this.imgReplace(html, imageDataList, r2Domain),
+			mailboxFolder: 'sent',
 			status: useCloudflareEmail ? emailConst.status.DELIVERED : emailConst.status.SENT,
 			type: emailConst.type.SEND,
 			resendEmailId: providerId,
@@ -863,6 +947,8 @@ const emailService = {
 			const emailValues = {...sendEmailData}
 			emailValues.status = emailConst.status.RECEIVE;
 			emailValues.type = emailConst.type.RECEIVE;
+			emailValues.mailboxFolder = 'inbox';
+			emailValues.category = emailUtils.classifyIncomingEmail(sendEmailData.sendEmail);
 			emailValues.toEmail = email;
 			emailValues.toName = emailUtils.getName(email);
 			emailValues.emailId = null;
@@ -1083,7 +1169,9 @@ const emailService = {
 					eq(email.isDel, isDel.NORMAL),
 					eq(account.isDel, isDel.NORMAL),
 					allReceive ? undefined : eq(email.accountId, accountId),
-					eq(email.type, emailConst.type.RECEIVE)
+					eq(email.type, emailConst.type.RECEIVE),
+					eq(email.mailboxFolder, 'inbox'),
+					sql`(${email.snoozedUntil} IS NULL OR julianday(${email.snoozedUntil}) <= julianday('now'))`
 				))
 			.orderBy(desc(email.emailId))
 			.limit(20);
@@ -1100,11 +1188,17 @@ const emailService = {
 		emailIds = emailIds.split(',').map(Number);
 		await attService.removeByEmailIds(c, emailIds);
 		await starService.removeByEmailIds(c, emailIds);
+		const placeholders = emailIds.map(() => '?').join(',');
+		await c.env.db.prepare(`DELETE FROM email_folder WHERE email_id IN (${placeholders})`)
+			.bind(...emailIds).run();
 		await orm(c).delete(email).where(inArray(email.emailId, emailIds)).run();
 	},
 
 	async physicsDeleteUserIds(c, userIds) {
 		await attService.removeByUserIds(c, userIds);
+		const placeholders = userIds.map(() => '?').join(',');
+		await c.env.db.prepare(`DELETE FROM email_folder WHERE user_id IN (${placeholders})`)
+			.bind(...userIds).run();
 		await orm(c).delete(email).where(inArray(email.userId, userIds)).run();
 	},
 

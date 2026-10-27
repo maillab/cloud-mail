@@ -8,9 +8,8 @@ let http = axios.create({
 });
 
 http.interceptors.request.use(config => {
-    const { lang } = useSettingStore();
     config.headers.Authorization = `${localStorage.getItem('token')}`
-    config.headers['accept-language'] = lang
+    config.headers['accept-language'] = 'en'
     return config
 })
 
@@ -117,5 +116,4 @@ http.interceptors.response.use((res) => {
     })
 
 export default http
-
 

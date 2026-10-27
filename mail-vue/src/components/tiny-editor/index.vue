@@ -14,8 +14,10 @@ import {useSettingStore} from '@/store/setting.js'
 
 defineExpose({
   clearEditor,
+  setContent,
   focus,
-  getContent
+  getContent,
+  getText
 })
 
 const props = defineProps({
@@ -72,6 +74,12 @@ function clearEditor() {
   }
 }
 
+function setContent(content) {
+  if (editor.value) {
+    editor.value.setContent(content || '');
+  }
+}
+
 function initTinyMCE() {
   if (window.tinymce) {
     initEditor();
@@ -94,6 +102,8 @@ function initEditor() {
     //relative_urls: false,  //阻止 img标签域名和网站域名相同 自动把链接转换相对路径
     //remove_script_host: false, // 阻止删除 URL 中的域名
     forced_root_block: 'div',
+    convert_urls: false,
+    valid_styles: {'*': '*'},
     skin: `${uiStore.dark ? 'oxide-dark' : 'oxide'}`,
     content_css: `/tinymce/css/index.css,${uiStore.dark ? 'dark' : 'default'}`,
     content_style: `:root {
@@ -165,6 +175,10 @@ function focus() {
 
 function getContent() {
   return editor.value.getContent()
+}
+
+function getText() {
+  return editor.value.getContent({format: 'text'})
 }
 
 

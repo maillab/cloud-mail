@@ -1,18 +1,49 @@
 <template>
-  <emailScroll ref="scroll"
-               :cancel-success="cancelStar"
-               :star-success="addStar"
-               :getEmailList="getEmailList"
-               :emailDelete="emailDelete"
-               :star-add="starAdd"
-               :star-cancel="starCancel"
-               :email-read="emailRead"
-               :show-unread="true"
-               :highlight-text="emailStore.searchParams.text"
-               actionLeft="4px"
-               @jump="jumpContent"
-  >
-  </emailScroll>
+  <div class="inbox-workspace">
+    <section class="message-column" aria-label="Message list">
+      <header class="inbox-heading">
+        <div>
+          <div class="eyebrow">MAILBOX</div>
+          <h1>Inbox</h1>
+        </div>
+        <span class="account-label">{{ accountStore.currentAccount?.email || '' }}</span>
+      </header>
+      <nav class="inbox-filters" aria-label="Filter inbox">
+        <button
+          v-for="filter in inboxFilters"
+          :key="filter.key"
+          type="button"
+          :class="{ active: activeFilter === filter.key }"
+          :aria-pressed="activeFilter === filter.key"
+          @click="setInboxFilter(filter.key)"
+        >{{ filter.label }}</button>
+      </nav>
+      <emailScroll ref="scroll"
+                 :cancel-success="cancelStar"
+                 :star-success="addStar"
+                 :getEmailList="getEmailList"
+                 :emailDelete="deleteMessages"
+                 :star-add="starAdd"
+                 :star-cancel="starCancel"
+                 :email-read="markRead"
+                 :mailbox-actions="mailboxActions"
+                 :mailbox-action="applyMailboxAction"
+                 :selected-email-id="emailStore.contentData.email?.emailId || 0"
+                 :highlight-text="emailStore.searchParams.text"
+                 :show-unread="true"
+                 actionLeft="4px"
+                 @jump="jumpContent"
+      />
+    </section>
+    <section class="reading-pane" aria-label="Email reader">
+      <ContentView
+        v-if="emailStore.contentData.email"
+        embedded
+        @close="closeReader"
+      />
+      <el-empty v-else description="Select an email to read" />
+    </section>
+  </div>
 </template>
 
 <script setup>
@@ -22,10 +53,12 @@ import {useSettingStore} from "@/store/setting.js";
 import emailScroll from "@/components/email-scroll/index.vue"
 import {emailList, emailDelete, emailLatest, emailRead} from "@/request/email.js";
 import {starAdd, starCancel} from "@/request/star.js";
-import {defineOptions, onMounted, ref, watch} from "vue";
+import {mailboxFolderList, mailboxMove} from "@/request/mailbox.js";
+import {computed, defineOptions, onMounted, onUnmounted, ref, watch} from "vue";
 import {sleep} from "@/utils/time-utils.js";
 import router from "@/router/index.js";
 import { useRoute } from 'vue-router'
+import ContentView from '@/views/content/index.vue'
 
 defineOptions({
   name: 'email'
@@ -36,10 +69,57 @@ const emailStore = useEmailStore();
 const accountStore = useAccountStore();
 const settingStore = useSettingStore();
 const scroll = ref({})
+const isDesktop = ref(window.innerWidth >= 700)
+const mailboxActions = ref([
+  {label: 'Archive', value: 'archive'},
+  {label: 'Move to Spam', value: 'spam'},
+  {label: 'Move to Trash', value: 'trash'},
+  {label: 'Snooze for 1 hour', value: 'snooze-hour'},
+  {label: 'Snooze until tomorrow', value: 'snooze-tomorrow'},
+  {label: 'Mark as Newsletter', value: 'category:newsletter'},
+  {label: 'Mark as Notification', value: 'category:notification'},
+  {label: 'Mark as Primary', value: 'category:primary'},
+])
+const inboxFilters = [
+  {key: 'all', label: 'All'},
+  {key: 'unread', label: 'Unread'},
+  {key: 'starred', label: 'Starred'},
+  {key: 'attachments', label: 'Attachments'},
+]
+const activeFilter = computed(() => {
+  const params = emailStore.searchParams
+  if (params.unreadOnly) return 'unread'
+  if (params.starredOnly) return 'starred'
+  if (params.hasAttachments) return 'attachments'
+  return 'all'
+})
 onMounted(() => {
   emailStore.emailScroll = scroll;
+  window.addEventListener('resize', updateDesktopLayout)
   latest()
+  mailboxFolderList().then(folders => {
+    mailboxActions.value.push(...folders.map(folder => ({
+      label: `Move to ${folder.name}`,
+      value: `custom:${folder.folderId}`,
+    })))
+  }).catch(error => console.error(error))
 })
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateDesktopLayout)
+})
+
+function updateDesktopLayout() {
+  isDesktop.value = window.innerWidth >= 700
+}
+
+function setInboxFilter(filter) {
+  emailStore.setSearchParams({
+    unreadOnly: filter === 'unread',
+    starredOnly: filter === 'starred',
+    hasAttachments: filter === 'attachments',
+  })
+}
 
 
 watch(() => accountStore.currentAccountId, () => {
@@ -60,7 +140,12 @@ function jumpContent(email) {
   emailStore.contentData.showUnread = true
   emailStore.contentData.showStar = true
   emailStore.contentData.showReply = true
-  router.push({name: 'content', params: {mailbox: 'inbox'}})
+  if (!isDesktop.value) router.push('/messages')
+}
+
+function closeReader() {
+  emailStore.contentData.email = null
+  emailStore.contentData.showUnread = false
 }
 
 const existIds = new Set();
@@ -76,7 +161,8 @@ async function latest() {
     }
 
     const searchParams = emailStore.searchParams
-    if (searchParams.text || searchParams.startDate || searchParams.endDate) {
+    if (searchParams.text || searchParams.startDate || searchParams.endDate
+      || searchParams.unreadOnly || searchParams.starredOnly || searchParams.hasAttachments) {
       continue
     }
 
@@ -112,6 +198,7 @@ async function latest() {
               }
 
             }
+            window.dispatchEvent(new Event('mailbox:updated'))
 
           }
 
@@ -146,9 +233,169 @@ function getEmailList(emailId, size) {
   })
 }
 
+function markRead(ids) {
+  return emailRead(ids).then(result => {
+    window.dispatchEvent(new Event('mailbox:updated'))
+    return result
+  })
+}
+
+function deleteMessages(ids) {
+  return emailDelete(ids).then(result => {
+    window.dispatchEvent(new Event('mailbox:updated'))
+    return result
+  })
+}
+
+async function applyMailboxAction(ids, action) {
+  if (action.startsWith('category:')) {
+    await mailboxMove(ids, {category: action.slice('category:'.length)})
+  } else if (action.startsWith('custom:')) {
+    await mailboxMove(ids, {customFolderId: Number(action.slice('custom:'.length))})
+  } else if (action === 'snooze-hour' || action === 'snooze-tomorrow') {
+    const delay = action === 'snooze-hour' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000
+    await mailboxMove(ids, 'snoozed', new Date(Date.now() + delay).toISOString())
+  } else {
+    await mailboxMove(ids, action)
+  }
+  window.dispatchEvent(new Event('mailbox:updated'))
+}
+
 </script>
 <style>
 .icon {
   cursor: pointer;
+}
+</style>
+<style scoped>
+.inbox-workspace {
+  display: grid;
+  grid-template-columns: minmax(220px, 42%) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--el-bg-color);
+}
+
+.message-column {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
+}
+
+.inbox-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 70px;
+  padding: 12px 18px;
+}
+
+.eyebrow {
+  margin-bottom: 3px;
+  color: var(--el-text-color-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .13em;
+}
+
+.inbox-heading h1 {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -.025em;
+}
+
+.account-label {
+  max-width: 52%;
+  overflow: hidden;
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbox-filters {
+  display: flex;
+  gap: 5px;
+  padding: 0 14px 10px;
+  border-bottom: 1px solid var(--el-border-color);
+}
+
+.inbox-filters button {
+  min-height: 29px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.inbox-filters button:hover {
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
+}
+
+.inbox-filters button.active {
+  border-color: var(--el-border-color);
+  background: #252321;
+  color: #fff;
+}
+
+.inbox-filters button.active:hover {
+  background: #383431;
+  color: #fff;
+  color: var(--el-text-color-primary);
+}
+
+.reading-pane {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--el-border-color);
+}
+
+.reading-pane :deep(.el-empty) {
+  height: 100%;
+}
+
+@media (max-width: 700px) {
+  .inbox-workspace {
+    display: block;
+  }
+
+  .message-column {
+    height: 100%;
+    border-right: 0;
+  }
+
+  .reading-pane {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .inbox-heading {
+    min-height: 64px;
+    padding: 10px 14px;
+  }
+
+  .inbox-filters {
+    gap: 2px;
+    padding: 0 10px 10px;
+  }
+
+  .inbox-filters button {
+    padding: 0 9px;
+  }
 }
 </style>

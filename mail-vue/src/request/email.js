@@ -1,12 +1,13 @@
 import http from '@/axios/index.js';
 
 export function emailList(accountId, allReceive, emailId, timeSort, size, type, full, searchParams = {}) {
-    const {type: searchType, text, startDate, endDate} = searchParams
-    return http.get('/email/list', {params: {accountId, allReceive, emailId, timeSort, size, type, full, searchType, text, startDate, endDate}})
+    const {type: searchType, text, startDate, endDate, folderKey, customFolderId, unreadOnly, starredOnly, hasAttachments} = searchParams
+    return http.get('/email/list', {params: {accountId, allReceive, emailId, timeSort, size, type, full, searchType, text, startDate, endDate, folderKey, customFolderId, unreadOnly, starredOnly, hasAttachments}})
 }
 
-export function emailDelete(emailIds) {
-    return http.delete('/email/delete?emailIds=' + emailIds)
+export function emailDelete(emailIds, permanent = false) {
+    const ids = Array.isArray(emailIds) ? emailIds.join(',') : emailIds
+    return http.delete('/email/delete', {params: {emailIds: ids, permanent}})
 }
 
 export function emailLatest(emailId, accountId, allReceive) {

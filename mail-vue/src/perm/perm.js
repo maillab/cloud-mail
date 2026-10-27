@@ -37,28 +37,7 @@ export function permsToRouter(permKeys) {
 }
 
 const routers = {
-    'email:send': [
-        {
-            path: '/sent',
-            name: 'send',
-            component: () => import('@/views/send/index.vue'),
-            meta: {
-                title: 'sent',
-                name: 'send',
-                menu: true
-            }
-        },
-        {
-            path: '/drafts',
-            name: 'draft',
-            component: () => import('@/views/draft/index.vue'),
-            meta: {
-                title: 'drafts',
-                name: 'draft',
-                menu: true
-            }
-        }
-    ],
+    'email:send': [],
     'user:query': [{
         path: '/all-users',
         name: 'user',

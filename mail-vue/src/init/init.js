@@ -8,18 +8,14 @@ import {websiteConfig} from "@/request/setting.js";
 import i18n from "@/i18n/index.js";
 
 export async function init() {
-    document.title = '\u200B'
+    document.title = 'XPass Mail'
 
     const settingStore = useSettingStore();
     const userStore = useUserStore();
     const accountStore = useAccountStore();
 
     const token = localStorage.getItem('token');
-    if (!settingStore.lang) {
-        let lang = navigator.language.split('-')[0]
-        lang = lang === 'zh' ? lang : 'en'
-        settingStore.lang = lang
-    }
+    settingStore.lang = 'en'
 
     i18n.global.locale.value = settingStore.lang
 
@@ -35,7 +31,7 @@ export async function init() {
         setting = s;
         settingStore.settings = setting;
         settingStore.domainList = setting.domainList;
-        document.title = setting.title;
+        document.title = 'XPass Mail';
 
         if (user) {
             accountStore.currentAccountId = user.account.accountId;
@@ -52,6 +48,6 @@ export async function init() {
         setting = await websiteConfig();
         settingStore.settings = setting;
         settingStore.domainList = setting.domainList;
-        document.title = setting.title;
+        document.title = 'XPass Mail';
     }
 }

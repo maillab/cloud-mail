@@ -25,6 +25,7 @@
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item v-if="hasPerm('email:send')" @click="openSetName(item)">{{ $t('rename') }}</el-dropdown-item>
+                    <el-dropdown-item v-if="hasPerm('email:send')" @click="openSignature(item)">Email signature</el-dropdown-item>
                     <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId" @click="setAsTop(item, index)">{{ $t('pin') }}</el-dropdown-item>
                     <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId && hasPerm('account:delete')"
                                       @click="remove(item)">{{ $t('delete') }}
@@ -125,10 +126,35 @@
         </el-button>
       </div>
     </el-dialog>
+    <el-dialog v-model="signatureShow" :title="`Email signature — ${signatureAccount?.email || ''}`" width="min(560px, 95vw)">
+      <div class="signature-editor">
+        <label>Email signature picture (optional)</label>
+        <input
+          ref="signatureFileRef"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          class="signature-file-input"
+          @change="selectSignatureImage"
+        />
+        <div class="signature-image-row">
+          <img v-if="signaturePreview" :src="signaturePreview" alt="Signature preview" />
+          <el-button @click="signatureFileRef?.click()">Choose image</el-button>
+          <el-button v-if="signaturePreview" @click="removeSignatureImage">Remove image</el-button>
+        </div>
+        <div class="signature-helper">Recommended size: 300x100px (Max 2MB). Fits all mobile &amp; desktop devices.</div>
+        <label>Signature title / text</label>
+        <el-input v-model="signatureText" type="textarea" :rows="3" maxlength="2000" show-word-limit />
+      </div>
+      <template #footer>
+        <el-button @click="signatureShow = false">Cancel</el-button>
+        <el-button type="primary" :loading="signatureSaving" @click="saveAccountSignature">Save signature</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 <script setup>
 import {Icon} from "@iconify/vue";
+import {ElMessage, ElMessageBox} from "element-plus";
 import {computed, nextTick, reactive, ref, watch} from "vue";
 import {
   accountList,
@@ -136,7 +162,8 @@ import {
   accountDelete,
   accountSetName,
   accountSetAllReceive,
-  accountSetAsTop
+  accountSetAsTop,
+  accountSetSignature
 } from "@/request/account.js";
 import {sleep} from "@/utils/time-utils.js"
 import {isEmail} from "@/utils/verify-utils.js";
@@ -165,6 +192,14 @@ const verifyShow = ref(false)
 const setNameShow = ref(false)
 const setNameLoading = ref(false)
 const accountName = ref(null)
+const signatureShow = ref(false)
+const signatureSaving = ref(false)
+const signatureAccount = ref(null)
+const signatureText = ref('')
+const signaturePreview = ref('')
+const signatureImageData = ref('')
+const removeSignatureImageFlag = ref(false)
+const signatureFileRef = ref()
 const addRef = ref({})
 const scrollbarRef = ref({})
 let account = null
@@ -231,7 +266,7 @@ window.onTurnstileError = (e) => {
     return
   }
   verifyErrorCount++
-  console.warn('人机验加载失败', e)
+  console.warn('Turnstile verification failed to load', e)
   setTimeout(() => {
     nextTick(() => {
       if (!turnstileId) {
@@ -296,6 +331,70 @@ function openSetName(accountItem) {
   accountName.value = accountItem.name
   account = accountItem
   setNameShow.value = true
+}
+
+function openSignature(accountItem) {
+  signatureAccount.value = accountItem
+  signatureText.value = accountItem.signatureText || ''
+  signaturePreview.value = accountItem.signatureImageUrl || ''
+  signatureImageData.value = ''
+  removeSignatureImageFlag.value = false
+  signatureShow.value = true
+}
+
+function selectSignatureImage(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    ElMessage({message: 'Choose a PNG, JPG, or WEBP image.', type: 'error', plain: true})
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage({message: 'Signature images must be 2 MB or smaller.', type: 'error', plain: true})
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    signatureImageData.value = String(reader.result || '')
+    signaturePreview.value = signatureImageData.value
+    removeSignatureImageFlag.value = false
+  }
+  reader.onerror = () => {
+    console.error('Could not read selected signature image.')
+    ElMessage({message: 'Could not read the selected image.', type: 'error', plain: true})
+  }
+  reader.readAsDataURL(file)
+}
+
+function removeSignatureImage() {
+  signaturePreview.value = ''
+  signatureImageData.value = ''
+  removeSignatureImageFlag.value = true
+}
+
+async function saveAccountSignature() {
+  if (!signatureAccount.value || signatureSaving.value) return
+  signatureSaving.value = true
+  try {
+    const signature = await accountSetSignature({
+      accountId: signatureAccount.value.accountId,
+      signatureText: signatureText.value,
+      ...(signatureImageData.value ? {signatureImageData: signatureImageData.value} : {}),
+      ...(removeSignatureImageFlag.value ? {removeSignatureImage: true} : {})
+    })
+    Object.assign(signatureAccount.value, signature)
+    if (accountStore.currentAccountId === signatureAccount.value.accountId) {
+      Object.assign(accountStore.currentAccount, signature)
+    }
+    signatureShow.value = false
+    ElMessage({message: 'Email signature saved.', type: 'success', plain: true})
+  } catch (error) {
+    console.error('Failed to save account signature:', error)
+    ElMessage({message: error.message || 'Could not save the email signature.', type: 'error', plain: true})
+  } finally {
+    signatureSaving.value = false
+  }
 }
 
 function setAllReceive(account) {
@@ -494,7 +593,7 @@ function submit() {
             turnstileId = window.turnstile.render('.add-email-turnstile')
           } catch (e) {
             botJsError.value = true
-            console.log('人机验证js加载失败')
+            console.log('Turnstile script failed to load')
             recoverTurnstile()
           }
         } else {
@@ -550,6 +649,37 @@ path[fill="#ffdda1"] {
 }
 </style>
 <style scoped lang="scss">
+.signature-editor {
+  display: grid;
+  gap: 10px;
+
+  label {
+    font-size: 13px;
+    font-weight: 600;
+  }
+}
+
+.signature-file-input {
+  display: none;
+}
+
+.signature-image-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  img {
+    max-width: 250px;
+    max-height: 100px;
+    object-fit: contain;
+  }
+}
+
+.signature-helper {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
 .account-box {
 
   border-right: 1px solid var(--el-border-color) !important;

@@ -28,6 +28,8 @@ const zh = {
     delete: '删除',
     save: '保存',
     profile: '账户与密码',
+    signatureHtmlLabel: 'HTML 签名',
+    signatureHtmlHelper: '支持 HTML、内联样式、表格和图片链接。',
     themeStyle: '主题样式',
     lightTheme: '浅色',
     darkTheme: '深色',

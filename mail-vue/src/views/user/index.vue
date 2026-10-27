@@ -194,6 +194,27 @@
         <el-select v-model="addForm.type" :placeholder="$t('perm')">
           <el-option v-for="item in roleList" :label="item.name" :value="item.roleId" :key="item.roleId"/>
         </el-select>
+        <div class="signature-fields">
+          <label>{{ $t('signaturePictureOptional') }}</label>
+          <input
+            ref="signatureFileRef"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            class="signature-file-input"
+            @change="selectSignatureImage"
+          />
+          <div class="signature-image-row">
+            <img v-if="signaturePreview" :src="signaturePreview" alt="Signature preview" />
+            <el-button @click="signatureFileRef?.click()">{{ $t('chooseImage') }}</el-button>
+            <el-button v-if="signaturePreview" @click="clearSignatureImage">{{ $t('removeImage') }}</el-button>
+          </div>
+          <div class="signature-helper">{{ $t('signatureHelper') }}</div>
+          <label>{{ $t('signatureTextLabel') }}</label>
+          <el-input v-model="addForm.signatureText" type="textarea" :rows="3" maxlength="2000" show-word-limit />
+          <label>{{ $t('signatureHtmlLabel') }}</label>
+          <el-input v-model="addForm.signature" type="textarea" :rows="5" maxlength="10000" show-word-limit />
+          <div class="signature-helper">{{ $t('signatureHtmlHelper') }}</div>
+        </div>
         <el-button class="btn" type="primary" @click="submit" :loading="addLoading"
         >{{ $t('add') }}
         </el-button>
@@ -399,6 +420,7 @@ import {isEmail} from "@/utils/verify-utils.js";
 import {useRoleStore} from "@/store/role.js";
 import {useUserStore} from "@/store/user.js";
 import {useI18n} from 'vue-i18n';
+import {fileToBase64} from '@/utils/file-utils.js';
 
 defineOptions({
   name: 'user'
@@ -466,7 +488,12 @@ const addForm = reactive({
   suffix: settingStore.domainList[0],
   password: '',
   type: null,
+  signatureText: '',
+  signatureImageData: '',
+  signature: '',
 })
+const signatureFileRef = ref()
+const signaturePreview = ref('')
 
 const params = reactive({
   email: '',
@@ -708,6 +735,38 @@ const openSelect = () => {
 function resetAddForm() {
   addForm.email = ''
   addForm.password = ''
+  addForm.type = null
+  addForm.signatureText = ''
+  addForm.signatureImageData = ''
+  addForm.signature = ''
+  signaturePreview.value = ''
+}
+
+async function selectSignatureImage(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    ElMessage({message: t('signatureImageTypeError'), type: 'error', plain: true})
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage({message: t('signatureImageSizeError'), type: 'error', plain: true})
+    return
+  }
+  try {
+    const imageData = await fileToBase64(file, true)
+    addForm.signatureImageData = imageData
+    signaturePreview.value = imageData
+  } catch (error) {
+    console.error('Failed to read signature image:', error)
+    ElMessage({message: t('signatureImageTypeError'), type: 'error', plain: true})
+  }
+}
+
+function clearSignatureImage() {
+  addForm.signatureImageData = ''
+  signaturePreview.value = ''
 }
 
 function openAdd() {
@@ -1142,6 +1201,38 @@ function adjustWidth() {
   display: grid;
   grid-template-columns: 1fr;
   gap: 15px;
+}
+
+.signature-fields {
+  display: grid;
+  gap: 9px;
+  color: var(--el-text-color-primary);
+  font-size: 13px;
+}
+
+.signature-file-input {
+  display: none;
+}
+
+.signature-image-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+
+  img {
+    width: min(250px, 100%);
+    max-height: 100px;
+    object-fit: contain;
+    object-position: left center;
+    border: 1px solid var(--el-border-color);
+    border-radius: 6px;
+  }
+}
+
+.signature-helper {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
 }
 
 .type {

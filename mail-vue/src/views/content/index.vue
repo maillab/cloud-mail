@@ -1,14 +1,15 @@
 <template>
   <div class="box">
     <div class="header-actions">
-      <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" @click="handleBack"/>
-      <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
+      <Icon class="icon" :aria-label="embedded ? 'Close message' : 'Back to messages'" :icon="embedded ? 'material-symbols-light:close-rounded' : 'material-symbols-light:arrow-back-ios-new'" width="20" height="20" @click="handleBack"/>
+      <Icon v-if="embedded && emailStore.contentData.delType === 'logic'" class="icon" aria-label="Archive message" title="Archive" icon="fluent:archive-20-regular" width="19" height="19" @click="handleArchive"/>
+      <Icon v-perm="'email:delete'" class="icon" aria-label="Delete message" title="Delete" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
       <span class="star" v-if="emailStore.contentData.showStar">
-        <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
-        <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18.5" height="18.5"/>
+        <Icon class="icon" aria-label="Remove star" title="Remove star" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
+        <Icon class="icon" aria-label="Star message" title="Star" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
       </span>
-      <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="fluent-mdl2:reply" width="19" height="19" />
-      <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openForward" icon="iconoir:arrow-up-right" width="20" height="20" />
+      <Icon class="icon" aria-label="Reply" title="Reply" v-if="emailStore.contentData.showReply" v-perm="'email:send'" @click="openReply" icon="la:reply" width="21" height="21" />
+      <Icon class="icon" aria-label="Forward" title="Forward" v-if="emailStore.contentData.showReply" v-perm="'email:send'" @click="openForward" icon="iconoir:arrow-up-right" width="20" height="20" />
     </div>
     <div></div>
     <el-scrollbar class="scrollbar">
@@ -99,8 +100,11 @@ import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import {mailboxMove} from "@/request/mailbox.js";
 const { t } = useI18n()
 
+const props = defineProps({embedded: {type: Boolean, default: false}})
+const emit = defineEmits(['close'])
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
 const accountStore = useAccountStore();
@@ -232,6 +236,17 @@ function openForward() {
   uiStore.writerRef.openForward(email.value)
 }
 
+async function handleArchive() {
+  try {
+    await mailboxMove([email.value.emailId], 'archive')
+    window.dispatchEvent(new Event('mailbox:updated'))
+    handleBack()
+  } catch (error) {
+    console.error('Could not archive message:', error)
+    ElMessage({message: error.message || 'Could not archive the message.', type: 'error', plain: true})
+  }
+}
+
 function toMessage(message) {
   return  message ? JSON.parse(message).message : '';
 }
@@ -287,7 +302,11 @@ function changeStar() {
 }
 
 const handleBack = () => {
-  router.back()
+  if (props.embedded) {
+    emit('close')
+  } else {
+    router.back()
+  }
 }
 
 const handleDelete = () => {
@@ -317,7 +336,7 @@ const handleDelete = () => {
       })
     }
 
-    router.back()
+    handleBack()
   })
 }
 </script>
@@ -325,14 +344,17 @@ const handleDelete = () => {
 .box {
   height: 100%;
   overflow: hidden;
+  background: var(--el-bg-color);
 }
 
 .header-actions {
-  padding: 9px 15px 9px;
+  min-height: 48px;
+  padding: 7px 14px;
   display: flex;
   align-items: center;
-  gap: 20px;
-  box-shadow: var(--header-actions-border);
+  gap: 8px;
+  border-bottom: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
   font-size: 18px;
   .star {
     display: flex;
@@ -342,6 +364,15 @@ const handleDelete = () => {
   }
   .icon {
     cursor: pointer;
+    color: var(--el-text-color-secondary);
+    padding: 7px;
+    border-radius: 6px;
+    transition: color .15s ease, background-color .15s ease;
+  }
+
+  .icon:hover {
+    background: var(--el-fill-color-light);
+    color: var(--el-text-color-primary);
   }
 }
 
@@ -362,9 +393,11 @@ const handleDelete = () => {
   }
 
   .email-title {
-    font-size: 20px;
-    font-weight: bold;
-    margin-bottom: 10px;
+    margin-bottom: 18px;
+    color: var(--el-text-color-primary);
+    font-size: 21px;
+    font-weight: 650;
+    letter-spacing: -.025em;
   }
 
   .htm-scrollbar {
@@ -378,9 +411,9 @@ const handleDelete = () => {
       margin-top: 30px;
       margin-bottom: 30px;
       border: 1px solid var(--light-border-color);
-      padding: 14px;
-      border-radius: 6px;
-      width: fit-content;
+      padding: 13px;
+      border-radius: 8px;
+      width: min(100%, 620px);
       .att-box {
         min-width: min(410px,calc(100vw - 60px));
         max-width: 600px;
@@ -405,7 +438,8 @@ const handleDelete = () => {
         }
         background: var(--light-ill);
         padding: 5px 7px;
-        border-radius: 4px;
+        border: 1px solid var(--el-border-color);
+        border-radius: 6px;
         align-self: start;
         display: grid;
         grid-template-columns: auto 1fr auto auto;
@@ -450,7 +484,7 @@ const handleDelete = () => {
 
     .email-info {
 
-      border-bottom: 1px solid var(--light-border-color);
+      border-bottom: 1px solid var(--el-border-color);
       margin-bottom: 20px;
       padding-bottom: 8px;
       @media (max-width: 1024px) {

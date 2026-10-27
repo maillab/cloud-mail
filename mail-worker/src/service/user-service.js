@@ -20,6 +20,7 @@ import {oauth} from "../entity/oauth";
 import oauthService from "./oauth-service";
 import settingService from './setting-service';
 import starService from './star-service';
+import signatureService from './signature-service';
 
 const userService = {
 
@@ -36,6 +37,10 @@ const userService = {
 			roleService.selectById(c, userRow.type),
 			userRow.email === c.env.admin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
 		]);
+		if (account) {
+			account.signatureImageUrl = signatureService.imageUrl(c.req.url, account.signatureImageKey);
+			delete account.signatureImageKey;
+		}
 
 		const user = {};
 		user.userId = userRow.userId;
@@ -46,6 +51,9 @@ const userService = {
 		user.permKeys = permKeys;
 		user.role = roleRow;
 		user.type = userRow.type;
+		user.signature_image_url = signatureService.imageUrl(c.req.url, userRow.signatureImageKey);
+		user.signature_text = userRow.signatureText || '';
+		user.signature = userRow.signature || '';
 
 		if (c.env.admin === userRow.email) {
 			user.role = constant.ADMIN_ROLE
@@ -65,6 +73,46 @@ const userService = {
 		}
 		const { salt, hash } = await cryptoUtils.hashPassword(password);
 		await orm(c).update(user).set({ password: hash, salt: salt }).where(eq(user.userId, userId)).run();
+	},
+
+	async updateSignature(c, params, userId) {
+		const userRow = await this.selectById(c, userId);
+		if (!userRow) {
+			throw new BizError(t('authExpired'), 401);
+		}
+
+		const signatureText = params.signatureText === undefined
+			? userRow.signatureText || ''
+			: signatureService.normalizeText(params.signatureText);
+		const signature = params.signature === undefined
+			? userRow.signature || ''
+			: signatureService.normalizeHtml(params.signature);
+		const previousKey = userRow.signatureImageKey;
+		let signatureImageKey = previousKey;
+		let uploadedKey = null;
+
+		if (params.signatureImageData) {
+			uploadedKey = await signatureService.saveImage(c, userId, params.signatureImageData);
+			signatureImageKey = uploadedKey;
+		} else if (params.removeSignatureImage === true) {
+			signatureImageKey = null;
+		}
+
+		try {
+			await orm(c).update(user).set({ signatureImageKey, signatureText, signature })
+				.where(eq(user.userId, userId)).run();
+		} catch (error) {
+			if (uploadedKey) {
+				await signatureService.deleteImage(c, uploadedKey);
+			}
+			throw error;
+		}
+
+		if (previousKey && previousKey !== signatureImageKey) {
+			await signatureService.deleteImage(c, previousKey);
+		}
+
+		return this.loginUserInfo(c, userId);
 	},
 
 	selectByEmail(c, email) {
@@ -175,6 +223,11 @@ const userService = {
 		}
 
 		const list = await query.limit(size).offset(num);
+		for (const user of list) {
+			delete user.signatureImageKey;
+			delete user.signatureText;
+			delete user.signature;
+		}
 
 		const { total } = await orm(c)
 			.select({ total: count() })
@@ -324,6 +377,8 @@ const userService = {
 	async add(c, params) {
 
 		let { email, type, password } = params;
+		const signatureText = signatureService.normalizeText(params.signatureText);
+		const signature = signatureService.normalizeHtml(params.signature);
 
 		if (!c.env.domain.includes(emailUtils.getDomain(email))) {
 			throw new BizError(t('notEmailDomain'));
@@ -357,11 +412,26 @@ const userService = {
 
 		const { salt, hash } = await saltHashUtils.hashPassword(password);
 
-		const userId = await userService.insert(c, { email, password: hash, salt, type });
-
-		await userService.updateUserInfo(c, userId, true);
-
-		await accountService.insert(c, { userId: userId, email, type, name: emailUtils.getName(email) });
+		const userId = await userService.insert(c, { email, password: hash, salt, type, signatureText, signature });
+		let signatureImageKey = null;
+		try {
+			if (params.signatureImageData) {
+				signatureImageKey = await signatureService.saveImage(c, userId, params.signatureImageData);
+				await orm(c).update(user).set({ signatureImageKey }).where(eq(user.userId, userId)).run();
+			}
+			await userService.updateUserInfo(c, userId, true);
+			await accountService.insert(c, { userId, email, type, name: emailUtils.getName(email) });
+		} catch (error) {
+			try {
+				if (signatureImageKey) {
+					await signatureService.deleteImage(c, signatureImageKey);
+				}
+				await userService.physicsDelete(c, { userIds: String(userId) });
+			} catch (cleanupError) {
+				console.error('Failed to roll back user creation:', cleanupError);
+			}
+			throw error;
+		}
 	},
 
 	async resetDaySendCount(c) {
