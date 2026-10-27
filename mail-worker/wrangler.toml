@@ -40,6 +40,9 @@ crons = ["0 * * * *"]
 domain = [
   "mailcat.co.za",
   "fortunetellers.co.za",
+  "idealaunch.co.za",
+  "genexome.xyz",
+  "genexome.com",
   "koolooma.co.za"
 ]
 
