@@ -254,6 +254,44 @@ const accountService = {
 		return { list, total }
 	},
 
+	async searchAllAccounts(c, params = {}) {
+		const curUser = c.get('user');
+		if (!curUser || curUser.email !== c.env.admin) {
+			throw new BizError(t('unauthorized'), 403);
+		}
+
+		let { email, size = 20 } = params;
+
+		size = Number(size);
+		if (Number.isNaN(size) || size <= 0) {
+			size = 20;
+		}
+		if (size > 50) {
+			size = 50;
+		}
+
+		email = (email || '').trim();
+
+		const conditions = [eq(account.isDel, isDel.NORMAL)];
+
+		if (email) {
+			conditions.push(sql`${account.email} COLLATE NOCASE LIKE ${`%${email}%`}`);
+		}
+
+		return orm(c)
+			.select({
+				accountId: account.accountId,
+				email: account.email,
+				name: account.name,
+				userId: account.userId,
+			})
+			.from(account)
+			.where(and(...conditions))
+			.orderBy(desc(account.accountId))
+			.limit(size)
+			.all();
+	},
+
 	async physicsDelete(c, params) {
 		const { accountId } = params
 		await emailService.physicsDeleteByAccountId(c, accountId)

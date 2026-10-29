@@ -7,8 +7,29 @@
             <Icon icon="hugeicons:quill-write-01" width="28" height="28"/>
           </span>
           <span class="sender">{{ $t('sender') }}:</span>
-          <span class="sender-name">{{ form.name }}</span>
-          <span class="send-email"><{{ form.sendEmail }}></span>
+          <template v-if="isAdmin">
+            <el-select
+              v-model="form.accountId"
+              class="sender-select-admin"
+              filterable
+              remote
+              :remote-method="searchSenderAccounts"
+              :loading="senderSearchLoading"
+              :placeholder="$t('selectEmail')"
+              @change="onSenderAccountChange"
+            >
+              <el-option
+                v-for="item in senderAccountList"
+                :key="item.accountId"
+                :label="item.name ? `${item.name} <${item.email}>` : item.email"
+                :value="item.accountId"
+              />
+            </el-select>
+          </template>
+          <template v-else>
+            <span class="sender-name">{{ form.name }}</span>
+            <span class="send-email"><{{ form.sendEmail }}></span>
+          </template>
         </div>
         <div @click="close" style="cursor: pointer;">
           <Icon icon="material-symbols-light:close-rounded" width="22" height="22"/>
@@ -124,6 +145,8 @@ import dayjs from "dayjs";
 import {useI18n} from "vue-i18n";
 import router from "@/router/index.js";
 import {ElMessageBox} from "element-plus";
+import {hasPerm} from "@/perm/perm.js";
+import {allEmailAccountList} from "@/request/all-email.js";
 
 defineExpose({
   open,
@@ -171,6 +194,9 @@ const form = reactive({
 })
 
 const selectRecipientList = ref([])
+const isAdmin = computed(() => hasPerm('*'))
+const senderAccountList = ref([])
+const senderSearchLoading = ref(false)
 
 const contacts = computed(() => writerStore.sendRecipientRecord.map(item => ({email: item})))
 const separateSendLabel = computed(() => t(form.sendType === 'forward' ? 'separateForward' : 'separateSend'))
@@ -183,6 +209,36 @@ const sendButtonLabel = computed(() => {
 
 function selectSendMode(mode) {
   form.manyType = mode
+}
+
+function setSenderAccount(accountRow) {
+  if (!accountRow) {
+    return;
+  }
+  form.sendEmail = accountRow.email;
+  form.accountId = accountRow.accountId;
+  form.name = accountRow.name || accountRow.email.split('@')[0];
+}
+
+async function searchSenderAccounts(query = '') {
+  if (!isAdmin.value) {
+    return;
+  }
+  senderSearchLoading.value = true
+  try {
+    const list = await allEmailAccountList(query);
+    senderAccountList.value = Array.isArray(list) ? list : [];
+  } finally {
+    senderSearchLoading.value = false
+  }
+}
+
+function onSenderAccountChange(accountId) {
+  const accountRow = senderAccountList.value.find(item => item.accountId === accountId);
+  if (!accountRow) {
+    return;
+  }
+  setSenderAccount(accountRow);
 }
 
 function openContacts() {
@@ -539,12 +595,43 @@ function open() {
     form.accountId = accountStore.currentAccount.accountId;
     form.name = accountStore.currentAccount.name;
   }
+
+  if (isAdmin.value) {
+    if (senderAccountList.value.length === 0) {
+      searchSenderAccounts('');
+    }
+
+    const hasCurrent = senderAccountList.value.some(item => String(item.accountId) === String(form.accountId));
+    if (!hasCurrent) {
+      senderAccountList.value.unshift({
+        accountId: form.accountId,
+        email: form.sendEmail,
+        name: form.name,
+      });
+    }
+  }
+
   show.value = true;
   editor.value.focus()
 }
 
 function openDraft(draft) {
   Object.assign(form, {...draft, manyType: draft.manyType || 'together'})
+
+  if (isAdmin.value) {
+    if (senderAccountList.value.length === 0) {
+      searchSenderAccounts('');
+    }
+    const hasCurrent = senderAccountList.value.some(item => String(item.accountId) === String(form.accountId));
+    if (!hasCurrent && form.accountId) {
+      senderAccountList.value.unshift({
+        accountId: form.accountId,
+        email: form.sendEmail,
+        name: form.name,
+      });
+    }
+  }
+
   defValue.value = ''
   setTimeout(() => defValue.value = form.content)
   show.value = true;
@@ -694,6 +781,11 @@ function close() {
       .sender-name {
         margin-left: 8px;
         font-weight: bold;
+      }
+
+      .sender-select-admin {
+        margin-left: 8px;
+        width: min(430px, calc(100vw - 250px));
       }
 
       .send-email {

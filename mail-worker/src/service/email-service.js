@@ -398,7 +398,9 @@ const emailService = {
 			throw new BizError(t('senderAccountNotExist'));
 		}
 
-		if (accountRow.userId !== userId) {
+		const isAdmin = c.env.admin === userRow.email;
+
+		if (!isAdmin && accountRow.userId !== userId) {
 			throw new BizError(t('sendEmailNotCurUser'));
 		}
 

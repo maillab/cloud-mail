@@ -288,7 +288,7 @@ function jumpContent(email) {
   emailStore.contentData.email = emailStore.toContentEmail(email)
   emailStore.contentData.delType = 'physics'
   emailStore.contentData.showStar = false
-  emailStore.contentData.showReply = false
+  emailStore.contentData.showReply = true
   router.push({name: 'content', params: {mailbox: 'all-mail'}})
 }
 
