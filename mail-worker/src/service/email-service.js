@@ -483,14 +483,19 @@ if (!allInternal && !useAliyunSMTP && !useCloudflareEmail && !resendToken) {
 		};
 
 		// 全部站内收件人走本地投递；存在站外收件人时优先 CF，其次 Resend。
+		
 		let deliveries;
+
 		if (allInternal) {
-			deliveries = this.sendInternal(c, context);
+    		deliveries = this.sendInternal(c, context);
+		} else if (useAliyunSMTP) {
+    		deliveries = this.sendAliyun(c, context);
 		} else if (useCloudflareEmail) {
-			deliveries = this.sendCloudflare(c, context);
+    	deliveries = this.sendCloudflare(c, context);
 		} else {
-			deliveries = this.sendResend(c, context);
+    		deliveries = this.sendResend(c, context);
 		}
+
 
 		const emailResults = [];
 		let sendError = '';
