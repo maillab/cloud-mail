@@ -415,10 +415,20 @@ const emailService = {
 		const resendToken = resendTokens[domain];
 		const useCloudflareEmail = !!c.env.email;
 
-		//如果接收方存在站外邮箱，又没有发信服务
-		if (!useCloudflareEmail && !resendToken && !allInternal) {
-			throw new BizError(t('noSendProvider'));
-		}
+		// 第一阶段只允许管理员邮箱使用阿里云发件
+		const useAliyunSMTP = Boolean(
+    	accountRow.email.toLowerCase() === String(c.env.admin || '').toLowerCase() &&
+    	c.env.ALIYUN_SMTP_HOST &&
+    	c.env.ALIYUN_SMTP_PORT &&
+    	c.env.ALIYUN_SMTP_USER &&
+    	c.env.ALIYUN_SMTP_PASSWORD &&
+    	c.env.ALIYUN_REPLY_TO
+		);
+
+// 检查外部发信服务
+if (!allInternal && !useAliyunSMTP && !useCloudflareEmail && !resendToken) {
+    throw new BizError(t('noSendProvider'));
+}
 
 		//没有发件人名字自动截取
 		if (!name) {
