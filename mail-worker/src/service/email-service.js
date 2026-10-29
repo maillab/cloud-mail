@@ -562,42 +562,43 @@ if (!allInternal && !useAliyunSMTP && !useCloudflareEmail && !resendToken) {
 	},
 
 	// Resend 分开发送一次最多提交 100 封独立邮件，普通发送仍调用单封接口。
-	async *sendResend(c, { separate, resendToken, sendParams, saveParams }) {
-		if (separate && sendParams.receiveEmail.length > 100) {
-			throw new BizError(t('resendRecipientLimit'));
-		}
-		// 批量接口不支持附件，包含正文转换得到的内嵌附件。
-		if (separate && sendParams.attachments.length > 0) {
-			throw new BizError(t('resendSeparateAttachments'));
-		}
-		let result;
-		try {
-			result = separate
-				? await this.sendBatchByResend(resendToken, sendParams)
-				: await this.sendByResend(resendToken, sendParams);
-		} catch (error) {
-			if (!separate) throw error;
-			yield { error: { message: error.message } };
-			return;
-		}
-		if (result.error) {
-			yield { error: result.error };
-			return;
-		}
-		// 严格校验模式下，批量返回的邮件 ID 按提交顺序对应各收件人。
-		const items = separate
-			? sendParams.receiveEmail.map((address, index) => ({
-				receiveEmail: [address], id: result.data.data[index].id
-			}))
-			: [{ receiveEmail: sendParams.receiveEmail, id: result.data?.id }];
-		const emails = [];
-		for (const item of items) {
-			emails.push(await this.saveSentEmail(c, {
-				...saveParams, receiveEmail: item.receiveEmail, providerId: item.id
-			}));
-		}
-		yield { emails };
-	},
+	
+    // 阿里云 SMTP 外部发件
+    async *sendAliyun(c, { separate, sendParams, saveParams }) {
+        const recipientGroups = separate
+            ? sendParams.receiveEmail.map(address => [address])
+            : [sendParams.receiveEmail];
+
+        for (const receiveEmail of recipientGroups) {
+            let result;
+
+            try {
+                result = await sendAliyunSmtp(c.env, {
+                    ...sendParams,
+                    receiveEmail
+                });
+            } catch (error) {
+                if (!separate) throw error;
+
+                yield {
+                    error: {
+                        message: error?.message || 'Aliyun SMTP send failed'
+                    }
+                };
+                return;
+            }
+
+            const emailResult = await this.saveSentEmail(c, {
+                ...saveParams,
+                receiveEmail,
+                providerId: result.id,
+                useCloudflareEmail: false
+            });
+
+            yield { emails: [emailResult] };
+        }
+    },
+
 
 	// 三个渠道共用的发件记录保存：恢复正文图片 URL、保存附件并更新发送计数。
 	async saveSentEmail(c, params) {
