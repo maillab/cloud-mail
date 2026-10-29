@@ -143,11 +143,20 @@ class SmtpConnection {
     return this.reply([250]);
   }
   async close() {
-    try { await this.command('QUIT', [221, 250]); } catch { /* best effort */ }
-    try { this.reader.releaseLock(); } catch { /* best effort */ }
-    try { this.writer.releaseLock(); } catch { /* best effort */ }
-    try { this.socket.close(); } catch { /* best effort */ }
-  }
+  	try {
+    	await this.socket.close();
+ 	 } catch {
+   	 // Connection may already be closed.
+ 	 }
+
+  	try {
+    	this.reader.releaseLock();
+  	} catch {}
+
+  	try {
+    	this.writer.releaseLock();
+  	} catch {}
+	}
 }
 
 export async function sendAliyunSmtp(env, params) {
