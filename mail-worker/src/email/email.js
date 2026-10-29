@@ -82,18 +82,26 @@ export async function email(message, env, ctx) {
 			 userRow = await userService.selectByIdIncludeDel({ env: env }, account.userId);
 		}
 
-		if (account && userRow.email !== env.admin) {
+		if (account && userRow && userRow.email !== env.admin) {
 
-			let { banEmail, availDomain } = await roleService.selectByUserId({ env: env }, account.userId);
+			const roleRow = await roleService.selectByUserId({ env: env }, account.userId);
 
-			if (!roleService.hasAvailDomainPerm(availDomain, message.to)) {
-				message.setReject('The recipient is not authorized to use this domain.');
-				return;
-			}
+			if (roleRow) {
+				const { banEmail, availDomain } = roleRow;
 
-			if(roleService.isBanEmail(banEmail, email.from.address)) {
-				message.setReject('The recipient is disabled from receiving emails.');
-				return;
+				// availDomain only restricts additional accounts, not the primary account.
+				const isPrimaryAccount = userRow.email &&
+					userRow.email.toLowerCase() === message.to.toLowerCase();
+
+				if (!isPrimaryAccount && !roleService.hasAvailDomainPerm(availDomain, message.to)) {
+					message.setReject('The recipient is not authorized to use this domain.');
+					return;
+				}
+
+				if (roleService.isBanEmail(banEmail, email.from.address)) {
+					message.setReject('The recipient is disabled from receiving emails.');
+					return;
+				}
 			}
 
 		}
