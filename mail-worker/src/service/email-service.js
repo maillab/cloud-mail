@@ -23,6 +23,7 @@ import domainUtils from '../utils/domain-uitls';
 import account from "../entity/account";
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
+import pgpService from './pgp-service';
 import webhookService from './webhook-service';
 import forwardMime from '../utils/forward-mime';
 
@@ -45,14 +46,17 @@ const emailService = {
 		} = params;
 
 		size = Number(size);
-		type = Number(type);
+		// type='delete' 是字符串，不要转 Number
+		if (type !== 'delete') {
+			type = Number(type);
+		}
 		emailId = Number(emailId) || 0;
 		timeSort = Number(timeSort);
 		accountId = Number(accountId);
 		allReceive = Number(allReceive);
 		full = Number(full);
 
-		if (isNaN(type)) {
+		if (type !== 'delete' && isNaN(type)) {
 			type = 0;
 		}
 
@@ -203,12 +207,15 @@ const emailService = {
 		startDate,
 		endDate,
 	}) {
+		const isDelete = type === 'delete';
 		const conditions = [
 			eq(email.userId, userId),
-			eq(email.type, type),
-			eq(email.isDel, isDel.NORMAL),
+			eq(email.isDel, isDelete ? isDel.DELETE : isDel.NORMAL),
 			eq(account.isDel, isDel.NORMAL),
 		];
+		if (!isDelete) {
+			conditions.push(eq(email.type, type));
+		}
 		if (!allReceive) {
 			conditions.push(eq(email.accountId, accountId));
 		}
@@ -306,24 +313,35 @@ const emailService = {
 	async delete(c, params, userId) {
 		const { emailIds } = params;
 		const emailIdList = emailIds.split(',').map(Number);
-		const { syncDelete } = await settingService.query(c);
 
-		if (syncDelete === settingConst.syncDelete.OPEN) {
-			const owned = await orm(c).select({ emailId: email.emailId }).from(email)
-				.where(and(eq(email.userId, userId), inArray(email.emailId, emailIdList)))
-				.all();
-			const ownedIds = owned.map(row => row.emailId);
-			if (ownedIds.length) {
-				await this.physicsDelete(c, { emailIds: ownedIds.join(',') });
-			}
-			return;
-		}
-
+		// 删除一律先进回收站（isDel=DELETE），彻底删除走 /email/permanent
 		await orm(c).update(email).set({ isDel: isDel.DELETE }).where(
 			and(
 				eq(email.userId, userId),
 				inArray(email.emailId, emailIdList)))
 			.run();
+	},
+
+	async restore(c, params, userId) {
+		const { emailIds } = params;
+		const emailIdList = Array.isArray(emailIds) ? emailIds.map(Number) : String(emailIds).split(',').map(Number);
+		await orm(c).update(email).set({ isDel: isDel.NORMAL }).where(
+			and(
+				eq(email.userId, userId),
+				inArray(email.emailId, emailIdList)))
+			.run();
+	},
+
+	async permanentDelete(c, params, userId) {
+		const { emailIds } = params;
+		const emailIdList = emailIds.split(',').map(Number);
+		const owned = await orm(c).select({ emailId: email.emailId }).from(email)
+			.where(and(eq(email.userId, userId), inArray(email.emailId, emailIdList)))
+			.all();
+		const ownedIds = owned.map(row => row.emailId);
+		if (ownedIds.length) {
+			await this.physicsDelete(c, { emailIds: ownedIds.join(',') });
+		}
 	},
 
 	receive(c, params, cidAttList, r2domain) {
@@ -339,9 +357,12 @@ const emailService = {
 			sendType, //发件类型
 			emailId, //邮件id，如果是回复邮件会带
 			receiveEmail, //收件人邮箱
+			ccEmail = [], //抄送邮箱
+			bccEmail = [], //密送邮箱
 			text, //邮件纯文本
 			content, //邮件内容
 			subject, //邮件标题
+			pgpEncrypt, //是否 PGP 加密
 			attachments = [] //附件
 		} = params;
 
@@ -358,7 +379,8 @@ const emailService = {
 		const roleRow = await roleService.selectById(c, userRow.type);
 
 		//判断接收方是不是全部为站内邮箱
-		const allInternal = receiveEmail.every(email => {
+		const allRecipients = [...receiveEmail, ...ccEmail, ...bccEmail];
+		const allInternal = allRecipients.every(email => {
 			const domain = '@' + emailUtils.getDomain(email);
 			return domainList.includes(domain);
 		});
@@ -385,7 +407,7 @@ const emailService = {
 				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLimit'), 403);
 			}
 
-			if (userRow.sendCount + receiveEmail.length > roleRow.sendCount) {
+			if (userRow.sendCount + allRecipients.length > roleRow.sendCount) {
 				if (roleRow.sendType === 'day') throw new BizError(t('daySendLack'), 403);
 				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLack'), 403);
 			}
@@ -451,6 +473,17 @@ const emailService = {
 			messageId: emailRow.messageId
 		};
 
+		// PGP 加密（站内站外都生效；站内收件人看到的也是密文，需用私钥解密）
+		if (pgpEncrypt) {
+			const plainText = text || pgpService.htmlToText(html);
+			const pgpResult = await pgpService.encryptOutgoing(c, allRecipients, plainText, sendParams.attachments);
+			sendParams.text = pgpResult.text;
+			sendParams.html = undefined;
+			sendParams.attachments = pgpResult.attachments;
+		}
+		sendParams.ccEmail = ccEmail;
+		sendParams.bccEmail = bccEmail;
+
 		if (imageDataList.length > 10) {
 			throw new BizError(t('imageAttLimit'));
 		}
@@ -458,16 +491,22 @@ const emailService = {
 			throw new BizError(t('attLimit'));
 		}
 
+		// 保存记录：PGP 加密时存密文，否则存原文。
+		// 注意：PGP 时 saveHtml 为 undefined，saveSentEmail 里的 imgReplace 会返回 ''，
+		// 与 fork 原行为（content 为空、text 存密文）一致。
+		const saveText = (pgpEncrypt && sendParams.text !== text) ? sendParams.text : text;
+		const saveHtml = (pgpEncrypt && sendParams.html !== html) ? sendParams.html : html;
+
 		const separate = params.manyType === 'divide';
 		// sendParams 用于渠道请求，saveParams 保留保存记录所需的账号、权限和附件数据。
 		const context = {
 			separate, allInternal, useCloudflareEmail, resendToken, sendParams,
 			saveParams: {
-				accountId, userId, name, subject, text, html,
+				accountId, userId, name, subject, text: saveText, html: saveHtml,
 				sendEmail: accountRow.email,
 				messageId: emailRow.messageId,
 				sendType, useCloudflareEmail, roleRow, r2Domain,
-				imageDataList, attachments
+				imageDataList, attachments, ccEmail, bccEmail, separate
 			}
 		};
 
@@ -588,7 +627,7 @@ const emailService = {
 		const {
 			accountId, userId, name, subject, text, html, sendEmail, receiveEmail,
 			providerId, messageId, sendType, useCloudflareEmail,
-			roleRow, r2Domain, attachments
+			roleRow, r2Domain, attachments, ccEmail = [], bccEmail = [], separate = false
 		} = params;
 		const imageDataList = params.imageDataList.map(item => ({
 			...item, contentId: `<${item.contentId.replace(/^<|>$/g, '')}>`
@@ -599,14 +638,20 @@ const emailService = {
 			status: useCloudflareEmail ? emailConst.status.DELIVERED : emailConst.status.SENT,
 			type: emailConst.type.SEND,
 			resendEmailId: providerId,
-			recipient: JSON.stringify(receiveEmail.map(address => ({ address, name: '' })))
+			recipient: JSON.stringify(receiveEmail.map(address => ({ address, name: '' }))),
+			cc: JSON.stringify(ccEmail),
+			bcc: JSON.stringify(bccEmail)
 		};
 		if (sendType === 'reply') {
 			emailData.inReplyTo = messageId;
 			emailData.relation = messageId;
 		}
 		if (roleRow.sendCount && roleRow.sendType !== 'internal') {
-			await userService.incrUserSendCount(c, receiveEmail.length, userId);
+			// 分开发送每组单独计数（仅收件人）；合并发送按全部收件人（含抄送/密送）计数
+			const increment = separate
+				? receiveEmail.length
+				: receiveEmail.length + ccEmail.length + bccEmail.length;
+			await userService.incrUserSendCount(c, increment, userId);
 		}
 
 		const emailResult = await orm(c).insert(email).values(emailData).returning().get();
@@ -663,6 +708,14 @@ const emailService = {
 			subject: params.subject
 		};
 
+		if (params.ccEmail?.length > 0) {
+			sendForm.cc = [...params.ccEmail];
+		}
+
+		if (params.bccEmail?.length > 0) {
+			sendForm.bcc = [...params.bccEmail];
+		}
+
 		if (params.text) {
 			sendForm.text = params.text;
 		}
@@ -703,6 +756,14 @@ const emailService = {
 			html: params.html,
 			attachments: await this.toResendAttachments(params.attachments)
 		};
+
+		if (params.ccEmail?.length > 0) {
+			sendForm.cc = [...params.ccEmail];
+		}
+
+		if (params.bccEmail?.length > 0) {
+			sendForm.bcc = [...params.bccEmail];
+		}
 
 		if (params.sendType === 'reply') {
 			sendForm.headers = {

@@ -6,6 +6,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
+import DOMPurify from 'dompurify'
 
 const props = defineProps({
   html: {
@@ -18,16 +19,57 @@ const container = ref(null)
 const contentBox = ref(null)
 let shadowRoot = null
 
+/**
+ * 邮件正文清洗配置。
+ * 威胁模型：邮件正文由发件人完全控制，而渲染它的页面持有用户 token。
+ * 不清洗时 <img onerror> / <svg onload> 会在 Shadow DOM 内执行，
+ * 等同"来一封邮件就能盗号"。
+ *
+ * 保留 <style>：邮件普遍依赖它做排版，剥掉会大面积错版；
+ * 代价是保留了一点 CSS 注入面，因此在下面额外中和 :host 选择器与 @import。
+ */
+const PURIFY_CONFIG = {
+  ADD_TAGS: ['style', 'center', 'font'],
+  ADD_ATTR: ['target', 'bgcolor', 'background', 'align', 'valign', 'border', 'cellpadding', 'cellspacing'],
+  FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'base', 'meta', 'link', 'frame', 'frameset', 'input', 'button', 'textarea', 'select', 'option'],
+  FORBID_ATTR: ['srcdoc', 'formaction', 'xlink:href'],
+  ALLOW_DATA_ATTR: false,
+  ALLOW_UNKNOWN_PROTOCOLS: false,
+  // 返回完整文档：典型邮件把 <style> 放在 <head> 里，默认只取 body 会丢样式
+  WHOLE_DOCUMENT: true
+}
+
+// 中和 <style> 块内能影响宿主页面的写法：:host 可选中影子宿主做 UI 伪装，@import 可外联
+function neutralizeStyleBlocks(html) {
+  return html.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (m, css) => {
+    const safe = css
+      .replace(/:host\b/gi, ':host-neutralized')
+      .replace(/@import[^;]+;/gi, '')
+    return `<style>${safe}</style>`
+  })
+}
+
+// 清洗从 <body style="..."> 提取出的样式：正则 [^"]* 保证无引号，
+// 再去掉 </style 即可确保拼进 <style> 模板时无法逃逸
+function sanitizeBodyStyle(style) {
+  return (style || '')
+    .replace(/<\/style/gi, '')
+    .replace(/@import/gi, '')
+}
+
 function updateContent() {
   if (!shadowRoot) return;
 
-  // 1. 提取 <body> 的 style 属性（如果存在）
+  // 1. 提取 <body> 的 style 属性（先提取，DOMPurify 会丢掉 <body> 标签本身）
   const bodyStyleRegex = /<body[^>]*style="([^"]*)"[^>]*>/i;
   const bodyStyleMatch = props.html.match(bodyStyleRegex);
-  const bodyStyle = bodyStyleMatch ? bodyStyleMatch[1] : '';
+  const bodyStyle = sanitizeBodyStyle(bodyStyleMatch ? bodyStyleMatch[1] : '');
 
-  // 2. 移除 <body> 标签（保留内容）
-  const cleanedHtml = props.html.replace(/<\/?body[^>]*>/gi, '');
+  // 2. DOMPurify 清洗正文：去掉事件处理器、javascript: 等可执行内容
+  //    注意从清洗后的结果里提 body style（WHOLE_DOCUMENT 模式保留 <body> 标签）
+  const sanitized = DOMPurify.sanitize(props.html, PURIFY_CONFIG);
+  const cleanedHtml = neutralizeStyleBlocks(sanitized)
+    .replace(/<\/?(html|head|body)[^>]*>/gi, '');
 
   // 3. 将 body 的 style 应用到 .shadow-content
   shadowRoot.innerHTML = `

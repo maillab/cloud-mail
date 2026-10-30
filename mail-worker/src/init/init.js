@@ -33,57 +33,119 @@ const dbInit = {
 		await this.v3_2DB(c);
 		await this.v3_3DB(c);
 		await this.v3_4DB(c);
+		await this.v3_5DB(c);
+		await this.v3_6DB(c);
+		await this.v3_7DB(c);
+		await this.v3_8DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
 
+	// 自愈式加字段：逐条执行，单条失败（字段已存在等）不影响其他字段，
+	// 重复执行 /init 可补齐之前因 batch 原子回滚而缺失的字段
+	async addColumns(c, columns) {		for (const [table, column, ddl] of columns) {
+			try {
+				await c.env.db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl};`).run();
+			} catch (e) {
+				console.warn(`跳过字段：${e.message}`);
+			}
+		}
+	},
+
+	async v3_8DB(c) {
+		// 合并上游 v3.4.0：email.sender_email（收件代发地址展示用）。
+		// 注意：上游把这个字段放在 v3_4DB，但 fork 的 v3_4DB 已是 passkey 表，
+		// 故改号为 v3_8DB，避免覆盖。
+		await this.addColumns(c, [
+			['email', 'sender_email', `TEXT NOT NULL DEFAULT ''`],
+		]);
+	},
+
+	async v3_6DB(c) {
+		// 抄送 / 密送：存 JSON 数组
+		await this.addColumns(c, [
+			['email', 'cc', `TEXT NOT NULL DEFAULT '[]'`],
+			['email', 'bcc', `TEXT NOT NULL DEFAULT '[]'`],
+		]);
+	},
+
+	async v3_7DB(c) {
+		// 用户头像：base64 data URL
+		await this.addColumns(c, [
+			['user', 'avatar', `TEXT NOT NULL DEFAULT ''`],
+		]);
+	},
+
+	async v3_5DB(c) {
+		// TOTP 两步验证：secret 经 AES 加密存储，恢复码存 SHA-256 哈希 JSON
+		await this.addColumns(c, [
+			['user', 'totp_secret', `TEXT NOT NULL DEFAULT ''`],
+			['user', 'totp_enabled', `INTEGER NOT NULL DEFAULT 0`],
+			['user', 'totp_recovery', `TEXT NOT NULL DEFAULT ''`],
+		]);
+	},
+
 	async v3_4DB(c) {
 		try {
-			await c.env.db.prepare(`ALTER TABLE email ADD COLUMN sender_email TEXT NOT NULL DEFAULT '';`).run();
+			await c.env.db.prepare(`
+				CREATE TABLE IF NOT EXISTS passkey (
+					passkey_id INTEGER PRIMARY KEY AUTOINCREMENT,
+					user_id INTEGER NOT NULL,
+					credential_id TEXT NOT NULL UNIQUE,
+					public_key TEXT NOT NULL,
+					counter INTEGER NOT NULL DEFAULT 0,
+					transports TEXT DEFAULT '[]',
+					name TEXT DEFAULT '',
+					create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+					last_used_time DATETIME,
+					is_del INTEGER NOT NULL DEFAULT 0
+				)
+			`).run();
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
+
+		try {
+			await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_passkey_user_id ON passkey(user_id)`).run();
 		} catch (e) {
 			console.warn(`跳过字段：${e.message}`);
 		}
 	},
 
 	async v3_3DB(c) {
+		await this.addColumns(c, [
+			['setting', 'auto_clean_days', `INTEGER NOT NULL DEFAULT 0`],
+			['setting', 'auto_clean_exclude', `TEXT NOT NULL DEFAULT ''`],
+		]);
 		try {
 			await c.env.db.batch([
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN auto_clean_days INTEGER NOT NULL DEFAULT 0;`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN auto_clean_exclude TEXT NOT NULL DEFAULT '';`),
 				c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_create_time ON email(create_time)`)
 			]);
 		} catch (e) {
-			console.warn(`跳过字段：${e.message}`);
+			console.warn(`跳过索引：${e.message}`);
 		}
 
-		try {
-			await c.env.db.batch([
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN webhook_url TEXT NOT NULL DEFAULT '';`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN webhook_status INTEGER NOT NULL DEFAULT 1;`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN webhook_retry INTEGER NOT NULL DEFAULT 0;`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN webhook_secret TEXT NOT NULL DEFAULT '';`)
-			]);
-		} catch (e) {
-			console.warn(`跳过字段：${e.message}`);
-		}
+		await this.addColumns(c, [
+			['setting', 'webhook_url', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'webhook_status', `INTEGER NOT NULL DEFAULT 1`],
+			['setting', 'webhook_retry', `INTEGER NOT NULL DEFAULT 0`],
+			['setting', 'webhook_secret', `TEXT NOT NULL DEFAULT ''`],
+		]);
 	},
 
 	async v3_2DB(c) {
-		try {
-			await c.env.db.batch([
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN linuxdo_client_id TEXT NOT NULL DEFAULT '';`),
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN linuxdo_client_secret TEXT NOT NULL DEFAULT '';`),
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN github_client_id TEXT NOT NULL DEFAULT '';`),
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN github_client_secret TEXT NOT NULL DEFAULT '';`),
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN google_client_id TEXT NOT NULL DEFAULT '';`),
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN google_client_secret TEXT NOT NULL DEFAULT '';`),
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN linuxdo_switch INTEGER NOT NULL DEFAULT 1;`),
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN github_switch INTEGER NOT NULL DEFAULT 1;`),
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN google_switch INTEGER NOT NULL DEFAULT 1;`)
-			]);
-		} catch (e) {
-			console.warn(`跳过字段：${e.message}`);
-		}
+		// 逐字段添加：任一字段失败不影响其他字段，重复执行可自愈补齐缺失字段
+		await this.addColumns(c, [
+			['setting', 'linuxdo_client_id', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'linuxdo_client_secret', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'github_client_id', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'github_client_secret', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'google_client_id', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'google_client_secret', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'linuxdo_switch', `INTEGER NOT NULL DEFAULT 1`],
+			['setting', 'github_switch', `INTEGER NOT NULL DEFAULT 1`],
+			['setting', 'google_switch', `INTEGER NOT NULL DEFAULT 1`],
+		]);
 
 		try {
 			await c.env.db.batch([
@@ -124,25 +186,17 @@ const dbInit = {
 
 
 	async v3_0DB(c) {
-		try {
-			await c.env.db.batch([
-				await c.env.db.prepare(`ALTER TABLE email ADD COLUMN code TEXT NOT NULL DEFAULT '';`),
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN ai_code INTEGER NOT NULL DEFAULT 1;`),
-				await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN ai_code_filter TEXT NOT NULL DEFAULT '';`)
-			]);
-		} catch (e) {
-			console.warn(`跳过字段：${e.message}`);
-		}
+		await this.addColumns(c, [
+			['email', 'code', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'ai_code', `INTEGER NOT NULL DEFAULT 1`],
+			['setting', 'ai_code_filter', `TEXT NOT NULL DEFAULT ''`],
+		]);
 
-		try {
-			await c.env.db.batch([
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN black_subject TEXT NOT NULL DEFAULT '';`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN black_content TEXT NOT NULL DEFAULT '';`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN black_from TEXT NOT NULL DEFAULT '';`)
-			]);
-		} catch (e) {
-			console.warn(`跳过字段：${e.message}`);
-		}
+		await this.addColumns(c, [
+			['setting', 'black_subject', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'black_content', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'black_from', `TEXT NOT NULL DEFAULT ''`],
+		]);
 
 	},
 
@@ -155,13 +209,9 @@ const dbInit = {
 	},
 
 	async v2_8DB(c) {
-		try {
-			await c.env.db.batch([
-				c.env.db.prepare(`ALTER TABLE account ADD COLUMN sort INTEGER NOT NULL DEFAULT 0;`)
-			]);
-		} catch (e) {
-			console.warn(`跳过字段：${e.message}`);
-		}
+		await this.addColumns(c, [
+			['account', 'sort', `INTEGER NOT NULL DEFAULT 0`],
+		]);
 	},
 
 	async v2_7DB(c) {
@@ -191,10 +241,9 @@ const dbInit = {
 		}
 
 		try {
-			await c.env.db.batch([
-				c.env.db.prepare(`ALTER TABLE email ADD COLUMN unread INTEGER NOT NULL DEFAULT 0;`),
-				c.env.db.prepare(`UPDATE email SET unread = 1;`)
-			]);
+			// 只有加字段成功才初始化数据；字段已存在时跳过，避免重跑把已读邮件标为未读
+			await c.env.db.prepare(`ALTER TABLE email ADD COLUMN unread INTEGER NOT NULL DEFAULT 0;`).run();
+			await c.env.db.prepare(`UPDATE email SET unread = 1;`).run();
 		} catch (e) {
 			console.warn(`跳过字段：${e.message}`);
 		}
@@ -231,16 +280,12 @@ const dbInit = {
 	},
 
 	async v2_3DB(c) {
-		try {
-			await c.env.db.batch([
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN force_path_style	INTEGER NOT NULL DEFAULT 1;`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN custom_domain TEXT NOT NULL DEFAULT '';`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN tg_msg_to TEXT NOT NULL DEFAULT 'show';`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN tg_msg_from TEXT NOT NULL DEFAULT 'only-name';`)
-			]);
-		} catch (e) {
-			console.warn(`跳过字段：${e.message}`);
-		}
+		await this.addColumns(c, [
+			['setting', 'force_path_style', `INTEGER NOT NULL DEFAULT 1`],
+			['setting', 'custom_domain', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'tg_msg_to', `TEXT NOT NULL DEFAULT 'show'`],
+			['setting', 'tg_msg_from', `TEXT NOT NULL DEFAULT 'only-name'`],
+		]);
 
 		try {
 			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN tg_msg_text TEXT NOT NULL DEFAULT 'show';`).run();
@@ -251,17 +296,18 @@ const dbInit = {
 	},
 
 	async v2DB(c) {
+		await this.addColumns(c, [
+			['setting', 'bucket', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'region', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 'endpoint', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 's3_access_key', `TEXT NOT NULL DEFAULT ''`],
+			['setting', 's3_secret_key', `TEXT NOT NULL DEFAULT ''`],
+		]);
 		try {
-			await c.env.db.batch([
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN bucket TEXT NOT NULL DEFAULT '';`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN region TEXT NOT NULL DEFAULT '';`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN endpoint TEXT NOT NULL DEFAULT '';`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN s3_access_key TEXT NOT NULL DEFAULT '';`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN s3_secret_key TEXT NOT NULL DEFAULT '';`),
-				c.env.db.prepare(`DELETE FROM perm WHERE perm_key = 'setting:clean'`)
-			]);
+			// 幂等：重复执行无副作用
+			await c.env.db.prepare(`DELETE FROM perm WHERE perm_key = 'setting:clean'`).run();
 		} catch (e) {
-			console.warn(`跳过字段：${e.message}`);
+			console.warn(`跳过：${e.message}`);
 		}
 	},
 

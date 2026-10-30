@@ -22,7 +22,7 @@ const routes = [
                 }
             },
             {
-                path: '/:mailbox(inbox|starred|sent|all-mail)/messages',
+                path: '/:mailbox(inbox|starred|sent|all-mail|deleted)/messages',
                 name: 'content',
                 component: () => import('@/views/content/index.vue'),
                 meta: {
@@ -48,6 +48,16 @@ const routes = [
                 meta: {
                     title: 'starred',
                     name: 'star',
+                    menu: true
+                }
+            },
+            {
+                path: '/deleted',
+                name: 'deleted',
+                component: () => import('@/views/deleted/index.vue'),
+                meta: {
+                    title: 'deleted',
+                    name: 'deleted',
                     menu: true
                 }
             },
@@ -113,7 +123,11 @@ router.beforeEach((to, from, next) => {
         return
     }
 
-    if (token && to.path.startsWith('/login')) {
+    // OAuth 绑定已有账号流程：已登录用户从个人信息页发起绑定，回调带 code
+    // 回来时必须放行，否则守卫会把用户弹走导致绑定中断。仅当 sessionStorage
+    // 中有绑定标志时放行，避免已登录用户被外部 code 链接切换会话。
+    const isBindCallback = to.query.code && sessionStorage.getItem('oauthBindMode')
+    if (token && to.path.startsWith('/login') && !isBindCallback) {
         return next(from.path)
     }
 

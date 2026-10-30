@@ -3,6 +3,7 @@
     <div class="header-actions">
       <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" @click="handleBack"/>
       <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
+      <Icon v-if="email.isDel === 1 || route.params.mailbox === 'deleted'" class="icon" icon="uiw:rollback" width="16" height="16" @click="handleRestore"/>
       <span class="star" v-if="emailStore.contentData.showStar">
         <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
         <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18.5" height="18.5"/>
@@ -14,6 +15,7 @@
     <el-scrollbar class="scrollbar">
       <div class="container">
         <div class="email-title">
+          <Icon v-if="pgpSource" icon="mdi:lock" width="18" height="18" class="pgp-lock" :title="$t('pgpEncryptedMail')"/>
           {{ email.subject }}
         </div>
         <div class="content">
@@ -33,6 +35,8 @@
                 </div>
               </div>
               <div class="receive"><span class="source">{{$t('recipient')}}</span><span class="receive-email">{{  formateReceive(email.recipient) }}</span></div>
+              <div class="receive" v-if="hasAddrList(email.cc)"><span class="source">{{$t('cc')}}</span><span class="receive-email">{{ formatAddrList(email.cc) }}</span></div>
+              <div class="receive" v-if="hasAddrList(email.bcc)"><span class="source">{{$t('bcc')}}</span><span class="receive-email">{{ formatAddrList(email.bcc) }}</span></div>
               <div class="date">
                 <div>{{ formatDetailDate(email.createTime) }}</div>
               </div>
@@ -42,7 +46,15 @@
             <el-alert v-if="email.status === 5" :closable="false" :title="$t('delayed')" class="email-msg" type="warning" show-icon />
           </div>
           <el-scrollbar class="htm-scrollbar" :class="!email.attList?.length ? 'bottom-distance' : ''">
-            <ShadowHtml class="shadow-html" :html="formatImage(email.content)" v-if="email.content" />
+            <ShadowHtml class="shadow-html" :html="formatImage(email.content)" v-if="email.content && !pgpSource" />
+            <div v-else-if="pgpSource" class="pgp-decrypt-box">
+              <pre v-if="decryptedText" class="email-text">{{ decryptedText }}</pre>
+              <div v-else class="pgp-encrypted-tip">
+                <Icon icon="mdi:lock" width="30" height="30"/>
+                <div>{{ $t('pgpEncryptedMail') }}</div>
+                <el-button type="primary" :loading="decryptLoading" @click="decryptMail">{{ $t('pgpDecrypt') }}</el-button>
+              </div>
+            </div>
             <pre v-else class="email-text" >{{email.text}}</pre>
           </el-scrollbar>
           <div class="att" v-if="email.attList?.length > 0">
@@ -62,9 +74,10 @@
                 <div class="att-size">{{ formatBytes(att.size) }}</div>
                 <div class="opt-icon att-icon">
                   <Icon v-if="isImage(att.filename)" icon="hugeicons:view" width="22" height="22" @click="showImage(att.key)"/>
-                  <a :href="cvtR2Url(att.key)" download>
+                  <a v-if="!isPgpFile(att.filename)" :href="cvtR2Url(att.key)" download>
                     <Icon icon="system-uicons:push-down" width="22" height="22"/>
                   </a>
+                  <Icon v-else icon="system-uicons:push-down" width="22" height="22" @click="decryptAttachment(att)" style="cursor: pointer" :title="$t('pgpDecrypt')"/>
                 </div>
               </div>
             </div>
@@ -78,14 +91,25 @@
         show-progress
         @close="showPreview = false"
     />
+    <el-dialog v-model="passphraseDialogVisible" :title="$t('pgpPassphrase')" width="380" :close-on-click-modal="false" @close="cancelPassphrase">
+      <div style="margin-bottom: 10px">{{ $t('pgpPassphrasePlaceholder') }}</div>
+      <el-input v-model="passphraseInput" type="password" show-password @keyup.enter="confirmPassphrase"/>
+      <div style="margin-top: 12px">
+        <el-checkbox v-model="passphraseRemember">{{ $t('pgpRememberPassphrase') }}</el-checkbox>
+      </div>
+      <template #footer>
+        <el-button @click="cancelPassphrase">{{ $t('cancel') }}</el-button>
+        <el-button type="primary" @click="confirmPassphrase">{{ $t('confirm') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 <script setup>
 import ShadowHtml from '@/components/shadow-html/index.vue'
 import {computed, reactive, ref, watch, onMounted, onUnmounted, nextTick} from "vue";
-import {useRouter} from 'vue-router'
+import {useRouter, useRoute} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
-import {emailDelete, emailRead} from "@/request/email.js";
+import {emailDelete, emailRead, emailRestore} from "@/request/email.js";
 import {Icon} from "@iconify/vue";
 import {useEmailStore} from "@/store/email.js";
 import {useAccountStore} from "@/store/account.js";
@@ -99,6 +123,7 @@ import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import {isPgpMessage, hasPrivateKey, decryptText, decryptBinary} from "@/utils/pgp-utils.js";
 const { t } = useI18n()
 
 const uiStore = useUiStore();
@@ -106,6 +131,7 @@ const settingStore = useSettingStore();
 const accountStore = useAccountStore();
 const emailStore = useEmailStore();
 const router = useRouter()
+const route = useRoute()
 const sendNameRef = ref(null)
 const senderWrapped = ref(false)
 let senderResizeObserver = null
@@ -121,6 +147,181 @@ const email = computed(() => emailStore.contentData.email || {
   text: '',
   recipient: '[]',
 })
+const decryptedText = ref('')
+const decryptLoading = ref(false)
+
+const pgpSource = computed(() => {
+  if (isPgpMessage(email.value.text)) return email.value.text
+  if (isPgpMessage(email.value.content)) return email.value.content
+  return null
+})
+
+watch(() => email.value?.emailId, () => {
+  decryptedText.value = ''
+  decryptLoading.value = false
+})
+
+function isPgpFile(filename) {
+  return /\.pgp$/i.test(filename || '')
+}
+
+const passphraseDialogVisible = ref(false)
+const passphraseInput = ref('')
+const passphraseRemember = ref(false)
+let passphraseResolver = null
+
+function askPassphrase() {
+  passphraseInput.value = ''
+  passphraseRemember.value = false
+  passphraseDialogVisible.value = true
+  return new Promise((resolve, reject) => {
+    passphraseResolver = {resolve, reject}
+  })
+}
+
+function confirmPassphrase() {
+  passphraseDialogVisible.value = false
+  passphraseResolver?.resolve({passphrase: passphraseInput.value || '', remember: passphraseRemember.value})
+  passphraseResolver = null
+}
+
+function cancelPassphrase() {
+  passphraseDialogVisible.value = false
+  passphraseResolver?.reject(new Error('cancel'))
+  passphraseResolver = null
+}
+
+const passphraseCache = reactive({})
+
+function getStoredPassphrase(emailId) {
+  if (passphraseCache[emailId]) {
+    return passphraseCache[emailId]
+  }
+  try {
+    return sessionStorage.getItem('pgp-pp-' + emailId) || null
+  } catch {
+    return null
+  }
+}
+
+function setStoredPassphrase(emailId, passphrase) {
+  passphraseCache[emailId] = passphrase
+  try {
+    sessionStorage.setItem('pgp-pp-' + emailId, passphrase)
+  } catch {
+  }
+}
+
+function clearStoredPassphrase(emailId) {
+  delete passphraseCache[emailId]
+  try {
+    sessionStorage.removeItem('pgp-pp-' + emailId)
+  } catch {
+  }
+}
+
+async function decryptWithPassphrase(fn) {
+  const emailId = email.value?.emailId
+  const cached = emailId ? getStoredPassphrase(emailId) : null
+  if (cached) {
+    try {
+      return await fn(cached)
+    } catch (e) {
+      if (e.code === 'BAD_PASSPHRASE') {
+        if (emailId) {
+          clearStoredPassphrase(emailId)
+        }
+      } else {
+        throw e
+      }
+    }
+  }
+  try {
+    return await fn()
+  } catch (e) {
+    if (e.code === 'NEED_PASSPHRASE') {
+      const {passphrase, remember} = await askPassphrase()
+      const result = await fn(passphrase)
+      if (remember && emailId) {
+        setStoredPassphrase(emailId, passphrase)
+      }
+      return result
+    }
+    throw e
+  }
+}
+
+function handlePgpError(e) {
+  console.warn('pgp decrypt fail', e)
+  let msg = t('pgpDecryptFail')
+  if (e.code === 'BAD_PASSPHRASE') {
+    msg = t('pgpWrongPassphrase')
+  }
+  ElMessage({
+    message: msg,
+    type: 'error',
+    plain: true,
+  })
+}
+
+async function decryptMail() {
+  if (decryptLoading.value || !pgpSource.value) return
+  if (!hasPrivateKey()) {
+    ElMessage({
+      message: t('pgpNoPrivateKey'),
+      type: 'warning',
+      plain: true,
+    })
+    return
+  }
+  decryptLoading.value = true
+  try {
+    decryptedText.value = await decryptWithPassphrase((passphrase) => decryptText(pgpSource.value, passphrase))
+  } catch (e) {
+    if (e?.message !== 'cancel' && e?.action !== 'cancel') {
+      handlePgpError(e)
+    }
+  } finally {
+    decryptLoading.value = false
+  }
+}
+
+async function decryptAttachment(att) {
+  if (!hasPrivateKey()) {
+    ElMessage({
+      message: t('pgpNoPrivateKey'),
+      type: 'warning',
+      plain: true,
+    })
+    return
+  }
+  const loading = ElMessage({
+    message: t('pgpDecrypting'),
+    type: 'info',
+    plain: true,
+    duration: 0,
+  })
+  try {
+    const res = await fetch(cvtR2Url(att.key))
+    const armored = await res.text()
+    const data = await decryptWithPassphrase((passphrase) => decryptBinary(armored, passphrase))
+    const blob = new Blob([data], {type: 'application/octet-stream'})
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = (att.filename || 'file').replace(/\.pgp$/i, '')
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
+  } catch (e) {
+    if (e?.message !== 'cancel' && e?.action !== 'cancel') {
+      handlePgpError(e)
+    }
+  } finally {
+    loading.close()
+  }
+}
 
 const sentViaEmail = computed(() => {
   const raw = String(email.value.senderEmail || '').trim()
@@ -260,6 +461,27 @@ function formateReceive(recipient) {
   return recipient.map(item => item.address).join(', ')
 }
 
+function parseAddrList(val) {
+  if (!val) return []
+  try {
+    const arr = typeof val === 'string' ? JSON.parse(val) : val
+    return Array.isArray(arr) ? arr : []
+  } catch {
+    return []
+  }
+}
+
+function hasAddrList(val) {
+  return parseAddrList(val).length > 0
+}
+
+function formatAddrList(val) {
+  return parseAddrList(val).map(item => {
+    if (typeof item === 'string') return item
+    return item?.address || item?.email || ''
+  }).filter(Boolean).join(', ')
+}
+
 function changeStar() {
   if (email.value.isStar) {
     email.value.isStar = 0;
@@ -288,6 +510,18 @@ function changeStar() {
 
 const handleBack = () => {
   router.back()
+}
+
+function handleRestore() {
+  emailRestore([email.value.emailId]).then(() => {
+    ElMessage({
+      message: t('restoreSuccessMsg'),
+      type: 'success',
+      plain: true,
+    })
+    emailStore.deleteIds = [email.value.emailId]
+    router.back()
+  })
 }
 
 const handleDelete = () => {
@@ -365,6 +599,14 @@ const handleDelete = () => {
     font-size: 20px;
     font-weight: bold;
     margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pgp-lock {
+    color: #22c55e;
+    flex: 0 0 auto;
   }
 
   .htm-scrollbar {
@@ -543,6 +785,17 @@ const handleDelete = () => {
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
+}
+
+.pgp-decrypt-box {
+  .pgp-encrypted-tip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 40px 20px;
+    color: var(--regular-text-color);
+  }
 }
 
 .bottom-distance {

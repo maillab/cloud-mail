@@ -7,6 +7,17 @@ import router from "@/router";
 import {websiteConfig} from "@/request/setting.js";
 import i18n from "@/i18n/index.js";
 
+// 浏览器语言 -> 前端语言：繁中地区给繁体，日韩给对应语言，其余中文给简体，默认英文
+function detectBrowserLang() {
+    const nav = (navigator.language || 'en').toLowerCase()
+    if (nav.startsWith('zh-tw') || nav.startsWith('zh-hk') || nav.startsWith('zh-mo')) return 'zh-TW'
+    const base = nav.split('-')[0]
+    if (base === 'zh') return 'zh'
+    if (base === 'ja') return 'ja'
+    if (base === 'ko') return 'ko'
+    return 'en'
+}
+
 export async function init() {
     document.title = '\u200B'
 
@@ -16,9 +27,7 @@ export async function init() {
 
     const token = localStorage.getItem('token');
     if (!settingStore.lang) {
-        let lang = navigator.language.split('-')[0]
-        lang = lang === 'zh' ? lang : 'en'
-        settingStore.lang = lang
+        settingStore.lang = detectBrowserLang()
     }
 
     i18n.global.locale.value = settingStore.lang

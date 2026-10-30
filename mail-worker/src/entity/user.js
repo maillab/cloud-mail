@@ -17,6 +17,10 @@ const user = sqliteTable('user', {
 	sort: text('sort').default(0),
 	sendCount: text('send_count').default(0),
 	regKeyId: integer('reg_key_id').default(0).notNull(),
-	isDel: integer('is_del').default(0).notNull()
+	isDel: integer('is_del').default(0).notNull(),
+	totpSecret: text('totp_secret').default('').notNull(),
+	totpEnabled: integer('totp_enabled').default(0).notNull(),
+	totpRecovery: text('totp_recovery').default('').notNull(),
+	avatar: text('avatar').default('').notNull()
 });
 export default user

@@ -88,8 +88,8 @@
             <span>{{ $t('emailSource') }}</span>
             <span class="source-button" v-if="false">
               <el-radio-group v-model="checkedSourceType">
-                <el-radio-button label="发件人" value="sender"/>
-                <el-radio-button label="邮箱" value="email"/>
+                <el-radio-button :label="$t('sender')" value="sender"/>
+                <el-radio-button :label="$t('emailAccount')" value="email"/>
               </el-radio-group>
             </span>
           </div>

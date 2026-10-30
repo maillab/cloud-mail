@@ -14,13 +14,14 @@
         <span class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</span>
         <span class="form-desc" v-else>{{ $t('regTitle') }}</span>
         <div v-show="show === 'login'">
+          <template v-if="!totpMode">
           <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="form.email"
                     type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="submit">
             <template #append v-if="!hideLoginDomain">
-              <div @click.stop="openSelect">
+              <div @click.stop="openSelect(loginSelect)">
                 <el-select
                     v-if="show === 'login'"
-                    ref="mySelect"
+                    ref="loginSelect"
                     v-model="suffix"
                     :placeholder="$t('select')"
                     class="select"
@@ -44,20 +45,47 @@
           <el-button class="btn" type="primary" @click="submit" :loading="loginLoading"
           >{{ $t('loginBtn') }}
           </el-button>
+          <el-button v-if="passkeySupported" class="btn" style="margin-top: 10px" @click="passkeyLogin" :loading="passkeyLoading">
+            <Icon icon="mdi:fingerprint" width="18" height="18" style="margin-right: 10px" />
+            {{ $t('passkeyLogin') }}
+          </el-button>
           <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
             <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
             <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
             {{ p.label }}
           </el-button>
+          </template>
+          <template v-else>
+            <div class="totp-step">
+              <div class="totp-title">{{ $t('totpTitle') }}</div>
+              <div class="totp-desc">{{ useRecovery ? $t('totpRecoveryDesc') : $t('totpDesc') }}</div>
+              <el-input v-if="!useRecovery" v-model="totpCode" :placeholder="$t('totpPlaceholder')"
+                        maxlength="6" inputmode="numeric" autocomplete="one-time-code"
+                        class="totp-input" @input="onTotpInput" @keyup.enter="submitTotp">
+              </el-input>
+              <el-input v-else v-model="recoveryInput" :placeholder="$t('totpRecoveryPlaceholder')"
+                        autocomplete="off" class="totp-input" @keyup.enter="submitTotp">
+              </el-input>
+              <el-button class="btn" type="primary" @click="submitTotp" :loading="totpLoading"
+              >{{ $t('verify') }}
+              </el-button>
+              <div class="totp-links">
+                <span class="totp-link" @click="useRecovery = !useRecovery">
+                  {{ useRecovery ? $t('totpUseCode') : $t('totpUseRecovery') }}
+                </span>
+                <span class="totp-link" @click="backToLogin">{{ $t('back') }}</span>
+              </div>
+            </div>
+          </template>
         </div>
         <div v-show="show !== 'login'">
           <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="registerForm.email" type="text" :placeholder="$t('emailAccount')"
                     autocomplete="off" @keyup.enter="submitRegister">
             <template #append v-if="!hideLoginDomain">
-              <div @click.stop="openSelect">
+              <div @click.stop="openSelect(registerSelect)">
                 <el-select
                     v-if="show !== 'login'"
-                    ref="mySelect"
+                    ref="registerSelect"
                     v-model="suffix"
                     :placeholder="$t('select')"
                     class="select"
@@ -116,9 +144,9 @@
       <div class="bind-container">
         <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="bindForm.email" type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="bind">
           <template #append v-if="!hideLoginDomain">
-            <div @click.stop="openSelect">
+            <div @click.stop="openSelect(bindSelect)">
               <el-select
-                  ref="mySelect"
+                  ref="bindSelect"
                   v-model="suffix"
                   :placeholder="$t('select')"
                   class="select"
@@ -142,7 +170,7 @@
         <el-input v-if="settingStore.settings.regKey === 2" v-model="bindForm.code"
                   :placeholder="$t('regKeyOptional')" type="text" autocomplete="off" @keyup.enter="bind"/>
         <el-button class="btn" type="primary" @click="bind" :loading="bindLoading"
-        >绑定
+        >{{$t('bind')}}
         </el-button>
       </div>
     </el-dialog>
@@ -169,7 +197,10 @@ import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
-import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
+import {oauthBindUser, oauthBindCurrentUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
+import {totpVerifyLogin} from "@/request/totp.js";
+import {startAuthentication, browserSupportsWebAuthn} from '@simplewebauthn/browser';
+import {passkeyLoginOptions, passkeyLoginVerify} from "@/request/passkey.js";
 import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
 
 const {t} = useI18n();
@@ -179,6 +210,8 @@ const uiStore = useUiStore();
 const settingStore = useSettingStore();
 const route = useRoute();
 const loginLoading = ref(false)
+const passkeyLoading = ref(false)
+const passkeySupported = browserSupportsWebAuthn()
 const bindLoading = ref(false)
 const oauthLoading = ref(false);
 const showBindForm = ref(false);
@@ -204,7 +237,7 @@ const oauthProviders = computed(() => {
 
 const bindForm = reactive({
   email: '',
-  oauthUserId: '',
+  bindToken: '',
   code: ''
 })
 
@@ -213,7 +246,9 @@ const form = reactive({
   password: '',
 
 });
-const mySelect = ref()
+const loginSelect = ref()
+const registerSelect = ref()
+const bindSelect = ref()
 const suffix = ref('')
 const registerForm = reactive({
   email: '',
@@ -299,8 +334,8 @@ const background = computed(() => {
   } : ''
 })
 
-const openSelect = () => {
-  mySelect.value.toggleMenu()
+const openSelect = (selectRef) => {
+  selectRef?.toggleMenu()
 }
 
 const getFullEmail = (email) => {
@@ -315,6 +350,7 @@ function oauthLogin(provider) {
   const clientId = settingStore.settings[provider + 'ClientId']
   const redirectUri = encodeURIComponent(window.location.origin + '/login')
   sessionStorage.setItem('oauthProvider', provider)
+  sessionStorage.removeItem('oauthBindMode')
   const authorizeUrls = {
     linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
     github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${provider}`,
@@ -344,13 +380,37 @@ async function oauthGetUser() {
 
   loginFns[provider](code, window.location.origin + '/login').then(data => {
 
-    bindForm.oauthUserId = data.userInfo.oauthUserId;
+    // 从个人信息页发起的绑定已有账号流程
+    if (sessionStorage.getItem('oauthBindMode')) {
+      sessionStorage.removeItem('oauthBindMode')
+      oauthLoading.value = false
+      if (data.bindToken) {
+        oauthBindCurrentUser({ bindToken: data.bindToken }).then(() => {
+          ElMessage({
+            message: t('oauthBindSuccess'),
+            type: 'success',
+            plain: true,
+          })
+          router.push('/settings')
+        }).catch(() => {})
+      } else {
+        ElMessage({
+          message: t('oauthAlreadyBound'),
+          type: 'warning',
+          plain: true,
+        })
+        router.push('/settings')
+      }
+      return;
+    }
+
+    bindForm.bindToken = data.bindToken;
 
     if (!data.token) {
       showBindForm.value = true
       oauthLoading.value = false
       ElMessage({
-        message: '请注册绑定一个邮箱',
+        message: t('oauthBindEmailHint'),
         type: 'warning',
         duration: 4000,
         plain: true,
@@ -413,7 +473,7 @@ function bind() {
 
   }
 
-  const form = {email, oauthUserId: bindForm.oauthUserId, code: bindForm.code}
+  const form = {email, bindToken: bindForm.bindToken, code: bindForm.code}
 
   bindLoading.value = true
   oauthBindUser(form).then(data => {
@@ -458,10 +518,82 @@ const submit = () => {
 
   loginLoading.value = true
   login(email, form.password).then(async data => {
-    await saveToken(data.token)
+    if (data.needTotp) {
+      // 两步验证：进入第二步，不直接发 token
+      preAuthToken.value = data.preAuthToken
+      totpCode.value = ''
+      recoveryInput.value = ''
+      useRecovery.value = false
+      totpMode.value = true
+    } else {
+      await saveToken(data.token)
+    }
   }).finally(() => {
     loginLoading.value = false
   })
+}
+
+// ---- TOTP 第二步 ----
+const totpMode = ref(false)
+const preAuthToken = ref('')
+const totpCode = ref('')
+const recoveryInput = ref('')
+const useRecovery = ref(false)
+const totpLoading = ref(false)
+
+const onTotpInput = () => {
+  totpCode.value = totpCode.value.replace(/\D/g, '').slice(0, 6)
+  if (totpCode.value.length === 6) {
+    submitTotp()
+  }
+}
+
+const submitTotp = () => {
+  if (totpLoading.value) return
+  const code = useRecovery.value ? recoveryInput.value.trim() : totpCode.value
+  if (!code) {
+    ElMessage({ message: t('totpEmptyCode'), type: 'error', plain: true })
+    return
+  }
+  totpLoading.value = true
+  totpVerifyLogin(
+    preAuthToken.value,
+    useRecovery.value ? undefined : code,
+    useRecovery.value ? code : undefined
+  ).then(async data => {
+    await saveToken(data.token)
+  }).finally(() => {
+    totpLoading.value = false
+  })
+}
+
+const backToLogin = () => {
+  totpMode.value = false
+  preAuthToken.value = ''
+  totpCode.value = ''
+  recoveryInput.value = ''
+  useRecovery.value = false
+}
+
+async function passkeyLogin() {
+
+  if (passkeyLoading.value) return
+
+  passkeyLoading.value = true
+
+  try {
+    const {options, challengeId} = await passkeyLoginOptions()
+    const assertion = await startAuthentication({optionsJSON: options})
+    const data = await passkeyLoginVerify(assertion, challengeId)
+    await saveToken(data.token)
+  } catch (e) {
+    // 用户主动取消（NotAllowedError）不打扰，其他错误由 axios 拦截器统一提示
+    if (e?.name !== 'NotAllowedError') {
+      console.warn('passkey login fail', e)
+    }
+  } finally {
+    passkeyLoading.value = false
+  }
 }
 
 async function saveToken(token) {
@@ -705,6 +837,42 @@ function submitRegister() {
     height: 36px;
     width: 100%;
     border-radius: 6px;
+  }
+
+  .totp-step {
+    .totp-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .totp-desc {
+      font-size: 13px;
+      color: var(--form-desc-color);
+      margin-bottom: 16px;
+    }
+
+    .totp-input {
+      margin-bottom: 12px;
+
+      :deep(.el-input__inner) {
+        text-align: center;
+        font-size: 20px;
+        letter-spacing: 8px;
+      }
+    }
+
+    .totp-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 14px;
+    }
+
+    .totp-link {
+      font-size: 13px;
+      color: var(--el-color-primary);
+      cursor: pointer;
+    }
   }
 
   .form-desc {

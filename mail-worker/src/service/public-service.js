@@ -136,13 +136,13 @@ const publicService = {
 			}
 
 			const userSql = `INSERT INTO user (email, password, salt, type, os, browser, active_ip, create_ip, device, active_time, create_time)
-			VALUES ('${email}', '${hash}', '${salt}', '${type}', '${os}', '${browser}', '${activeIp}', '${activeIp}', '${device}', '${activeTime}', '${activeTime}')`
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 			const accountSql = `INSERT INTO account (email, name, user_id)
-			VALUES ('${email}', '${emailUtils.getName(email)}', 0);`;
+			VALUES (?, ?, 0);`;
 
-			userList.push(c.env.db.prepare(userSql));
-			userList.push(c.env.db.prepare(accountSql));
+			userList.push(c.env.db.prepare(userSql).bind(email, hash, salt, type, os, browser, activeIp, activeIp, device, activeTime, activeTime));
+			userList.push(c.env.db.prepare(accountSql).bind(email, emailUtils.getName(email)));
 
 		}
 
@@ -175,6 +175,13 @@ const publicService = {
 
 		const { email, password } = params
 
+		// 防爆破：genToken 是未登录接口，同一 IP 15 分钟内失败 5 次则锁定
+		const failKey = KvConst.ADMIN_LOGIN_FAIL + reqUtils.getIp(c);
+		const failCount = parseInt(await c.env.kv.get(failKey) || '0', 10);
+		if (failCount >= 5) {
+			throw new BizError(t('tooManyLoginAttempts'));
+		}
+
 		const userRow = await userService.selectByEmailIncludeDel(c, email);
 
 		if (email !== c.env.admin) {
@@ -186,8 +193,11 @@ const publicService = {
 		}
 
 		if (!await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password)) {
+			await c.env.kv.put(failKey, String(failCount + 1), { expirationTtl: 900 });
 			throw new BizError(t('IncorrectPwd'));
 		}
+
+		await c.env.kv.delete(failKey);
 	}
 
 }

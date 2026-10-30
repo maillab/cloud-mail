@@ -20,6 +20,7 @@ import {oauth} from "../entity/oauth";
 import oauthService from "./oauth-service";
 import settingService from './setting-service';
 import starService from './star-service';
+import userContext from '../security/user-context';
 
 const userService = {
 
@@ -46,6 +47,7 @@ const userService = {
 		user.permKeys = permKeys;
 		user.role = roleRow;
 		user.type = userRow.type;
+		user.avatar = userRow.avatar || '';
 
 		if (c.env.admin === userRow.email) {
 			user.role = constant.ADMIN_ROLE
@@ -56,15 +58,57 @@ const userService = {
 	},
 
 
+	// 仅更新密码哈希（内部调用：管理员重置、老哈希透明升级；不校验当前密码，不动会话）
+	async updatePasswordHash(c, userId, password) {
+		const { salt, hash } = await cryptoUtils.hashPassword(password);
+		await orm(c).update(user).set({ password: hash, salt: salt }).where(eq(user.userId, userId)).run();
+	},
+
 	async resetPassword(c, params, userId) {
 
-		const { password } = params;
+		const { currentPassword, password } = params;
+
+		if (!currentPassword) {
+			throw new BizError(t('emptyPwd'));
+		}
+
+		// 验证当前密码
+		const userRow = await userService.selectById(c, userId);
+		const valid = await cryptoUtils.verifyPassword(currentPassword, userRow.salt, userRow.password);
+		if (!valid) {
+			throw new BizError(t('currentPwdWrong'));
+		}
 
 		if (password.length < 6) {
 			throw new BizError(t('pwdMinLength'));
 		}
-		const { salt, hash } = await cryptoUtils.hashPassword(password);
-		await orm(c).update(user).set({ password: hash, salt: salt }).where(eq(user.userId, userId)).run();
+		await this.updatePasswordHash(c, userId, password);
+
+		// 改密后作废其他所有会话，只保留当前会话：
+		// 否则登录 token 一旦泄漏，受害者改了密码盗用者照样能进
+		try {
+			const currentToken = await userContext.getToken(c);
+			const authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userId, { type: 'json' });
+			if (authInfo) {
+				const kept = currentToken ? authInfo.tokens.filter(item => item === currentToken) : [];
+				if (kept.length > 0) {
+					authInfo.tokens = kept;
+					await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
+				} else {
+					await c.env.kv.delete(KvConst.AUTH_INFO + userId);
+				}
+			}
+		} catch (e) {
+			console.warn('改密清理其他会话失败：' + e.message);
+		}
+	},
+
+	async updateAvatar(c, userId, avatar) {
+		// 限制 base64 长度，防止过大（200KB）
+		if (avatar && avatar.length > 200 * 1024) {
+			throw new BizError(t('avatarTooLarge'));
+		}
+		await orm(c).update(user).set({ avatar }).where(eq(user.userId, userId)).run();
 	},
 
 	selectByEmail(c, email) {
@@ -158,7 +202,22 @@ const userService = {
 
 
 		const query = orm(c).select({
-			...user,
+			// 白名单列：绝不能返回 password / salt（防哈希批量导出离线破解）
+			userId: user.userId,
+			email: user.email,
+			type: user.type,
+			status: user.status,
+			createTime: user.createTime,
+			activeTime: user.activeTime,
+			createIp: user.createIp,
+			activeIp: user.activeIp,
+			os: user.os,
+			browser: user.browser,
+			device: user.device,
+			sort: user.sort,
+			sendCount: user.sendCount,
+			regKeyId: user.regKeyId,
+			isDel: user.isDel,
 			username: oauth.username,
 			trustLevel: oauth.trustLevel,
 			avatar: oauth.avatar,
@@ -268,7 +327,10 @@ const userService = {
 	async setPwd(c, params) {
 
 		const { password, userId } = params;
-		await this.resetPassword(c, { password }, userId);
+		if (!password || password.length < 6) {
+			throw new BizError(t('pwdMinLength'));
+		}
+		await this.updatePasswordHash(c, userId, password);
 		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
 	},
 

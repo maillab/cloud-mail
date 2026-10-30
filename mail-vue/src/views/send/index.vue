@@ -18,11 +18,12 @@
 <script setup>
 import {useAccountStore} from "@/store/account.js";
 import {useEmailStore} from "@/store/email.js";
+import {useUiStore} from "@/store/ui.js";
 import {useSendStore} from "@/store/send.js";
 import emailScroll from "@/components/email-scroll/index.vue"
 import {emailList, emailDelete} from "@/request/email.js";
 import {starAdd, starCancel} from "@/request/star.js";
-import {defineOptions, onMounted, ref, watch} from "vue";
+import {defineOptions, onMounted, reactive, ref, watch} from "vue";
 import router from "@/router/index.js";
 
 defineOptions({
@@ -32,7 +33,13 @@ defineOptions({
 const emailStore = useEmailStore();
 const sendStore = useSendStore();
 const accountStore = useAccountStore();
+const uiStore = useUiStore();
 const sendScroll = ref({})
+const params = reactive({
+  timeSort: 0,
+})
+
+
 onMounted(() => {
   emailStore.sendScroll = sendScroll;
 })
@@ -69,7 +76,7 @@ function getEmailList(emailId, size) {
   const accountId =  accountStore.currentAccountId;
   const allReceive = accountStore.currentAccount.allReceive;
   return emailStore.fetchList(full =>
-    emailList(accountId, allReceive, emailId, 0, size, 1, full, sendStore.searchParams)
+    emailList(accountId, allReceive, emailId, params.timeSort, size, 1, full, sendStore.searchParams)
   ).then(data => {
     data.latestEmail.reqAccountId = accountId;
     data.latestEmail.allReceive = allReceive;

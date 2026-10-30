@@ -9,6 +9,8 @@
           <span class="sender">{{ $t('sender') }}:</span>
           <span class="sender-name">{{ form.name }}</span>
           <span class="send-email"><{{ form.sendEmail }}></span>
+          <span class="cc-toggle" :class="{ active: showCc }" @click="toggleCc">{{ $t('cc') }}</span>
+          <span class="cc-toggle" :class="{ active: showBcc }" @click="toggleBcc">{{ $t('bcc') }}</span>
         </div>
         <div @click="close" style="cursor: pointer;">
           <Icon icon="material-symbols-light:close-rounded" width="22" height="22"/>
@@ -37,14 +39,50 @@
               />
             </el-select>
           </template>
+          <template #tag="{ value }">
+            <span class="recv-tag">
+              <span class="recv-tag-email">{{ value }}</span>
+              <Icon v-if="form.pgpEncrypt && pgpKeyStatus[value] === true" icon="mdi:lock" class="pgp-tag-ok" :width="13" :height="13"/>
+              <Icon v-else-if="form.pgpEncrypt && pgpKeyStatus[value] === false" icon="mdi:lock-open" class="pgp-tag-fail" :width="13" :height="13"/>
+              <Icon v-else-if="form.pgpEncrypt" icon="mdi:loading" class="pgp-tag-loading" :width="13" :height="13"/>
+            </span>
+          </template>
           <template #suffix>
             <div style="display: flex;margin-right: 3px;">
               <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts" />
             </div>
           </template>
         </el-input-tag>
+        <el-input-tag v-if="showCc" @add-tag="ccTagChange" tag-type="primary" size="default" v-model="form.ccEmail">
+          <template #prefix>
+            <div class="item-title">{{ $t('cc') }}</div>
+          </template>
+          <template #tag="{ value }">
+            <span class="recv-tag">
+              <span class="recv-tag-email">{{ value }}</span>
+              <Icon v-if="form.pgpEncrypt && pgpKeyStatus[value] === true" icon="mdi:lock" class="pgp-tag-ok" :width="13" :height="13"/>
+              <Icon v-else-if="form.pgpEncrypt && pgpKeyStatus[value] === false" icon="mdi:lock-open" class="pgp-tag-fail" :width="13" :height="13"/>
+              <Icon v-else-if="form.pgpEncrypt" icon="mdi:loading" class="pgp-tag-loading" :width="13" :height="13"/>
+            </span>
+          </template>
+        </el-input-tag>
+        <el-input-tag v-if="showBcc" @add-tag="bccTagChange" tag-type="primary" size="default" v-model="form.bccEmail">
+          <template #prefix>
+            <div class="item-title">{{ $t('bcc') }}</div>
+          </template>
+          <template #tag="{ value }">
+            <span class="recv-tag">
+              <span class="recv-tag-email">{{ value }}</span>
+              <Icon v-if="form.pgpEncrypt && pgpKeyStatus[value] === true" icon="mdi:lock" class="pgp-tag-ok" :width="13" :height="13"/>
+              <Icon v-else-if="form.pgpEncrypt && pgpKeyStatus[value] === false" icon="mdi:lock-open" class="pgp-tag-fail" :width="13" :height="13"/>
+              <Icon v-else-if="form.pgpEncrypt" icon="mdi:loading" class="pgp-tag-loading" :width="13" :height="13"/>
+            </span>
+          </template>
+        </el-input-tag>
         <el-input v-model="form.subject" :placeholder="t('subject')" />
-        <tinyEditor :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
+        <div class="editor-wrap">
+          <tinyEditor :def-value="defValue" ref="editor" :pgp-active="form.pgpEncrypt" @change="change" @focus="focusChange" @pgp-toggle="togglePgp" />
+        </div>
         <div class="button-item">
           <div class="att-add" @click="chooseFile">
             <Icon icon="iconamoon:attachment-fill" width="24" height="24"/>
@@ -104,7 +142,7 @@
 </template>
 <script setup>
 import tinyEditor from '@/components/tiny-editor/index.vue'
-import {h, nextTick, onMounted, onUnmounted, reactive, ref, toRaw, computed} from "vue";
+import {h, nextTick, onMounted, onUnmounted, reactive, ref, toRaw, computed, watch} from "vue";
 import {Icon} from "@iconify/vue";
 import {useUserStore} from "@/store/user.js";
 import {emailSend} from "@/request/email.js";
@@ -124,6 +162,7 @@ import dayjs from "dayjs";
 import {useI18n} from "vue-i18n";
 import router from "@/router/index.js";
 import {ElMessageBox} from "element-plus";
+import {pgpKeyStatus as queryPgpKeyStatus} from "@/request/pgp.js";
 
 defineExpose({
   open,
@@ -158,6 +197,8 @@ const backReply = reactive({
 const form = reactive({
   sendEmail: '',
   receiveEmail: [],
+  ccEmail: [],
+  bccEmail: [],
   accountId: -1,
   name: '',
   subject: '',
@@ -168,9 +209,45 @@ const form = reactive({
   emailId: 0,
   attachments: [],
   draftId: null,
+  pgpEncrypt: false,
 })
 
 const selectRecipientList = ref([])
+
+const showCc = ref(false)
+const showBcc = ref(false)
+
+function toggleCc() {
+  showCc.value = !showCc.value
+  if (!showCc.value) form.ccEmail = []
+}
+
+function toggleBcc() {
+  showBcc.value = !showBcc.value
+  if (!showBcc.value) form.bccEmail = []
+}
+
+function addEmailsToList(list, val) {
+  const emails = Array.from(new Set(
+      val.split(/[,，]/).map(item => item.trim()).filter(item => item)
+  ));
+
+  list.splice(list.length - 1, 1)
+
+  emails.forEach(email => {
+    if (isEmail(email) && !list.includes(email)) {
+      list.push(email)
+    }
+  })
+}
+
+function ccTagChange(val) {
+  addEmailsToList(form.ccEmail, val)
+}
+
+function bccTagChange(val) {
+  addEmailsToList(form.bccEmail, val)
+}
 
 const contacts = computed(() => writerStore.sendRecipientRecord.map(item => ({email: item})))
 const separateSendLabel = computed(() => t(form.sendType === 'forward' ? 'separateForward' : 'separateSend'))
@@ -310,6 +387,44 @@ function chooseFile() {
   }
 }
 
+const pgpKeyStatus = ref({})
+const pgpKeyCache = {}
+
+function togglePgp() {
+  form.pgpEncrypt = !form.pgpEncrypt
+  if (form.pgpEncrypt) {
+    refreshPgpStatus()
+  }
+}
+
+async function refreshPgpStatus() {
+  const jobs = []
+  for (const email of [...form.receiveEmail, ...form.ccEmail, ...form.bccEmail]) {
+    if (pgpKeyCache[email] !== undefined) {
+      pgpKeyStatus.value[email] = pgpKeyCache[email]
+      continue
+    }
+    pgpKeyStatus.value[email] = undefined
+    jobs.push(
+        queryPgpKeyStatus(email).then(data => {
+          const found = !!data?.found
+          pgpKeyCache[email] = found
+          pgpKeyStatus.value[email] = found
+        }).catch(() => {
+          pgpKeyCache[email] = false
+          pgpKeyStatus.value[email] = false
+        })
+    )
+  }
+  await Promise.all(jobs)
+}
+
+watch([() => form.receiveEmail, () => form.ccEmail, () => form.bccEmail], () => {
+  if (form.pgpEncrypt) {
+    refreshPgpStatus()
+  }
+}, {deep: true})
+
 async function sendEmail() {
 
   if (form.receiveEmail.length === 0) {
@@ -348,6 +463,20 @@ async function sendEmail() {
       plain: true,
     })
     return
+  }
+
+  if (form.pgpEncrypt) {
+    await refreshPgpStatus()
+    const allRecipients = [...form.receiveEmail, ...form.ccEmail, ...form.bccEmail]
+    const missing = allRecipients.filter(email => pgpKeyStatus.value[email] !== true)
+    if (missing.length > 0) {
+      ElMessage({
+        message: t('pgpKeyNotFound', {msg: missing.join(', ')}),
+        type: 'error',
+        plain: true,
+      })
+      return
+    }
   }
 
   percentMessage = ElMessage({
@@ -433,6 +562,10 @@ function addRecipientRecord() {
 
 function resetForm() {
   form.receiveEmail = []
+  form.ccEmail = []
+  form.bccEmail = []
+  showCc.value = false
+  showBcc.value = false
   form.subject = ''
   form.content = ''
   form.manyType = 'together'
@@ -440,6 +573,8 @@ function resetForm() {
   form.sendType = ''
   form.emailId = 0
   form.draftId = null
+  form.pgpEncrypt = false
+  pgpKeyStatus.value = {}
   backReply.content = ''
   backReply.subject = ''
   backReply.receiveEmail = []
@@ -545,6 +680,8 @@ function open() {
 
 function openDraft(draft) {
   Object.assign(form, {...draft, manyType: draft.manyType || 'together'})
+  showCc.value = form.ccEmail?.length > 0
+  showBcc.value = form.bccEmail?.length > 0
   defValue.value = ''
   setTimeout(() => defValue.value = form.content)
   show.value = true;
@@ -681,7 +818,7 @@ function close() {
       .title-left {
         align-items: center;
         display: grid;
-        grid-template-columns: auto auto auto 1fr;
+        grid-template-columns: auto auto auto 1fr auto auto;
       }
 
       .title-text {
@@ -704,6 +841,27 @@ function close() {
         overflow: hidden;
       }
 
+      .cc-toggle {
+        margin-left: 20px;
+        font-size: 13px;
+        color: var(--el-text-color-secondary);
+        cursor: pointer;
+        white-space: nowrap;
+
+        + .cc-toggle {
+          margin-left: 10px;
+        }
+
+        &:hover {
+          color: var(--el-color-primary);
+        }
+
+        &.active {
+          color: var(--el-color-primary);
+          font-weight: bold;
+        }
+      }
+
 
       div {
         display: flex;
@@ -713,9 +871,50 @@ function close() {
 
     .container {
       height: 100%;
-      display: grid;
-      grid-template-rows: auto auto 1fr auto;
+      display: flex;
+      flex-direction: column;
       gap: 15px;
+
+      .editor-wrap {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .recv-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+
+        .recv-tag-email {
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+
+        .pgp-tag-ok {
+          color: var(--el-color-success);
+          flex-shrink: 0;
+        }
+
+        .pgp-tag-fail {
+          color: var(--el-color-danger);
+          flex-shrink: 0;
+        }
+
+        .pgp-tag-loading {
+          color: var(--el-text-color-placeholder);
+          flex-shrink: 0;
+          animation: pgp-spin 1s linear infinite;
+        }
+      }
+
+      @keyframes pgp-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
 
       .item-title {
       }
@@ -726,11 +925,13 @@ function close() {
 
         .att-add {
           cursor: pointer;
+          align-self: center;
         }
 
         .att-clear {
           cursor: pointer;
           margin-left: 10px;
+          align-self: center;
         }
 
         .att-list {

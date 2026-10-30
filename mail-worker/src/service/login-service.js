@@ -19,6 +19,8 @@ import dayjs from 'dayjs';
 import { toUtc } from '../utils/date-uitil';
 import { t } from '../i18n/i18n.js';
 import verifyRecordService from './verify-record-service';
+import reqUtils from '../utils/req-utils';
+import totpService from './totp-service';
 
 const loginService = {
 
@@ -243,10 +245,76 @@ const loginService = {
 			throw new BizError(t('isBanUser'));
 		}
 
+		// 防爆破：同一 IP + 邮箱 15 分钟内失败 5 次则锁定
+		if (!noVerifyPwd) {
+			await this.checkLoginRateLimit(c, email);
+		}
+
 		if (!await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password) && !noVerifyPwd) {
+			await this.recordLoginFail(c, email);
 			throw new BizError(t('IncorrectPwd'));
 		}
 
+		if (!noVerifyPwd) {
+			await this.clearLoginFail(c, email);
+		}
+
+		// 老哈希（单轮 SHA-256）透明升级到 PBKDF2：仅密码登录成功时执行，失败不影响登录
+		if (!noVerifyPwd && cryptoUtils.needsRehash(userRow.password)) {
+			try {
+				await userService.updatePasswordHash(c, userRow.userId, password);
+			} catch (e) {
+				console.warn(`密码哈希升级失败：${e.message}`);
+			}
+		}
+
+		// TOTP 两步验证：密码登录且已启用 → 返回预授权票据，前端进入第二步验码
+		//（passkey / oauth 走 noVerifyPwd，不受影响）
+		if (!noVerifyPwd && userRow.totpEnabled) {
+			const preAuthToken = uuidv4();
+			await c.env.kv.put(KvConst.TOTP_PREAUTH + preAuthToken,
+				JSON.stringify({ userId: userRow.userId, attempts: 0 }),
+				{ expirationTtl: 300 });
+			return { needTotp: true, preAuthToken };
+		}
+
+		return await this.finishLogin(c, userRow);
+	},
+
+	// 登录第二步：校验预授权票据 + TOTP 码/恢复码，通过后签发正式 JWT
+	async verifyTotpLogin(c, params) {
+		const { preAuthToken, code, recoveryCode } = params || {};
+		const key = KvConst.TOTP_PREAUTH + preAuthToken;
+		const pre = await c.env.kv.get(key, { type: 'json' });
+		if (!pre) {
+			throw new BizError(t('totpPreAuthExpired'));
+		}
+		if (pre.attempts >= 5) {
+			await c.env.kv.delete(key);
+			throw new BizError(t('tooManyLoginAttempts'));
+		}
+		const userRow = await userService.selectById(c, pre.userId);
+		if (!userRow || userRow.isDel === isDel.DELETE || userRow.status === userConst.status.BAN) {
+			await c.env.kv.delete(key);
+			throw new BizError(t('authExpired'));
+		}
+		let ok = false;
+		if (recoveryCode) {
+			ok = await totpService.useRecoveryCode(c, userRow.userId, recoveryCode);
+		} else {
+			ok = await totpService.verifyCode(c, userRow.userId, code);
+		}
+		if (!ok) {
+			pre.attempts += 1;
+			await c.env.kv.put(key, JSON.stringify(pre), { expirationTtl: 300 });
+			throw new BizError(t('totpCodeInvalid'));
+		}
+		await c.env.kv.delete(key);
+		return await this.finishLogin(c, userRow);
+	},
+
+	// 签发 JWT + 会话落 KV（密码登录 / TOTP 第二步 / passkey / oauth 共用）
+	async finishLogin(c, userRow) {
 		const uuid = uuidv4();
 		const jwt = await JwtUtils.generateToken(c,{ userId: userRow.userId, token: uuid });
 
@@ -276,6 +344,39 @@ const loginService = {
 
 		await c.env.kv.put(KvConst.AUTH_INFO + userRow.userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
 		return jwt;
+	},
+
+	async verifyPassword(c, params) {
+
+		const { password } = params;
+
+		const userRow = await userService.selectById(c, userContext.getUserId(c));
+
+		if (!userRow || !password || !await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password)) {
+			throw new BizError(t('IncorrectPwd'));
+		}
+	},
+
+	// 登录防爆破：按 IP + 邮箱计数，15 分钟内失败 5 次锁定
+	loginFailKey(c, email) {
+		return KvConst.LOGIN_FAIL + reqUtils.getIp(c) + ':' + String(email || '').toLowerCase();
+	},
+
+	async checkLoginRateLimit(c, email) {
+		const count = parseInt(await c.env.kv.get(this.loginFailKey(c, email)) || '0', 10);
+		if (count >= 5) {
+			throw new BizError(t('tooManyLoginAttempts'));
+		}
+	},
+
+	async recordLoginFail(c, email) {
+		const key = this.loginFailKey(c, email);
+		const count = parseInt(await c.env.kv.get(key) || '0', 10) + 1;
+		await c.env.kv.put(key, String(count), { expirationTtl: 900 });
+	},
+
+	async clearLoginFail(c, email) {
+		await c.env.kv.delete(this.loginFailKey(c, email));
 	},
 
 	async logout(c, userId) {

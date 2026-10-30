@@ -26,12 +26,16 @@ const props = defineProps({
   editorId: {
     type: String,
     default: () => `editor-${Date.now()}`
+  },
+  pgpActive: {
+    type: Boolean,
+    default: false
   }
 });
 
 
-const {locale} = useI18n()
-const emit = defineEmits(['change','focus']);
+const {t, locale} = useI18n()
+const emit = defineEmits(['change','focus','pgp-toggle']);
 const editor = shallowRef(null);
 const isInitialized = ref(false);
 const editorRef = ref(null);
@@ -59,11 +63,13 @@ watch(() => [uiStore.dark, settingStore.lang], () => {
 });
 
 const language = computed(() => {
-  if (locale.value === 'zh') {
-    return 'zh_CN'
+  switch (locale.value) {
+    case 'zh': return 'zh_CN'
+    case 'zh-TW': return 'zh_TW'
+    case 'ja': return 'ja'
+    case 'ko': return 'ko'
+    default: return 'en'
   }
-
-  return 'en'
 })
 
 function clearEditor() {
@@ -101,7 +107,7 @@ function initEditor() {
          --scrollbar-thumb-color: ${uiStore.dark ? '#8D9095' : '#A8ABB2'};
     }`,
     plugins: 'link image advlist lists  emoticons fullscreen  table preview code',
-    toolbar: 'bold emoticons forecolor backcolor italic fontsize | alignleft aligncenter alignright alignjustify | outdent indent |  bullist numlist | link image  | table code preview fullscreen',
+    toolbar: 'bold emoticons forecolor backcolor italic fontsize | alignleft aligncenter alignright alignjustify | outdent indent |  bullist numlist | link image  | table code preview pgp fullscreen',
     toolbar_mode: 'scrolling',
     font_size_formats: '8px 10px 12px 14px 16px 18px 24px 36px',
     emoticons_search: false,
@@ -112,6 +118,17 @@ function initEditor() {
     noneditable_class: 'mceNonEditable',
     setup: (ed) => {
       editor.value = ed;
+      ed.ui.registry.addIcon('pgp-lock', '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z" fill="currentColor"/></svg>');
+      ed.ui.registry.addToggleButton('pgp', {
+        icon: 'pgp-lock',
+        tooltip: t('pgpEncrypt'),
+        onAction: () => emit('pgp-toggle'),
+        onSetup: (api) => {
+          api.setActive(!!props.pgpActive);
+          const stop = watch(() => props.pgpActive, (v) => api.setActive(!!v));
+          return () => stop();
+        }
+      });
       ed.on('init', () => {
         ed.setContent(props.defValue);
         isInitialized.value = true;

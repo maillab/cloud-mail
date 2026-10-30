@@ -33,23 +33,19 @@
       @reset="returnToList('send')"
     />
     <div class="toolbar">
-      <el-dropdown
-        ref="userDropdownRef"
-        trigger="click"
-        :teleported="false"
-        popper-class="detail-dropdown"
-        @visible-change="userCardVisible = $event"
-      >
-        <div class="avatar">
+      <el-dropdown ref="userinfoRef" @visible-change="e => userInfoShow = e" :teleported="false" popper-class="detail-dropdown">
+        <div class="avatar" @click="userInfoHide" >
           <div class="avatar-text">
-            <div>{{ formatName(userStore.user.email) }}</div>
+            <img v-if="userStore.user.avatar" :src="userStore.user.avatar" class="avatar-img" />
+            <div v-else>{{ formatName(userStore.user.email) }}</div>
           </div>
           <Icon class="setting-icon" icon="mingcute:down-small-fill" width="24" height="24"/>
         </div>
         <template #dropdown>
           <div class="user-details">
             <div class="details-avatar">
-              {{ formatName(userStore.user.email) }}
+              <img v-if="userStore.user.avatar" :src="userStore.user.avatar" class="avatar-img" />
+              <span v-else>{{ formatName(userStore.user.email) }}</span>
             </div>
             <div class="user-name">
               {{ userStore.user.name }}
@@ -58,7 +54,7 @@
               {{ userStore.user.email }}
             </div>
             <div class="detail-user-type">
-              <el-tag>{{ userStore.user.role.name }}</el-tag>
+              <el-tag>{{ roleDisplayName }}</el-tag>
             </div>
             <div class="action-info">
               <div>
@@ -100,11 +96,13 @@ import {Icon} from "@iconify/vue";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
 import {useRoute} from "vue-router";
-import {computed, onBeforeUnmount, onMounted, ref} from "vue";
+import {computed, ref} from "vue";
 import {useSettingStore} from "@/store/setting.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
 import {setExtend} from "@/utils/day.js"
+import {toDayjsLocale} from "@/utils/day.js"
+import {displayRoleName} from "@/utils/role-utils.js"
 import emailSearch from '@/components/email-search/index.vue'
 import {useEmailStore} from '@/store/email.js'
 import {useSendStore} from '@/store/send.js'
@@ -117,10 +115,12 @@ const uiStore = useUiStore();
 const emailStore = useEmailStore()
 const sendStore = useSendStore()
 const logoutLoading = ref(false)
-const userDropdownRef = ref(null)
-const userCardVisible = ref(false)
-const outsidePointerEvents = ['mousedown', 'pointerup', 'mouseup', 'click', 'pointercancel']
-let blockOutsideClick = false
+const userInfoShow = ref(false)
+const userinfoRef = ref({})
+
+const roleDisplayName = computed(() => {
+  return displayRoleName(userStore.user.role?.name, t)
+})
 const inboxSearchOptions = computed(() => [
   {label: t('titleDesc'), type: 'subject'},
   {label: t('searchSummaryContent'), type: 'content'},
@@ -210,6 +210,14 @@ const sendCount = computed(() => {
   return userStore.user.sendCount + '/' + userStore.user.role.sendCount
 })
 
+function userInfoHide(e) {
+    if (userInfoShow.value) {
+        userinfoRef.value.handleClose()
+    } else {
+        userinfoRef.value.handleOpen()
+    }
+}
+
 async function copyEmail(email) {
   try {
     await navigator.clipboard.writeText(email);
@@ -229,7 +237,7 @@ async function copyEmail(email) {
 }
 
 function changeLang(lang) {
-  setExtend(lang === 'en' ? 'en' : 'zh-cn')
+  setExtend(toDayjsLocale(lang))
   settingStore.lang = lang
 }
 
@@ -254,47 +262,6 @@ function clickLogout() {
 function formatName(email) {
   return email[0]?.toUpperCase() || ''
 }
-
-function isInsideUserCard(target) {
-  const element = target instanceof Element ? target : target?.parentElement
-  if (!(element instanceof Element)) return false
-  if (userDropdownRef.value?.$el?.contains(element)) return true
-  return !!element.closest('.detail-dropdown')
-}
-
-function handleUserCardPointerDown(event) {
-  blockOutsideClick = userCardVisible.value && !isInsideUserCard(event.target)
-  if (!blockOutsideClick) return
-
-  event.preventDefault()
-  event.stopPropagation()
-  userDropdownRef.value?.handleClose()
-}
-
-function handleUserCardPointerEvent(event) {
-  if (!blockOutsideClick) return
-  event.preventDefault()
-  event.stopPropagation()
-  if (event.type === 'pointerup' || event.type === 'pointercancel') {
-    setTimeout(() => {
-      blockOutsideClick = false
-    })
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('pointerdown', handleUserCardPointerDown, true)
-  outsidePointerEvents.forEach(type => {
-    document.addEventListener(type, handleUserCardPointerEvent, true)
-  })
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('pointerdown', handleUserCardPointerDown, true)
-  outsidePointerEvents.forEach(type => {
-    document.removeEventListener(type, handleUserCardPointerEvent, true)
-  })
-})
 
 </script>
 <style>
@@ -403,7 +370,7 @@ onBeforeUnmount(() => {
   display: grid;
   height: 100%;
   gap: 10px;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto auto 1fr auto;
   position: relative;
 }
 
@@ -419,6 +386,25 @@ onBeforeUnmount(() => {
 
   .toolbar {
     flex-shrink: 0;
+  }
+}
+
+.header.not-send {
+  grid-template-columns: auto 1fr auto;
+}
+
+/* 搜索按钮（桌面+手机通用） */
+.search-btn {
+  font-size: 22px;
+}
+
+/* 搜索弹窗：桌面端固定宽度，手机端自适应 */
+.search-dialog {
+  --el-dialog-width: 420px;
+}
+@media (max-width: 768px) {
+  .search-dialog {
+    --el-dialog-width: 90%;
   }
 }
 
@@ -476,21 +462,6 @@ onBeforeUnmount(() => {
     gap: 10px;
   }
 
-  .icon-item {
-    align-self: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-  }
-
-  .icon-item:hover {
-    background: var(--base-fill);
-  }
-
   .avatar {
     display: flex;
     align-items: center;
@@ -507,6 +478,13 @@ onBeforeUnmount(() => {
       align-items: center;
       border-radius: 8px;
       border: 1px solid var(--dark-border);
+      overflow: hidden;
+
+      .avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
     }
 
     .setting-icon {
