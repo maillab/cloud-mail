@@ -35,6 +35,9 @@ importers:
       resend:
         specifier: ^6.4.1
         version: 6.4.1(@react-email/render@1.1.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1))
+      svix:
+        specifier: ^1.44.0
+        version: 1.76.1
       ua-parser-js:
         specifier: ^2.0.3
         version: 2.0.4
