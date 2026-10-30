@@ -16,6 +16,7 @@ const settingService = {
 	async refresh(c) {
 		const settingRow = await orm(c).select().from(setting).get();
 		settingRow.resendTokens = JSON.parse(settingRow.resendTokens);
+		settingRow.sendflareTokens = JSON.parse(settingRow.sendflareTokens || '{}');
 		settingRow.r2Domain = '';
 		c.set('setting', settingRow);
 		await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
@@ -32,6 +33,10 @@ const settingService = {
 		if (!setting) {
 			throw new BizError('数据库未初始化 Database not initialized.');
 		}
+
+		// 迁移前缓存的设置没有该字段。
+		setting.sendflareTokens ||= {};
+		setting.sendProvider ||= '';
 
 		let domainList = c.env.domain;
 
@@ -85,6 +90,10 @@ const settingService = {
 			settingRow.resendTokens[key] = `${settingRow.resendTokens[key].slice(0, 12)}******`;
 		});
 
+		Object.keys(settingRow.sendflareTokens).forEach(key => {
+			settingRow.sendflareTokens[key] = `${settingRow.sendflareTokens[key].slice(0, 12)}******`;
+		});
+
 		settingRow.s3AccessKey = settingRow.s3AccessKey ? `${settingRow.s3AccessKey.slice(0, 12)}******` : null;
 		settingRow.s3SecretKey = settingRow.s3SecretKey ? `${settingRow.s3SecretKey.slice(0, 12)}******` : null;
 		settingRow.tgBotToken = settingRow.tgBotToken ? `${settingRow.tgBotToken.slice(0, 20)}******` : null;
@@ -117,6 +126,10 @@ const settingService = {
 		Object.keys(resendTokens).forEach(domain => {
 			if (!resendTokens[domain]) delete resendTokens[domain];
 		});
+		let sendflareTokens = { ...settingData.sendflareTokens, ...params.sendflareTokens };
+		Object.keys(sendflareTokens).forEach(domain => {
+			if (!sendflareTokens[domain]) delete sendflareTokens[domain];
+		});
 
 		if (Array.isArray(params.emailPrefixFilter)) {
 			params.emailPrefixFilter = params.emailPrefixFilter + '';
@@ -131,6 +144,11 @@ const settingService = {
 		}
 
 		params.resendTokens = JSON.stringify(resendTokens);
+		params.sendflareTokens = JSON.stringify(sendflareTokens);
+
+		if (params.sendProvider !== undefined && !['', 'cloudflare', 'resend', 'sendflare'].includes(params.sendProvider)) {
+			throw new BizError(t('invalidSendProvider'));
+		}
 
 		await orm(c).update(setting).set({ ...params }).returning().get();
 		await this.refresh(c);

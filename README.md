@@ -63,7 +63,7 @@
 
 - **💻 响应式设计**：响应式布局自动适配PC和大部分手机端浏览器
 
-- **📧 邮件发送**：集成 Cloudflare Email 和 Resend 发送邮件，支持群发
+- **📧 邮件发送**：集成 Cloudflare Email、Resend 和 Sendflare 发送邮件，支持群发
 
 - **🛡️ 管理员功能**：可以对用户，邮件进行管理，RABC权限控制对功能及使用资源限制
 
@@ -97,7 +97,7 @@
 
 - **UI框架**：[Element Plus](https://element-plus.org/) 
 
-- **邮件发送：** [Cloudflare Email](https://developers.cloudflare.com/email-service/) / [Resend](https://resend.com/)
+- **邮件发送：** [Cloudflare Email](https://developers.cloudflare.com/email-service/) / [Resend](https://resend.com/) / [Sendflare](https://sendflare.com/)
 
 - **缓存**：[Cloudflare KV](https://developers.cloudflare.com/kv/)
 

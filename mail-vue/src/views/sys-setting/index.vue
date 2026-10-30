@@ -189,16 +189,42 @@
                 </div>
               </div>
               <div class="setting-item">
-                <div><span>{{ setting.hasCfEmail ? $t('cloudflareEmailSending') : $t('resendToken') }}</span></div>
-                <div v-if="setting.hasCfEmail">
-                  <span>{{ $t('enabled') }}</span>
+                <div><span>{{ $t('sendProvider') }}</span></div>
+                <div>
+                  <el-select
+                      @change="changeField('sendProvider', $event)"
+                      style="width: 120px;"
+                      v-model="setting.sendProvider"
+                      placeholder="Select"
+                  >
+                    <el-option value="" :label="$t('sendProviderAuto')"/>
+                    <el-option value="cloudflare" label="Cloudflare" :disabled="!setting.hasCfEmail"/>
+                    <el-option value="resend" label="Resend"/>
+                    <el-option value="sendflare" label="Sendflare"/>
+                  </el-select>
                 </div>
-                <div v-else>
-                  <el-button class="opt-button" style="margin-top: 0" @click="openResendList" size="small"
+              </div>
+              <div class="setting-item">
+                <div><span>{{ $t('resendToken') }}</span></div>
+                <div>
+                  <el-button class="opt-button" style="margin-top: 0" @click="openResendList('resend')" size="small"
                              type="primary">
                     <Icon icon="ic:round-list" width="18" height="18"/>
                   </el-button>
-                  <el-button class="opt-button" style="margin-top: 0" @click="openResendForm" size="small"
+                  <el-button class="opt-button" style="margin-top: 0" @click="openResendForm('resend')" size="small"
+                             type="primary">
+                    <Icon icon="material-symbols:add-rounded" width="16" height="16"/>
+                  </el-button>
+                </div>
+              </div>
+              <div class="setting-item">
+                <div><span>{{ $t('sendflareToken') }}</span></div>
+                <div>
+                  <el-button class="opt-button" style="margin-top: 0" @click="openResendList('sendflare')" size="small"
+                             type="primary">
+                    <Icon icon="ic:round-list" width="18" height="18"/>
+                  </el-button>
+                  <el-button class="opt-button" style="margin-top: 0" @click="openResendForm('sendflare')" size="small"
                              type="primary">
                     <Icon icon="material-symbols:add-rounded" width="16" height="16"/>
                   </el-button>
@@ -488,7 +514,7 @@
           <el-button type="primary" :loading="settingLoading" @click="saveTitle">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
-      <el-dialog v-model="resendTokenFormShow" :title="$t('resendToken')" width="340" @closed="cleanResendTokenForm">
+      <el-dialog v-model="resendTokenFormShow" :title="$t(tokenProvider === 'sendflare' ? 'sendflareToken' : 'resendToken')" width="340" @closed="cleanResendTokenForm">
         <form @submit.prevent>
           <el-select style="margin-bottom: 15px" v-model="resendTokenForm.domain" placeholder="Select">
             <el-option
@@ -944,6 +970,8 @@ const accountStore = useAccountStore();
 const userStore = useUserStore();
 const editTitleShow = ref(false)
 const resendTokenFormShow = ref(false)
+// Resend 和 Sendflare 共用 Token 弹窗，按当前渠道读写对应字段。
+const tokenProvider = ref('resend')
 const blackFormShow = ref(false)
 const autoCleanShow = ref(false)
 const aiCodeFilterShow = ref(false)
@@ -1129,10 +1157,11 @@ function resetAddS3Form() {
 
 const resendList = computed(() => {
 
-  let list = Object.keys(setting.value.resendTokens).map(key => {
+  const tokens = setting.value[`${tokenProvider.value}Tokens`] || {}
+  let list = Object.keys(tokens).map(key => {
     return {
       key: key,
-      value: setting.value.resendTokens[key]
+      value: tokens[key]
     };
   })
 
@@ -1211,7 +1240,8 @@ function openNoticePopupSetting() {
   noticePopupShow.value = true
 }
 
-function openResendList() {
+function openResendList(provider) {
+  tokenProvider.value = provider
   showResendList.value = true
 }
 
@@ -1615,7 +1645,8 @@ function openCut() {
   }
 }
 
-function openResendForm() {
+function openResendForm(provider) {
+  tokenProvider.value = provider
   resendTokenFormShow.value = true
 }
 
@@ -1628,17 +1659,19 @@ function openAiCodeFilter() {
 }
 
 function saveResendToken() {
+  const key = `${tokenProvider.value}Tokens`
   const settingForm = {
-    resendTokens: {}
+    [key]: {}
   }
   const domain = resendTokenForm.domain.slice(1)
-  settingForm.resendTokens[domain] = resendTokenForm.token
+  settingForm[key][domain] = resendTokenForm.token
   editSetting(settingForm)
 }
 
 function backupSetting() {
   const settingForm = {...setting.value}
   delete settingForm.resendTokens
+  delete settingForm.sendflareTokens
   delete settingForm.siteKey
   delete settingForm.secretKey
   backup = JSON.stringify(setting.value)
@@ -1663,6 +1696,7 @@ function change(e) {
   delete settingForm.s3SecretKey
   delete settingForm.tgBotToken
   delete settingForm.resendTokens
+  delete settingForm.sendflareTokens
   editSetting(settingForm, false)
 }
 

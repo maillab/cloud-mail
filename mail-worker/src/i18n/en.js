@@ -24,6 +24,7 @@ const en = {
 	totalSendLack: 'Not enough total remaining sends',
 	senderAccountNotExist: 'Sender email does not exist',
 	noResendToken: 'Resend API token not configured',
+	invalidSendProvider: 'Invalid sending provider',
 	noSendProvider: 'Email sending service is not configured',
 	sendEmailNotCurUser: 'Sender email does not belong to current user',
 	notExistEmailReply: 'Mail does not exist and cannot be replied to',

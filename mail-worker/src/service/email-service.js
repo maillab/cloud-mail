@@ -10,6 +10,7 @@ import BizError from '../error/biz-error';
 import emailUtils from '../utils/email-utils';
 import fileUtils from '../utils/file-utils';
 import { Resend } from 'resend';
+import sendflareService from './sendflare-service';
 import attService from './att-service';
 import { parseHTML } from 'linkedom';
 import userService from './user-service';
@@ -25,6 +26,9 @@ import { att } from '../entity/att';
 import telegramService from './telegram-service';
 import webhookService from './webhook-service';
 import forwardMime from '../utils/forward-mime';
+
+// 官方未公布批量上限，保守分批以兼顾 5 次/秒的速率限制。
+const SENDFLARE_BATCH_SIZE = 50;
 
 const emailService = {
 
@@ -331,6 +335,19 @@ const emailService = {
 		return orm(c).insert(email).values({ ...params }).returning().get();
 	},
 
+	// 指定渠道时只用该渠道，缺少配置则视为不可用；未指定时按 CF、Resend、Sendflare 顺序自动选择。
+	resolveSendProvider(c, sendProvider, resendToken, sendflareToken) {
+		const available = {
+			cloudflare: !!c.env.email,
+			resend: !!resendToken,
+			sendflare: !!sendflareToken
+		};
+		if (sendProvider) {
+			return available[sendProvider] ? sendProvider : '';
+		}
+		return ['cloudflare', 'resend', 'sendflare'].find(key => available[key]) || '';
+	},
+
 	// 发送入口：公共校验、参数准备、渠道选择和结果汇总。
 	async send(c, params, userId) {
 		let {
@@ -345,7 +362,7 @@ const emailService = {
 			attachments = [] //附件
 		} = params;
 
-		const { resendTokens, r2Domain, send, domainList } = await settingService.query(c);
+		const { resendTokens, sendflareTokens, sendProvider, r2Domain, send, domainList } = await settingService.query(c);
 
 		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
 
@@ -412,10 +429,12 @@ const emailService = {
 
 		const domain = emailUtils.getDomain(accountRow.email);
 		const resendToken = resendTokens[domain];
-		const useCloudflareEmail = !!c.env.email;
+		const sendflareToken = sendflareTokens[domain];
+		const provider = this.resolveSendProvider(c, sendProvider, resendToken, sendflareToken);
+		const useCloudflareEmail = provider === 'cloudflare';
 
-		//如果接收方存在站外邮箱，又没有发信服务
-		if (!useCloudflareEmail && !resendToken && !allInternal) {
+		//如果接收方存在站外邮箱，又没有可用的发信服务
+		if (!provider && !allInternal) {
 			throw new BizError(t('noSendProvider'));
 		}
 
@@ -461,7 +480,7 @@ const emailService = {
 		const separate = params.manyType === 'divide';
 		// sendParams 用于渠道请求，saveParams 保留保存记录所需的账号、权限和附件数据。
 		const context = {
-			separate, allInternal, useCloudflareEmail, resendToken, sendParams,
+			separate, allInternal, useCloudflareEmail, resendToken, sendflareToken, sendParams,
 			saveParams: {
 				accountId, userId, name, subject, text, html,
 				sendEmail: accountRow.email,
@@ -471,14 +490,16 @@ const emailService = {
 			}
 		};
 
-		// 全部站内收件人走本地投递；存在站外收件人时优先 CF，其次 Resend。
+		// 全部站内收件人走本地投递；存在站外收件人时使用解析出的发信渠道。
 		let deliveries;
 		if (allInternal) {
 			deliveries = this.sendInternal(c, context);
-		} else if (useCloudflareEmail) {
+		} else if (provider === 'cloudflare') {
 			deliveries = this.sendCloudflare(c, context);
-		} else {
+		} else if (provider === 'resend') {
 			deliveries = this.sendResend(c, context);
+		} else {
+			deliveries = this.sendSendflare(c, context);
 		}
 
 		const emailResults = [];
@@ -583,7 +604,42 @@ const emailService = {
 		yield { emails };
 	},
 
-	// 三个渠道共用的发件记录保存：恢复正文图片 URL、保存附件并更新发送计数。
+	// Sendflare 分开发送按批提交，每批成功后立即保存，后续批次失败时保留已完成部分。
+	async *sendSendflare(c, { separate, sendflareToken, sendParams, saveParams }) {
+		const recipientGroups = [];
+		if (separate) {
+			for (let i = 0; i < sendParams.receiveEmail.length; i += SENDFLARE_BATCH_SIZE) {
+				recipientGroups.push(sendParams.receiveEmail.slice(i, i + SENDFLARE_BATCH_SIZE));
+			}
+		} else {
+			recipientGroups.push(sendParams.receiveEmail);
+		}
+		for (const receiveEmail of recipientGroups) {
+			let items;
+			try {
+				if (separate) {
+					const ids = await sendflareService.batchSend(sendflareToken, { ...sendParams, receiveEmail });
+					items = receiveEmail.map((address, index) => ({ receiveEmail: [address], id: ids?.[index] }));
+				} else {
+					const id = await sendflareService.send(sendflareToken, sendParams);
+					items = [{ receiveEmail, id }];
+				}
+			} catch (error) {
+				if (!separate) throw error;
+				yield { error: { message: error.message } };
+				return;
+			}
+			const emails = [];
+			for (const item of items) {
+				emails.push(await this.saveSentEmail(c, {
+					...saveParams, receiveEmail: item.receiveEmail, providerId: item.id
+				}));
+			}
+			yield { emails };
+		}
+	},
+
+	// 各渠道共用的发件记录保存：恢复正文图片 URL、保存附件并更新发送计数。
 	async saveSentEmail(c, params) {
 		const {
 			accountId, userId, name, subject, text, html, sendEmail, receiveEmail,
