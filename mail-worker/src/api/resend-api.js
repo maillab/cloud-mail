@@ -1,6 +1,6 @@
 import resendService from '../service/resend-service';
 import settingService from '../service/setting-service';
-import { Webhook } from 'svix';
+import { Webhook } from 'svix/dist/webhook.js';
 import app from '../hono/hono';
 app.post('/webhooks',async (c) => {
 	try {
