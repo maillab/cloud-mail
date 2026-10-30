@@ -1,5 +1,13 @@
 import http from '@/axios/index.js';
 
+export function claimAccounts(emailId) {
+    return http.get('/allEmail/claimAccounts', {params: {emailId}})
+}
+
+export function claimEmail(emailId, accountId) {
+    return http.post('/allEmail/claim', {emailId, accountId})
+}
+
 export function allEmailList(params) {
     return http.get('/allEmail/list', {params: {...params}})
 }

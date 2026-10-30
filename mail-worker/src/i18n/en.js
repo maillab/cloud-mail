@@ -1,4 +1,8 @@
 const en = {
+	claimAdminOnly: 'Only the administrator can assign unclaimed mail',
+	claimInvalidId: 'Invalid message or mailbox identifier',
+	claimNotUnclaimed: 'The message is already assigned, deleted, or not unclaimed. Refresh the list.',
+	claimTargetUnavailable: 'The target mailbox must match the original recipient and belong to an active user',
 	IncorrectPwd: 'Incorrect password',
 	addAccountDisabled: 'Add Email Address feature is disabled',
 	regDisabled: 'Sign up is disabled',

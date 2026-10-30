@@ -1,4 +1,10 @@
 const zh = {
+    claimMail: '认领到邮箱',
+    claimDescription: '将这封无人收件邮件及附件归属到原收件地址对应的已创建邮箱。',
+    claimSelectAccount: '选择目标邮箱',
+    claimCreateFirst: '请先创建与原收件地址相同的邮箱，再点击刷新。',
+    claimReload: '刷新邮箱',
+    claimSuccess: '认领成功，请到目标邮箱的收件箱查看',
     inbox: '收件箱',
     compose: '撰写邮件',
     drafts: '草稿箱',

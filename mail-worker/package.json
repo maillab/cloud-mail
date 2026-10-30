@@ -3,6 +3,7 @@
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
+		"test:claim": "node test/run-mail-claim.mjs",
 		"dev": "wrangler dev --config wrangler-dev.toml",
 		"test": "wrangler deploy --config wrangler-test.toml",
 		"deploy": "wrangler deploy",

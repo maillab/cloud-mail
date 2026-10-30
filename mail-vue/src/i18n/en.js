@@ -1,4 +1,10 @@
 const en = {
+    claimMail: 'Assign to mailbox',
+    claimDescription: 'Assign this unclaimed message and its attachments to the existing mailbox matching its original recipient.',
+    claimSelectAccount: 'Select a mailbox',
+    claimCreateFirst: 'Create a mailbox matching the original recipient first, then refresh.',
+    claimReload: 'Refresh mailboxes',
+    claimSuccess: 'Message assigned. Check the target mailbox inbox.',
     inbox: 'Inbox',
     compose: 'Compose',
     drafts: 'Drafts',

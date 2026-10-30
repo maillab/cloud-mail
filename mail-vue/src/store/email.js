@@ -5,6 +5,7 @@ import { sanitizeEmailHtml } from '@/utils/email-html.js'
 export const useEmailStore = defineStore('email', {
     state: () => ({
         deleteIds: 0,
+        claimRevision: 0,
         starScroll: null,
         emailScroll: null,
         cancelStarEmailId: 0,

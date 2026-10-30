@@ -308,6 +308,7 @@ const {t} = useI18n()
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
 const emailStore = useEmailStore();
+let lastClaimRevision = emailStore.claimRevision;
 const loading = ref(false);
 const followLoading = ref(false);
 const noLoading = ref(false);
@@ -366,6 +367,11 @@ defineExpose({
 })
 
 onActivated(() => {
+  // 管理员认领邮件后，缓存的列表需要重新加载归属
+  if (lastClaimRevision !== emailStore.claimRevision) {
+    lastClaimRevision = emailStore.claimRevision;
+    refreshList();
+  }
   requestAnimationFrame(() => {
     const index = scrollTop / itemHeight.value
     scrollbarRef.value?.scrollTo(index);
