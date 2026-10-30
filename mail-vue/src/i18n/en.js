@@ -224,6 +224,7 @@ const en = {
     forwardingRulesDesc: 'Rule-based forwarding only forwards emails received by the specified address',
     ruleEmailsInputDesc: 'Separate multiple email addresses with commas',
     resendTokenList: 'Token list',
+    resendWebhookSecret: 'Resend Webhook signing secret',
     domain: 'Domain',
     optional: 'Optional',
     subjectInputDesc: 'Please enter the email subject',

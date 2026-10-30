@@ -224,6 +224,7 @@ const zh = {
     forwardingRulesDesc: '规则转发只会转发设置邮箱所接收的邮件',
     ruleEmailsInputDesc: '多个邮箱用, 分开',
     resendTokenList: 'Token 列表',
+    resendWebhookSecret: 'Resend Webhook 签名密钥',
     domain: '域名',
     optional: '可选',
     subjectInputDesc: '请输入邮件主题',

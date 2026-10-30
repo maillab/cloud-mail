@@ -205,6 +205,12 @@
                 </div>
               </div>
               <div class="setting-item">
+                <div><span>{{ $t('resendWebhookSecret') }}</span></div>
+                <div>
+                  <el-input style="width: 200px" :placeholder="setting.resendWebhookSecret || $t('resendWebhookSecret')" v-model="resendWebhookSecret" @keyup.enter="saveResendWebhookSecret"/>
+                </div>
+              </div>
+              <div class="setting-item">
                 <div><span>{{ $t('blackList') }}</span></div>
                 <div>
                   <el-button class="opt-button" style="margin-top: 0" @click="openBlackListForm" size="small"
@@ -1050,6 +1056,7 @@ const webhookUrl = ref('')
 const webhookStatus = ref(1)
 const webhookRetry = ref(0)
 const webhookSecret = ref('')
+const resendWebhookSecret = ref('')
 const webhookFormatShow = ref(false)
 const webhookPayloadExample = `{
   "emailId": 1,
@@ -1642,6 +1649,12 @@ function backupSetting() {
   delete settingForm.siteKey
   delete settingForm.secretKey
   backup = JSON.stringify(setting.value)
+}
+
+function saveResendWebhookSecret() {
+  if (!resendWebhookSecret.value.trim()) return
+  editSetting({ resendWebhookSecret: resendWebhookSecret.value.trim() })
+  resendWebhookSecret.value = ''
 }
 
 function cleanResendTokenForm() {
