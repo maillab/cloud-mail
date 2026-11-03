@@ -51,6 +51,16 @@ const routes = [
                     menu: true
                 }
             },
+            {
+                path: '/mcp',
+                name: 'mcp',
+                component: () => import('@/views/mcp/index.vue'),
+                meta: {
+                    title: 'mcpSkill',
+                    name: 'mcp',
+                    menu: true
+                }
+            },
         ]
 
     },
