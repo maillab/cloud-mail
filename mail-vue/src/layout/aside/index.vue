@@ -35,6 +35,11 @@
           <Icon icon="fluent:settings-48-regular" width="20" height="20" />
           <span class="menu-name" style="margin-left: 16px">{{$t('settings')}}</span>
         </el-menu-item>
+        <el-menu-item @click="router.push({name: 'mcp'})" index="mcp"
+                      :class="route.meta.name === 'mcp' ? 'choose-item' : ''">
+          <Icon icon="fluent:bot-20-regular" width="20" height="20" />
+          <span class="menu-name" style="margin-left: 16px">{{$t('mcpSkill')}}</span>
+        </el-menu-item>
         <div class="manage-title" v-perm="['all-email:query','user:query','role:query','setting:query','analysis:query','reg-key:query']">
           <div>{{$t('manage')}}</div>
         </div>
