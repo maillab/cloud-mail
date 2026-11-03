@@ -1,4 +1,5 @@
 import app from './hono/webs';
+import { handleMcpRequest } from './mcp/handler';
 import { email } from './email/email';
 import userService from './service/user-service';
 import verifyRecordService from './service/verify-record-service';
@@ -15,6 +16,18 @@ export default {
 			url.pathname = url.pathname.replace('/api', '')
 			req = new Request(url.toString(), req)
 			return app.fetch(req, env, ctx);
+		}
+
+		// MCP endpoint (Streamable HTTP, stateless). Must stay BEFORE the
+		// static-assets fallback below, otherwise /mcp/ would serve the SPA.
+		// Only POST (MCP calls) and OPTIONS (CORS preflight) are intercepted:
+		// a plain GET /mcp must still fall through to the SPA so the Vue
+		// landing page (route /mcp) loads on refresh and direct links.
+		// Auth: Bearer MCP_AUTH_KEY (Worker secret; unset = all calls rejected).
+		// Write tools only when MCP_WRITE_ENABLED === 'true'. See src/mcp/README.md.
+		if ((url.pathname === '/mcp' || url.pathname === '/mcp/') &&
+			(req.method === 'POST' || req.method === 'OPTIONS')) {
+			return handleMcpRequest(req, env);
 		}
 
 		if (url.pathname.startsWith('/oss/')) {
