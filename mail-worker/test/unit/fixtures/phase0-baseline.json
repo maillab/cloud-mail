@@ -1,0 +1,19 @@
+{
+  "commit": "b4b0b421a07673dc96b8da935211f895dfb35fcb",
+  "nodeVersion": "24.13.0",
+  "command": "node --test scripts/attachment-routing.test.mjs scripts/oauth-setup.test.mjs scripts/prepare-build-deploy.test.mjs",
+  "result": { "tests": 17, "passed": 17, "failed": 0, "skipped": 0 },
+  "groups": { "attachmentRouting": 6, "oauthSetup": 7, "bindingRestoration": 4 },
+  "originalSha256": {
+    "scripts/attachment-routing.test.mjs": "42B033975F190D7072CB7DECC7ACC95FF6847E99E142813490F93FC9C9393D2A",
+    "scripts/oauth-setup.test.mjs": "54CDFEFC488447BA7845AFC81ECA978C8F0A261D01162DFF04A35A633BDE4953",
+    "scripts/prepare-build-deploy.test.mjs": "102A61310FF6CB32EB833E812282A29D60D545570B8EF4AFD6AD885EFAC5EAF4",
+    "src/index.js": "655B3B0716F488AE3E4A0C83ADCAC0B92CC44E18FD8F3B03F869A1A4FCD5E98D",
+    "src/service/kv-obj-service.js": "8C6B730738E9966A48CD1CD14A3529530BA9B69FFA19BEC20F89EA895A8C227A",
+    "src/service/oauth-service.js": "8BF19E2445FD3DE1DB8041605B533A9CC12E35980E64FB884265478393EBDF0E",
+    "src/utils/jwt-utils.js": "07791E53916133512F880528E1A9257B2EFB4967EEE98BD0AE3C999448950516",
+    "src/model/result.js": "4775DCE9806B89DDEA398BB058152226DBDB04D5E25C1789F3EFA769833EA8A5",
+    "src/error/biz-error.js": "4A517B9F27636479A0294BBB45D9DEA2434F3066179BF6B3A160F3C41C52E6DF"
+  },
+  "scope": "Local original-JavaScript tests only; no remote APIs, delivery or production bindings verified. Known legacy quirks are characterization, not permanent security requirements."
+}

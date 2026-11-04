@@ -1,0 +1,11 @@
+{
+  "commit": "b4b0b421a07673dc96b8da935211f895dfb35fcb",
+  "source": "src/service/login-service.js logout",
+  "observedBeforeFix": [
+    { "currentToken": "current-token", "storedTokens": ["current-token", "other-token"], "remainingTokens": ["current-token"] },
+    { "currentToken": "current-token", "storedTokens": ["other-token"], "remainingTokens": [] }
+  ],
+  "cause": "The asynchronous userContext.getToken result is compared without awaiting it; findIndex returns -1 and splice removes the last session.",
+  "target": "Await token decoding and remove only its matching index; keep all other sessions and the existing KV put options without a TTL.",
+  "verification": "Both target tests failed against the original JS with the recorded remainingTokens before the separately authorized fix."
+}

@@ -1,0 +1,31 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"lib": [
+			"ES2022"
+		],
+		"types": [
+			"./worker-runtime.d.ts"
+		],
+		"allowJs": false,
+		"noEmit": true,
+		"strict": true,
+		"skipLibCheck": true,
+		"esModuleInterop": true,
+		"isolatedModules": true,
+		"forceConsistentCasingInFileNames": true
+	},
+	"include": [
+		"src/**/*.ts",
+		"worker-runtime.d.ts"
+	],
+	"exclude": [
+		"node_modules",
+		"dist",
+		".wrangler",
+		"test",
+		"scripts"
+	]
+}

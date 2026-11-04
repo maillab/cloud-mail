@@ -63,6 +63,7 @@ test("reads the old Worker version and redirects Wrangler to its existing resour
     assert.equal(config.kv_namespaces[0].id, "original-kv");
     assert.equal(config.r2_buckets[0].bucket_name, "original-r2");
     assert.equal(config.keep_vars, true);
+    assert.equal(config.main, "src/index.ts");
     assert.equal(redirect.configPath, "../../wrangler-bindings.generated.json");
     assert.equal(paths.length, 4);
   } finally {

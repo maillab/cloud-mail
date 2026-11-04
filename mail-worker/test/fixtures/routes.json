@@ -1,0 +1,262 @@
+[
+  {
+    "method": "POST",
+    "path": "/api/account/add"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/account/delete"
+  },
+  {
+    "method": "GET",
+    "path": "/api/account/list"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/account/setAllReceive"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/account/setAsTop"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/account/setName"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/allEmail/batchDelete"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/allEmail/delete"
+  },
+  {
+    "method": "GET",
+    "path": "/api/allEmail/latest"
+  },
+  {
+    "method": "GET",
+    "path": "/api/allEmail/list"
+  },
+  {
+    "method": "GET",
+    "path": "/api/analysis/echarts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/email/attList"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/email/delete"
+  },
+  {
+    "method": "GET",
+    "path": "/api/email/latest"
+  },
+  {
+    "method": "GET",
+    "path": "/api/email/list"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/email/read"
+  },
+  {
+    "method": "POST",
+    "path": "/api/email/send"
+  },
+  {
+    "method": "GET",
+    "path": "/api/init/:secret"
+  },
+  {
+    "method": "POST",
+    "path": "/api/login"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/logout"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/my/delete"
+  },
+  {
+    "method": "GET",
+    "path": "/api/my/loginUserInfo"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/my/resetPassword"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/oauth/bindUser"
+  },
+  {
+    "method": "POST",
+    "path": "/api/oauth/github/login"
+  },
+  {
+    "method": "POST",
+    "path": "/api/oauth/google/login"
+  },
+  {
+    "method": "POST",
+    "path": "/api/oauth/linuxDo/login"
+  },
+  {
+    "method": "GET",
+    "path": "/api/oss/*"
+  },
+  {
+    "method": "POST",
+    "path": "/api/public/addUser"
+  },
+  {
+    "method": "POST",
+    "path": "/api/public/emailList"
+  },
+  {
+    "method": "POST",
+    "path": "/api/public/genToken"
+  },
+  {
+    "method": "POST",
+    "path": "/api/register"
+  },
+  {
+    "method": "POST",
+    "path": "/api/regKey/add"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/regKey/clearNotUse"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/regKey/delete"
+  },
+  {
+    "method": "GET",
+    "path": "/api/regKey/history"
+  },
+  {
+    "method": "GET",
+    "path": "/api/regKey/list"
+  },
+  {
+    "method": "POST",
+    "path": "/api/role/add"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/role/delete"
+  },
+  {
+    "method": "GET",
+    "path": "/api/role/list"
+  },
+  {
+    "method": "GET",
+    "path": "/api/role/selectUse"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/role/set"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/role/setDefault"
+  },
+  {
+    "method": "GET",
+    "path": "/api/role/tree"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/setting/deleteBackground"
+  },
+  {
+    "method": "GET",
+    "path": "/api/setting/query"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/setting/set"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/setting/setBackground"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/setting/setBlacklist"
+  },
+  {
+    "method": "GET",
+    "path": "/api/setting/websiteConfig"
+  },
+  {
+    "method": "POST",
+    "path": "/api/star/add"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/star/cancel"
+  },
+  {
+    "method": "GET",
+    "path": "/api/star/list"
+  },
+  {
+    "method": "GET",
+    "path": "/api/telegram/getEmail/:token"
+  },
+  {
+    "method": "POST",
+    "path": "/api/user/add"
+  },
+  {
+    "method": "GET",
+    "path": "/api/user/allAccount"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/user/delete"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/user/deleteAccount"
+  },
+  {
+    "method": "GET",
+    "path": "/api/user/list"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/user/resetSendCount"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/user/restore"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/user/setPwd"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/user/setStatus"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/user/setType"
+  },
+  {
+    "method": "POST",
+    "path": "/api/webhooks"
+  }
+]

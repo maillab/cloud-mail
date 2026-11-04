@@ -3,15 +3,32 @@
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
-		"dev": "wrangler dev --config wrangler-dev.toml",
-		"test": "wrangler deploy --config wrangler-test.toml",
-		"deploy": "wrangler deploy",
-		"start": "wrangler dev"
+		"dev": "wrangler dev --local --config wrangler-dev.toml",
+		"start": "wrangler dev",
+		"types": "wrangler types worker-runtime.d.ts --config wrangler-dev.toml --include-env=false --include-runtime=true",
+		"types:check": "wrangler types worker-runtime.d.ts --config wrangler-dev.toml --include-env=false --include-runtime=true --check",
+		"typecheck": "tsc -p tsconfig.json",
+		"lint": "eslint \"src/**/*.ts\" --max-warnings=0",
+		"test:node": "node --test scripts/attachment-routing.test.mjs scripts/oauth-setup.test.mjs scripts/prepare-build-deploy.test.mjs \"test/unit/**/*.test.mjs\"",
+		"test:worker": "pnpm run build:worker && node scripts/run-worker-contracts.mjs",
+		"test": "pnpm run test:node && pnpm run test:worker",
+		"build:assets": "pnpm -C ../mail-react run build",
+		"build:worker": "wrangler deploy --dry-run --config wrangler-dev.toml --outdir .wrangler/ts-build",
+		"build": "pnpm run types:check && pnpm run typecheck && pnpm run build:assets && pnpm run build:worker",
+		"verify": "pnpm run types:check && pnpm run typecheck && pnpm run lint && pnpm run check:source && pnpm run check:compat && pnpm test",
+		"deploy": "pnpm run build && pnpm run verify && node scripts/deploy-worker.mjs",
+		"deploy:test": "pnpm run build && pnpm run verify && node scripts/deploy-worker.mjs --config wrangler-test.toml",
+		"check:source": "node scripts/check-source.mjs",
+		"check:compat": "node scripts/check-frontend-contracts.mjs"
 	},
 	"devDependencies": {
-		"@cloudflare/vitest-pool-workers": "^0.7.5",
-		"vitest": "~3.0.7",
-		"wrangler": "^4.90.0"
+		"@eslint/js": "9.39.5",
+		"esbuild": "0.27.3",
+		"eslint": "9.39.5",
+		"miniflare": "4.20260507.1",
+		"typescript": "5.9.3",
+		"typescript-eslint": "8.70.1",
+		"wrangler": "4.90.0"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.882.0",

@@ -1,0 +1,3346 @@
+{
+  "schema": {
+    "perm": {
+      "table": "perm",
+      "columns": {
+        "permId": {
+          "name": "perm_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": true,
+          "autoIncrement": true,
+          "hasDefault": true,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "name": {
+          "name": "name",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "permKey": {
+          "name": "perm_key",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "pid": {
+          "name": "pid",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "type": {
+          "name": "type",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 2
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "sort": {
+          "name": "sort",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        }
+      }
+    },
+    "rolePerm": {
+      "table": "role_perm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": true,
+          "autoIncrement": true,
+          "hasDefault": true,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "roleId": {
+          "name": "role_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "permId": {
+          "name": "perm_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        }
+      }
+    },
+    "star": {
+      "table": "star",
+      "columns": {
+        "starId": {
+          "name": "star_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": true,
+          "autoIncrement": true,
+          "hasDefault": true,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "userId": {
+          "name": "user_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "emailId": {
+          "name": "email_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "createTime": {
+          "name": "create_time",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "sql",
+            "sql": "CURRENT_TIMESTAMP",
+            "params": []
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        }
+      }
+    },
+    "regKey": {
+      "table": "reg_key",
+      "columns": {
+        "regKeyId": {
+          "name": "rege_key_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": true,
+          "autoIncrement": true,
+          "hasDefault": true,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "code": {
+          "name": "code",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "count": {
+          "name": "count",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "roleId": {
+          "name": "role_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "userId": {
+          "name": "user_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "expireTime": {
+          "name": "expire_time",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "createTime": {
+          "name": "create_time",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "sql",
+            "sql": "CURRENT_TIMESTAMP",
+            "params": []
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        }
+      }
+    },
+    "role": {
+      "table": "role",
+      "columns": {
+        "roleId": {
+          "name": "role_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": true,
+          "autoIncrement": true,
+          "hasDefault": true,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "name": {
+          "name": "name",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "key": {
+          "name": "key",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "description": {
+          "name": "description",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "banEmail": {
+          "name": "ban_email",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "banEmailType": {
+          "name": "ban_email_type",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "availDomain": {
+          "name": "avail_domain",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "sort": {
+          "name": "sort",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "isDefault": {
+          "name": "is_default",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "createTime": {
+          "name": "create_time",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "sql",
+            "sql": "CURRENT_TIMESTAMP",
+            "params": []
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "userId": {
+          "name": "user_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "sendCount": {
+          "name": "send_count",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "sendType": {
+          "name": "send_type",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": "count"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "accountCount": {
+          "name": "account_count",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        }
+      }
+    },
+    "account": {
+      "table": "account",
+      "columns": {
+        "accountId": {
+          "name": "account_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": true,
+          "autoIncrement": true,
+          "hasDefault": true,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "email": {
+          "name": "email",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "name": {
+          "name": "name",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "status": {
+          "name": "status",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "latestEmailTime": {
+          "name": "latest_email_time",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "createTime": {
+          "name": "create_time",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "sql",
+            "sql": "CURRENT_TIMESTAMP",
+            "params": []
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "userId": {
+          "name": "user_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "allReceive": {
+          "name": "all_receive",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "sort": {
+          "name": "sort",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "isDel": {
+          "name": "is_del",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        }
+      }
+    },
+    "user": {
+      "table": "user",
+      "columns": {
+        "userId": {
+          "name": "user_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": true,
+          "autoIncrement": true,
+          "hasDefault": true,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "email": {
+          "name": "email",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "type": {
+          "name": "type",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "password": {
+          "name": "password",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "salt": {
+          "name": "salt",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "status": {
+          "name": "status",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "createTime": {
+          "name": "create_time",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "sql",
+            "sql": "CURRENT_TIMESTAMP",
+            "params": []
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "activeTime": {
+          "name": "active_time",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "createIp": {
+          "name": "create_ip",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "activeIp": {
+          "name": "active_ip",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "os": {
+          "name": "os",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "browser": {
+          "name": "browser",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "device": {
+          "name": "device",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "sort": {
+          "name": "sort",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "sendCount": {
+          "name": "send_count",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "regKeyId": {
+          "name": "reg_key_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "isDel": {
+          "name": "is_del",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        }
+      }
+    },
+    "oauth": {
+      "table": "oauth",
+      "columns": {
+        "oauthId": {
+          "name": "oauth_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": true,
+          "autoIncrement": true,
+          "hasDefault": true,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "oauthUserId": {
+          "name": "oauth_user_id",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "username": {
+          "name": "username",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "name": {
+          "name": "name",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "avatar": {
+          "name": "avatar",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "active": {
+          "name": "active",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "trustLevel": {
+          "name": "trust_level",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "silenced": {
+          "name": "silenced",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "createTime": {
+          "name": "create_time",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "sql",
+            "sql": "CURRENT_TIMESTAMP",
+            "params": []
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "platform": {
+          "name": "platform",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "userId": {
+          "name": "user_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        }
+      }
+    },
+    "verifyRecord": {
+      "table": "verify_record",
+      "columns": {
+        "vrId": {
+          "name": "vr_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": true,
+          "autoIncrement": true,
+          "hasDefault": true,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "ip": {
+          "name": "ip",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "count": {
+          "name": "count",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "type": {
+          "name": "type",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "updateTime": {
+          "name": "update_time",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "sql",
+            "sql": "CURRENT_TIMESTAMP",
+            "params": []
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        }
+      }
+    },
+    "att": {
+      "table": "attachments",
+      "columns": {
+        "attId": {
+          "name": "att_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": true,
+          "autoIncrement": true,
+          "hasDefault": true,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "userId": {
+          "name": "user_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "emailId": {
+          "name": "email_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "accountId": {
+          "name": "account_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "key": {
+          "name": "key",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "filename": {
+          "name": "filename",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "mimeType": {
+          "name": "mime_type",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "size": {
+          "name": "size",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "status": {
+          "name": "status",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "type": {
+          "name": "type",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "disposition": {
+          "name": "disposition",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "related": {
+          "name": "related",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "contentId": {
+          "name": "content_id",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "encoding": {
+          "name": "encoding",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "createTime": {
+          "name": "create_time",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "sql",
+            "sql": "CURRENT_TIMESTAMP",
+            "params": []
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        }
+      }
+    },
+    "email": {
+      "table": "email",
+      "columns": {
+        "emailId": {
+          "name": "email_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": true,
+          "autoIncrement": true,
+          "hasDefault": true,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "sendEmail": {
+          "name": "send_email",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "name": {
+          "name": "name",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "accountId": {
+          "name": "account_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "userId": {
+          "name": "user_id",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "subject": {
+          "name": "subject",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "code": {
+          "name": "code",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "text": {
+          "name": "text",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "content": {
+          "name": "content",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "cc": {
+          "name": "cc",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": "[]"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "bcc": {
+          "name": "bcc",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": "[]"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "recipient": {
+          "name": "recipient",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "toEmail": {
+          "name": "to_email",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "toName": {
+          "name": "to_name",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "inReplyTo": {
+          "name": "in_reply_to",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "relation": {
+          "name": "relation",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "messageId": {
+          "name": "message_id",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "type": {
+          "name": "type",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "status": {
+          "name": "status",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "resendEmailId": {
+          "name": "resend_email_id",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "message": {
+          "name": "message",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "unread": {
+          "name": "unread",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "createTime": {
+          "name": "create_time",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "sql",
+            "sql": "CURRENT_TIMESTAMP",
+            "params": []
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "isDel": {
+          "name": "is_del",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        }
+      }
+    },
+    "setting": {
+      "table": "setting",
+      "columns": {
+        "register": {
+          "name": "register",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "receive": {
+          "name": "receive",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "title": {
+          "name": "title",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "manyEmail": {
+          "name": "many_email",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "addEmail": {
+          "name": "add_email",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "autoRefresh": {
+          "name": "auto_refresh",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "addEmailVerify": {
+          "name": "add_email_verify",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "registerVerify": {
+          "name": "register_verify",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "regVerifyCount": {
+          "name": "reg_verify_count",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "addVerifyCount": {
+          "name": "add_verify_count",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "send": {
+          "name": "send",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "r2Domain": {
+          "name": "r2_domain",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "secretKey": {
+          "name": "secret_key",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "siteKey": {
+          "name": "site_key",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "regKey": {
+          "name": "reg_key",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "background": {
+          "name": "background",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": false,
+          "default": {
+            "kind": "none"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "tgBotToken": {
+          "name": "tg_bot_token",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "tgChatId": {
+          "name": "tg_chat_id",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "tgBotStatus": {
+          "name": "tg_bot_status",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "forwardEmail": {
+          "name": "forward_email",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "forwardStatus": {
+          "name": "forward_status",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "ruleEmail": {
+          "name": "rule_email",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "ruleType": {
+          "name": "rule_type",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "loginOpacity": {
+          "name": "login_opacity",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": false,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0.88
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "resendTokens": {
+          "name": "resend_tokens",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": "{}"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "noticeTitle": {
+          "name": "notice_title",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "noticeContent": {
+          "name": "notice_content",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "noticeType": {
+          "name": "notice_type",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "noticeDuration": {
+          "name": "notice_duration",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "noticePosition": {
+          "name": "notice_position",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "noticeOffset": {
+          "name": "notice_offset",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "noticeWidth": {
+          "name": "notice_width",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 400
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "notice": {
+          "name": "notice",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "noRecipient": {
+          "name": "no_recipient",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "loginDomain": {
+          "name": "login_domain",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "bucket": {
+          "name": "bucket",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "region": {
+          "name": "region",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "endpoint": {
+          "name": "endpoint",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "s3AccessKey": {
+          "name": "s3_access_key",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "s3SecretKey": {
+          "name": "s3_secret_key",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "forcePathStyle": {
+          "name": "force_path_style",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "customDomain": {
+          "name": "custom_domain",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "tgMsgFrom": {
+          "name": "tg_msg_from",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": "only-name"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "tgMsgTo": {
+          "name": "tg_msg_to",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": "show"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "tgMsgText": {
+          "name": "tg_msg_text",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": "hide"
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "minEmailPrefix": {
+          "name": "min_email_prefix",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "emailPrefixFilter": {
+          "name": "email_prefix_filter",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "blackSubject": {
+          "name": "black_subject",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "blackContent": {
+          "name": "black_content",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "blackFrom": {
+          "name": "black_from",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "aiCode": {
+          "name": "ai_code",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "syncDelete": {
+          "name": "sync_delete",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "aiCodeFilter": {
+          "name": "ai_code_filter",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "linuxdoClientId": {
+          "name": "linuxdo_client_id",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "linuxdoClientSecret": {
+          "name": "linuxdo_client_secret",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "linuxdoSwitch": {
+          "name": "linuxdo_switch",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "githubClientId": {
+          "name": "github_client_id",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "githubClientSecret": {
+          "name": "github_client_secret",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "githubSwitch": {
+          "name": "github_switch",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "googleClientId": {
+          "name": "google_client_id",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "googleClientSecret": {
+          "name": "google_client_secret",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "googleSwitch": {
+          "name": "google_switch",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "autoCleanDays": {
+          "name": "auto_clean_days",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "autoCleanExclude": {
+          "name": "auto_clean_exclude",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "webhookUrl": {
+          "name": "webhook_url",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "webhookStatus": {
+          "name": "webhook_status",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 1
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "webhookRetry": {
+          "name": "webhook_retry",
+          "sqlType": "integer",
+          "columnType": "SQLiteInteger",
+          "dataType": "number",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": 0
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        },
+        "webhookSecret": {
+          "name": "webhook_secret",
+          "sqlType": "text",
+          "columnType": "SQLiteText",
+          "dataType": "string",
+          "notNull": true,
+          "primary": false,
+          "autoIncrement": false,
+          "hasDefault": true,
+          "default": {
+            "kind": "value",
+            "value": ""
+          },
+          "fromDriver": "identity-on-baseline-samples",
+          "toDriver": "identity-on-baseline-samples"
+        }
+      }
+    }
+  },
+  "queries": {
+    "perm": {
+      "select": {
+        "sql": "select \"perm_id\", \"name\", \"perm_key\", \"pid\", \"type\", \"sort\" from \"perm\" where \"perm\".\"perm_id\" = ?",
+        "params": [
+          7
+        ]
+      },
+      "insert": {
+        "sql": "insert into \"perm\" (\"perm_id\", \"name\", \"perm_key\", \"pid\", \"type\", \"sort\") values (null, ?, ?, ?, ?, null) returning \"perm_id\", \"name\", \"perm_key\", \"pid\", \"type\", \"sort\"",
+        "params": [
+          "Read mail",
+          "email.read",
+          0,
+          2
+        ]
+      },
+      "update": {
+        "sql": "update \"perm\" set \"name\" = ?, \"perm_key\" = ? where \"perm\".\"perm_id\" = ? returning \"perm_id\", \"name\", \"perm_key\", \"pid\", \"type\", \"sort\"",
+        "params": [
+          "Read mail",
+          "email.read",
+          7
+        ]
+      }
+    },
+    "rolePerm": {
+      "select": {
+        "sql": "select \"id\", \"role_id\", \"perm_id\" from \"role_perm\" where \"role_perm\".\"id\" = ?",
+        "params": [
+          7
+        ]
+      },
+      "insert": {
+        "sql": "insert into \"role_perm\" (\"id\", \"role_id\", \"perm_id\") values (null, ?, ?) returning \"id\", \"role_id\", \"perm_id\"",
+        "params": [
+          2,
+          1
+        ]
+      },
+      "update": {
+        "sql": "update \"role_perm\" set \"role_id\" = ?, \"perm_id\" = ? where \"role_perm\".\"id\" = ? returning \"id\", \"role_id\", \"perm_id\"",
+        "params": [
+          2,
+          1,
+          7
+        ]
+      }
+    },
+    "star": {
+      "select": {
+        "sql": "select \"star_id\", \"user_id\", \"email_id\", \"create_time\" from \"star\" where \"star\".\"star_id\" = ?",
+        "params": [
+          7
+        ]
+      },
+      "insert": {
+        "sql": "insert into \"star\" (\"star_id\", \"user_id\", \"email_id\", \"create_time\") values (null, ?, ?, CURRENT_TIMESTAMP) returning \"star_id\", \"user_id\", \"email_id\", \"create_time\"",
+        "params": [
+          4,
+          7
+        ]
+      },
+      "update": {
+        "sql": "update \"star\" set \"user_id\" = ?, \"email_id\" = ? where \"star\".\"star_id\" = ? returning \"star_id\", \"user_id\", \"email_id\", \"create_time\"",
+        "params": [
+          4,
+          7,
+          7
+        ]
+      }
+    },
+    "regKey": {
+      "select": {
+        "sql": "select \"rege_key_id\", \"code\", \"count\", \"role_id\", \"user_id\", \"expire_time\", \"create_time\" from \"reg_key\" where \"reg_key\".\"rege_key_id\" = ?",
+        "params": [
+          7
+        ]
+      },
+      "insert": {
+        "sql": "insert into \"reg_key\" (\"rege_key_id\", \"code\", \"count\", \"role_id\", \"user_id\", \"expire_time\", \"create_time\") values (null, ?, ?, ?, ?, null, CURRENT_TIMESTAMP) returning \"rege_key_id\", \"code\", \"count\", \"role_id\", \"user_id\", \"expire_time\", \"create_time\"",
+        "params": [
+          "fixture-key",
+          2,
+          0,
+          0
+        ]
+      },
+      "update": {
+        "sql": "update \"reg_key\" set \"code\" = ?, \"count\" = ? where \"reg_key\".\"rege_key_id\" = ? returning \"rege_key_id\", \"code\", \"count\", \"role_id\", \"user_id\", \"expire_time\", \"create_time\"",
+        "params": [
+          "fixture-key",
+          2,
+          7
+        ]
+      }
+    },
+    "role": {
+      "select": {
+        "sql": "select \"role_id\", \"name\", \"key\", \"description\", \"ban_email\", \"ban_email_type\", \"avail_domain\", \"sort\", \"is_default\", \"create_time\", \"user_id\", \"send_count\", \"send_type\", \"account_count\" from \"role\" where \"role\".\"role_id\" = ?",
+        "params": [
+          7
+        ]
+      },
+      "insert": {
+        "sql": "insert into \"role\" (\"role_id\", \"name\", \"key\", \"description\", \"ban_email\", \"ban_email_type\", \"avail_domain\", \"sort\", \"is_default\", \"create_time\", \"user_id\", \"send_count\", \"send_type\", \"account_count\") values (null, ?, ?, ?, ?, ?, ?, null, ?, CURRENT_TIMESTAMP, null, null, ?, null) returning \"role_id\", \"name\", \"key\", \"description\", \"ban_email\", \"ban_email_type\", \"avail_domain\", \"sort\", \"is_default\", \"create_time\", \"user_id\", \"send_count\", \"send_type\", \"account_count\"",
+        "params": [
+          "Fixture role",
+          "fixture-role",
+          null,
+          "",
+          0,
+          "",
+          0,
+          "count"
+        ]
+      },
+      "update": {
+        "sql": "update \"role\" set \"name\" = ?, \"key\" = ?, \"description\" = ? where \"role\".\"role_id\" = ? returning \"role_id\", \"name\", \"key\", \"description\", \"ban_email\", \"ban_email_type\", \"avail_domain\", \"sort\", \"is_default\", \"create_time\", \"user_id\", \"send_count\", \"send_type\", \"account_count\"",
+        "params": [
+          "Fixture role",
+          "fixture-role",
+          null,
+          7
+        ]
+      }
+    },
+    "account": {
+      "select": {
+        "sql": "select \"account_id\", \"email\", \"name\", \"status\", \"latest_email_time\", \"create_time\", \"user_id\", \"all_receive\", \"sort\", \"is_del\" from \"account\" where \"account\".\"account_id\" = ?",
+        "params": [
+          7
+        ]
+      },
+      "insert": {
+        "sql": "insert into \"account\" (\"account_id\", \"email\", \"name\", \"status\", \"latest_email_time\", \"create_time\", \"user_id\", \"all_receive\", \"sort\", \"is_del\") values (null, ?, ?, ?, null, CURRENT_TIMESTAMP, ?, ?, ?, ?) returning \"account_id\", \"email\", \"name\", \"status\", \"latest_email_time\", \"create_time\", \"user_id\", \"all_receive\", \"sort\", \"is_del\"",
+        "params": [
+          "fixture@example.test",
+          "",
+          0,
+          4,
+          0,
+          0,
+          0
+        ]
+      },
+      "update": {
+        "sql": "update \"account\" set \"email\" = ?, \"user_id\" = ? where \"account\".\"account_id\" = ? returning \"account_id\", \"email\", \"name\", \"status\", \"latest_email_time\", \"create_time\", \"user_id\", \"all_receive\", \"sort\", \"is_del\"",
+        "params": [
+          "fixture@example.test",
+          4,
+          7
+        ]
+      }
+    },
+    "user": {
+      "select": {
+        "sql": "select \"user_id\", \"email\", \"type\", \"password\", \"salt\", \"status\", \"create_time\", \"active_time\", \"create_ip\", \"active_ip\", \"os\", \"browser\", \"device\", \"sort\", \"send_count\", \"reg_key_id\", \"is_del\" from \"user\" where \"user\".\"user_id\" = ?",
+        "params": [
+          7
+        ]
+      },
+      "insert": {
+        "sql": "insert into \"user\" (\"user_id\", \"email\", \"type\", \"password\", \"salt\", \"status\", \"create_time\", \"active_time\", \"create_ip\", \"active_ip\", \"os\", \"browser\", \"device\", \"sort\", \"send_count\", \"reg_key_id\", \"is_del\") values (null, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, null, null, null, null, null, null, ?, ?, ?, ?) returning \"user_id\", \"email\", \"type\", \"password\", \"salt\", \"status\", \"create_time\", \"active_time\", \"create_ip\", \"active_ip\", \"os\", \"browser\", \"device\", \"sort\", \"send_count\", \"reg_key_id\", \"is_del\"",
+        "params": [
+          "fixture@example.test",
+          1,
+          "fixture-hash",
+          "fixture-salt",
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "update": {
+        "sql": "update \"user\" set \"email\" = ?, \"password\" = ?, \"salt\" = ? where \"user\".\"user_id\" = ? returning \"user_id\", \"email\", \"type\", \"password\", \"salt\", \"status\", \"create_time\", \"active_time\", \"create_ip\", \"active_ip\", \"os\", \"browser\", \"device\", \"sort\", \"send_count\", \"reg_key_id\", \"is_del\"",
+        "params": [
+          "fixture@example.test",
+          "fixture-hash",
+          "fixture-salt",
+          7
+        ]
+      }
+    },
+    "oauth": {
+      "select": {
+        "sql": "select \"oauth_id\", \"oauth_user_id\", \"username\", \"name\", \"avatar\", \"active\", \"trust_level\", \"silenced\", \"create_time\", \"platform\", \"user_id\" from \"oauth\" where \"oauth\".\"oauth_id\" = ?",
+        "params": [
+          7
+        ]
+      },
+      "insert": {
+        "sql": "insert into \"oauth\" (\"oauth_id\", \"oauth_user_id\", \"username\", \"name\", \"avatar\", \"active\", \"trust_level\", \"silenced\", \"create_time\", \"platform\", \"user_id\") values (null, ?, null, null, null, null, null, null, CURRENT_TIMESTAMP, ?, ?) returning \"oauth_id\", \"oauth_user_id\", \"username\", \"name\", \"avatar\", \"active\", \"trust_level\", \"silenced\", \"create_time\", \"platform\", \"user_id\"",
+        "params": [
+          "fixture-subject",
+          "google",
+          0
+        ]
+      },
+      "update": {
+        "sql": "update \"oauth\" set \"oauth_user_id\" = ?, \"platform\" = ? where \"oauth\".\"oauth_id\" = ? returning \"oauth_id\", \"oauth_user_id\", \"username\", \"name\", \"avatar\", \"active\", \"trust_level\", \"silenced\", \"create_time\", \"platform\", \"user_id\"",
+        "params": [
+          "fixture-subject",
+          "google",
+          7
+        ]
+      }
+    },
+    "verifyRecord": {
+      "select": {
+        "sql": "select \"vr_id\", \"ip\", \"count\", \"type\", \"update_time\" from \"verify_record\" where \"verify_record\".\"vr_id\" = ?",
+        "params": [
+          7
+        ]
+      },
+      "insert": {
+        "sql": "insert into \"verify_record\" (\"vr_id\", \"ip\", \"count\", \"type\", \"update_time\") values (null, ?, ?, ?, CURRENT_TIMESTAMP) returning \"vr_id\", \"ip\", \"count\", \"type\", \"update_time\"",
+        "params": [
+          "127.0.0.1",
+          1,
+          0
+        ]
+      },
+      "update": {
+        "sql": "update \"verify_record\" set \"ip\" = ? where \"verify_record\".\"vr_id\" = ? returning \"vr_id\", \"ip\", \"count\", \"type\", \"update_time\"",
+        "params": [
+          "127.0.0.1",
+          7
+        ]
+      }
+    },
+    "att": {
+      "select": {
+        "sql": "select \"att_id\", \"user_id\", \"email_id\", \"account_id\", \"key\", \"filename\", \"mime_type\", \"size\", \"status\", \"type\", \"disposition\", \"related\", \"content_id\", \"encoding\", \"create_time\" from \"attachments\" where \"attachments\".\"att_id\" = ?",
+        "params": [
+          7
+        ]
+      },
+      "insert": {
+        "sql": "insert into \"attachments\" (\"att_id\", \"user_id\", \"email_id\", \"account_id\", \"key\", \"filename\", \"mime_type\", \"size\", \"status\", \"type\", \"disposition\", \"related\", \"content_id\", \"encoding\", \"create_time\") values (null, ?, ?, ?, ?, null, null, null, ?, ?, null, null, null, null, CURRENT_TIMESTAMP) returning \"att_id\", \"user_id\", \"email_id\", \"account_id\", \"key\", \"filename\", \"mime_type\", \"size\", \"status\", \"type\", \"disposition\", \"related\", \"content_id\", \"encoding\", \"create_time\"",
+        "params": [
+          4,
+          7,
+          2,
+          "attachments/fixture.png",
+          0,
+          0
+        ]
+      },
+      "update": {
+        "sql": "update \"attachments\" set \"user_id\" = ?, \"email_id\" = ?, \"account_id\" = ?, \"key\" = ? where \"attachments\".\"att_id\" = ? returning \"att_id\", \"user_id\", \"email_id\", \"account_id\", \"key\", \"filename\", \"mime_type\", \"size\", \"status\", \"type\", \"disposition\", \"related\", \"content_id\", \"encoding\", \"create_time\"",
+        "params": [
+          4,
+          7,
+          2,
+          "attachments/fixture.png",
+          7
+        ]
+      }
+    },
+    "email": {
+      "select": {
+        "sql": "select \"email_id\", \"send_email\", \"name\", \"account_id\", \"user_id\", \"subject\", \"code\", \"text\", \"content\", \"cc\", \"bcc\", \"recipient\", \"to_email\", \"to_name\", \"in_reply_to\", \"relation\", \"message_id\", \"type\", \"status\", \"resend_email_id\", \"message\", \"unread\", \"create_time\", \"is_del\" from \"email\" where \"email\".\"email_id\" = ?",
+        "params": [
+          7
+        ]
+      },
+      "insert": {
+        "sql": "insert into \"email\" (\"email_id\", \"send_email\", \"name\", \"account_id\", \"user_id\", \"subject\", \"code\", \"text\", \"content\", \"cc\", \"bcc\", \"recipient\", \"to_email\", \"to_name\", \"in_reply_to\", \"relation\", \"message_id\", \"type\", \"status\", \"resend_email_id\", \"message\", \"unread\", \"create_time\", \"is_del\") values (null, null, null, ?, ?, null, ?, null, null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, ?, CURRENT_TIMESTAMP, ?) returning \"email_id\", \"send_email\", \"name\", \"account_id\", \"user_id\", \"subject\", \"code\", \"text\", \"content\", \"cc\", \"bcc\", \"recipient\", \"to_email\", \"to_name\", \"in_reply_to\", \"relation\", \"message_id\", \"type\", \"status\", \"resend_email_id\", \"message\", \"unread\", \"create_time\", \"is_del\"",
+        "params": [
+          2,
+          4,
+          "",
+          "[]",
+          "[]",
+          "[\"recipient@example.test\"]",
+          "",
+          "",
+          "",
+          "",
+          "",
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "update": {
+        "sql": "update \"email\" set \"account_id\" = ?, \"user_id\" = ?, \"recipient\" = ? where \"email\".\"email_id\" = ? returning \"email_id\", \"send_email\", \"name\", \"account_id\", \"user_id\", \"subject\", \"code\", \"text\", \"content\", \"cc\", \"bcc\", \"recipient\", \"to_email\", \"to_name\", \"in_reply_to\", \"relation\", \"message_id\", \"type\", \"status\", \"resend_email_id\", \"message\", \"unread\", \"create_time\", \"is_del\"",
+        "params": [
+          2,
+          4,
+          "[\"recipient@example.test\"]",
+          7
+        ]
+      }
+    },
+    "setting": {
+      "select": {
+        "sql": "select \"register\", \"receive\", \"title\", \"many_email\", \"add_email\", \"auto_refresh\", \"add_email_verify\", \"register_verify\", \"reg_verify_count\", \"add_verify_count\", \"send\", \"r2_domain\", \"secret_key\", \"site_key\", \"reg_key\", \"background\", \"tg_bot_token\", \"tg_chat_id\", \"tg_bot_status\", \"forward_email\", \"forward_status\", \"rule_email\", \"rule_type\", \"login_opacity\", \"resend_tokens\", \"notice_title\", \"notice_content\", \"notice_type\", \"notice_duration\", \"notice_position\", \"notice_offset\", \"notice_width\", \"notice\", \"no_recipient\", \"login_domain\", \"bucket\", \"region\", \"endpoint\", \"s3_access_key\", \"s3_secret_key\", \"force_path_style\", \"custom_domain\", \"tg_msg_from\", \"tg_msg_to\", \"tg_msg_text\", \"min_email_prefix\", \"email_prefix_filter\", \"black_subject\", \"black_content\", \"black_from\", \"ai_code\", \"sync_delete\", \"ai_code_filter\", \"linuxdo_client_id\", \"linuxdo_client_secret\", \"linuxdo_switch\", \"github_client_id\", \"github_client_secret\", \"github_switch\", \"google_client_id\", \"google_client_secret\", \"google_switch\", \"auto_clean_days\", \"auto_clean_exclude\", \"webhook_url\", \"webhook_status\", \"webhook_retry\", \"webhook_secret\" from \"setting\" where ? = ?",
+        "params": [
+          1,
+          1
+        ]
+      },
+      "insert": {
+        "sql": "insert into \"setting\" (\"register\", \"receive\", \"title\", \"many_email\", \"add_email\", \"auto_refresh\", \"add_email_verify\", \"register_verify\", \"reg_verify_count\", \"add_verify_count\", \"send\", \"r2_domain\", \"secret_key\", \"site_key\", \"reg_key\", \"background\", \"tg_bot_token\", \"tg_chat_id\", \"tg_bot_status\", \"forward_email\", \"forward_status\", \"rule_email\", \"rule_type\", \"login_opacity\", \"resend_tokens\", \"notice_title\", \"notice_content\", \"notice_type\", \"notice_duration\", \"notice_position\", \"notice_offset\", \"notice_width\", \"notice\", \"no_recipient\", \"login_domain\", \"bucket\", \"region\", \"endpoint\", \"s3_access_key\", \"s3_secret_key\", \"force_path_style\", \"custom_domain\", \"tg_msg_from\", \"tg_msg_to\", \"tg_msg_text\", \"min_email_prefix\", \"email_prefix_filter\", \"black_subject\", \"black_content\", \"black_from\", \"ai_code\", \"sync_delete\", \"ai_code_filter\", \"linuxdo_client_id\", \"linuxdo_client_secret\", \"linuxdo_switch\", \"github_client_id\", \"github_client_secret\", \"github_switch\", \"google_client_id\", \"google_client_secret\", \"google_switch\", \"auto_clean_days\", \"auto_clean_exclude\", \"webhook_url\", \"webhook_status\", \"webhook_retry\", \"webhook_secret\") values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, null, ?, null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) returning \"register\", \"receive\", \"title\", \"many_email\", \"add_email\", \"auto_refresh\", \"add_email_verify\", \"register_verify\", \"reg_verify_count\", \"add_verify_count\", \"send\", \"r2_domain\", \"secret_key\", \"site_key\", \"reg_key\", \"background\", \"tg_bot_token\", \"tg_chat_id\", \"tg_bot_status\", \"forward_email\", \"forward_status\", \"rule_email\", \"rule_type\", \"login_opacity\", \"resend_tokens\", \"notice_title\", \"notice_content\", \"notice_type\", \"notice_duration\", \"notice_position\", \"notice_offset\", \"notice_width\", \"notice\", \"no_recipient\", \"login_domain\", \"bucket\", \"region\", \"endpoint\", \"s3_access_key\", \"s3_secret_key\", \"force_path_style\", \"custom_domain\", \"tg_msg_from\", \"tg_msg_to\", \"tg_msg_text\", \"min_email_prefix\", \"email_prefix_filter\", \"black_subject\", \"black_content\", \"black_from\", \"ai_code\", \"sync_delete\", \"ai_code_filter\", \"linuxdo_client_id\", \"linuxdo_client_secret\", \"linuxdo_switch\", \"github_client_id\", \"github_client_secret\", \"github_switch\", \"google_client_id\", \"google_client_secret\", \"google_switch\", \"auto_clean_days\", \"auto_clean_exclude\", \"webhook_url\", \"webhook_status\", \"webhook_retry\", \"webhook_secret\"",
+        "params": [
+          0,
+          0,
+          "",
+          0,
+          0,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          "",
+          "",
+          1,
+          "",
+          1,
+          "",
+          0,
+          0.88,
+          "{}",
+          "",
+          "",
+          "",
+          0,
+          "",
+          0,
+          400,
+          0,
+          1,
+          0,
+          "",
+          "",
+          "",
+          "",
+          "",
+          1,
+          "",
+          "only-name",
+          "show",
+          "hide",
+          0,
+          "",
+          "",
+          "",
+          "",
+          1,
+          1,
+          "",
+          "",
+          "",
+          1,
+          "",
+          "",
+          1,
+          "",
+          "",
+          1,
+          0,
+          "",
+          "",
+          1,
+          0,
+          ""
+        ]
+      },
+      "update": {
+        "sql": "update \"setting\" set \"title\" = ? where ? = ? returning \"register\", \"receive\", \"title\", \"many_email\", \"add_email\", \"auto_refresh\", \"add_email_verify\", \"register_verify\", \"reg_verify_count\", \"add_verify_count\", \"send\", \"r2_domain\", \"secret_key\", \"site_key\", \"reg_key\", \"background\", \"tg_bot_token\", \"tg_chat_id\", \"tg_bot_status\", \"forward_email\", \"forward_status\", \"rule_email\", \"rule_type\", \"login_opacity\", \"resend_tokens\", \"notice_title\", \"notice_content\", \"notice_type\", \"notice_duration\", \"notice_position\", \"notice_offset\", \"notice_width\", \"notice\", \"no_recipient\", \"login_domain\", \"bucket\", \"region\", \"endpoint\", \"s3_access_key\", \"s3_secret_key\", \"force_path_style\", \"custom_domain\", \"tg_msg_from\", \"tg_msg_to\", \"tg_msg_text\", \"min_email_prefix\", \"email_prefix_filter\", \"black_subject\", \"black_content\", \"black_from\", \"ai_code\", \"sync_delete\", \"ai_code_filter\", \"linuxdo_client_id\", \"linuxdo_client_secret\", \"linuxdo_switch\", \"github_client_id\", \"github_client_secret\", \"github_switch\", \"google_client_id\", \"google_client_secret\", \"google_switch\", \"auto_clean_days\", \"auto_clean_exclude\", \"webhook_url\", \"webhook_status\", \"webhook_retry\", \"webhook_secret\"",
+        "params": [
+          "Fixture title",
+          1,
+          1
+        ]
+      }
+    },
+    "emailBrief": {
+      "sql": "select \"email_id\", \"send_email\", \"name\", \"subject\", \"code\", \"recipient\", \"to_email\", \"type\", \"status\", \"message\", \"unread\", \"create_time\", \"is_del\", CASE WHEN trim(coalesce(\"text\", '')) != '' THEN NULL ELSE trim(replace(replace(replace(replace(replace(replace(\n\t\tcoalesce(\"email\".\"content\", ''),\n\t\tchar(13), ''),\n\t\tchar(10), ''),\n\t\tchar(9), ' '),\n\t\t'  ', ' '),\n\t\t'  ', ' '),\n\t\t'> <', '><')) END as \"content\", substr(coalesce(\"text\", ''), 1, ?) as \"text\" from \"email\" where \"email\".\"user_id\" = ?",
+      "params": [
+        300,
+        4
+      ]
+    },
+    "emailFull": {
+      "sql": "select \"email_id\", \"send_email\", \"name\", \"account_id\", \"user_id\", \"subject\", \"code\", \"text\", \"content\", \"cc\", \"bcc\", \"recipient\", \"to_email\", \"to_name\", \"in_reply_to\", \"relation\", \"message_id\", \"type\", \"status\", \"resend_email_id\", \"message\", \"unread\", \"create_time\", \"is_del\" from \"email\" where \"email\".\"user_id\" = ?",
+      "params": [
+        4
+      ]
+    }
+  },
+  "emailListTextLength": 300
+}

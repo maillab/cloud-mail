@@ -1,17 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { loadModule } from './test-module-loader.mjs';
 
-const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
-const serviceSource = await readFile(new URL('../src/service/kv-obj-service.js', import.meta.url), 'utf8');
-const serviceUrl = moduleUrl(serviceSource);
-// Exercise the production fetch dispatcher with unrelated API/cron dependencies isolated.
-const entrySource = (await readFile(new URL('../src/index.js', import.meta.url), 'utf8'))
-  .replace(/^import .*;\r?$/gm, '')
-  .replace('export default', `import kvObjService from '${serviceUrl}';
-    const app = { fetch: () => new Response('api') }; const email = () => {};
-    export default`);
-const { default: worker } = await import(moduleUrl(entrySource));
+// Compile the real entry and KV implementation; isolate only unrelated handlers.
+// The API fixture also observes the actual /api prefix rewrite in the dispatcher.
+const app = { fetch: request => {
+  assert.equal(new URL(request.url).pathname, '/mail/list');
+  return new Response('api');
+} };
+const source = path => new URL(`../src/${path}`, import.meta.url);
+const unrelatedServices = ['user-service', 'verify-record-service', 'email-service', 'oauth-service', 'analysis-service'];
+const { default: worker } = await loadModule(source('index'), { mocks: new Map([
+  [source('hono/webs'), { default: app }],
+  [source('email/email'), { email: () => {} }],
+  ...unrelatedServices.map(name => [source(`service/${name}`), { default: {} }]),
+]) });
 const types = ['image/jpeg', 'video/mp4', 'audio/mpeg', 'application/pdf', 'application/zip'];
 
 for (const type of types) {

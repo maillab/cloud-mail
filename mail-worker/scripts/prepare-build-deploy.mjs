@@ -62,7 +62,7 @@ export async function prepareDeploy({ token, accountId, workerName, fetcher = fe
   if (!bindings) throw new Error("No prior Worker version contains both original db and kv bindings; deployment stopped to protect existing data");
   const config = {
     name: workerName,
-    main: "src/index.js",
+    main: "src/index.ts",
     compatibility_date: "2025-06-04",
     keep_vars: true,
     observability: { enabled: true },

@@ -7,6 +7,11 @@ on:
       - "mail-worker/**"
       - "mail-react/**"
   workflow_dispatch:
+    inputs:
+      initialize_database:
+        description: 'Run the historical init/upgrade chain (first installation or an explicitly reviewed database upgrade only)'
+        type: boolean
+        default: false
 
 jobs:
   Deploy-cloud-mail:
@@ -57,6 +62,13 @@ jobs:
       - name: 📡 禁用 Wrangler 遥测 / Disable wrangler telemetry
         working-directory: ./mail-worker
         run: pnpm wrangler telemetry disable
+
+      - name: Verify Worker types, lint, contracts and assets
+        working-directory: ./mail-worker
+        run: |
+          pnpm -C ../mail-react install --frozen-lockfile
+          pnpm run build
+          pnpm run verify
 
       - name: 🛠️ 设置环境 / Set up environment
         working-directory: ./mail-worker
@@ -232,6 +244,7 @@ jobs:
           echo "✅ Setup completed."
 
       - name: ♻️ 初始化数据库 / Initialize database
+        if: github.event_name == 'workflow_dispatch' && inputs.initialize_database
         run: |
           echo "🛠️ Starting database initialization..."
           sleep 15

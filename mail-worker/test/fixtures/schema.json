@@ -1,0 +1,224 @@
+[
+  {
+    "type": "index",
+    "name": "idx_account_email_nocase",
+    "tbl_name": "account",
+    "sql": "CREATE UNIQUE INDEX idx_account_email_nocase ON account (email COLLATE NOCASE)"
+  },
+  {
+    "type": "index",
+    "name": "idx_account_user_del_sort",
+    "tbl_name": "account",
+    "sql": "CREATE INDEX idx_account_user_del_sort ON account(user_id, is_del, sort, account_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_attachments_email_type",
+    "tbl_name": "attachments",
+    "sql": "CREATE INDEX idx_attachments_email_type ON attachments(email_id, type)"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_create_time",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_create_time ON email(create_time)"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_list_account",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_list_account ON email(user_id, account_id, type, is_del, email_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_list_user",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_list_user ON email(user_id, type, is_del, email_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_name_nocase",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_name_nocase ON email(name COLLATE NOCASE)"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_noone_id",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_noone_id ON email(email_id) WHERE status = 7"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_saving_account",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_saving_account ON email(account_id) WHERE status = 6"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_send_email_nocase",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_send_email_nocase ON email(send_email COLLATE NOCASE)"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_subject_nocase",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_subject_nocase ON email(subject COLLATE NOCASE)"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_to_email_nocase",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_to_email_nocase ON email(to_email COLLATE NOCASE)"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_type_create_time",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_type_create_time ON email(type, create_time)"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_type_id",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_type_id ON email(type, email_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_type_name",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_type_name ON email(type, name)"
+  },
+  {
+    "type": "index",
+    "name": "idx_email_user_id_account_id",
+    "tbl_name": "email",
+    "sql": "CREATE INDEX idx_email_user_id_account_id ON email(user_id, account_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_oauth_oauth_user_id",
+    "tbl_name": "oauth",
+    "sql": "CREATE INDEX idx_oauth_oauth_user_id ON oauth(oauth_user_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_oauth_user_id",
+    "tbl_name": "oauth",
+    "sql": "CREATE INDEX idx_oauth_user_id ON oauth(user_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_role_perm_role",
+    "tbl_name": "role_perm",
+    "sql": "CREATE INDEX idx_role_perm_role ON role_perm(role_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_setting_code",
+    "tbl_name": "reg_key",
+    "sql": "CREATE UNIQUE INDEX idx_setting_code ON reg_key(code COLLATE NOCASE)"
+  },
+  {
+    "type": "index",
+    "name": "idx_star_email_user",
+    "tbl_name": "star",
+    "sql": "CREATE INDEX idx_star_email_user ON star(email_id, user_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_star_user_email",
+    "tbl_name": "star",
+    "sql": "CREATE INDEX idx_star_user_email ON star(user_id, email_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_user_create_time",
+    "tbl_name": "user",
+    "sql": "CREATE INDEX idx_user_create_time ON user(create_time)"
+  },
+  {
+    "type": "index",
+    "name": "idx_user_email_nocase",
+    "tbl_name": "user",
+    "sql": "CREATE UNIQUE INDEX idx_user_email_nocase ON user (email COLLATE NOCASE)"
+  },
+  {
+    "type": "index",
+    "name": "idx_user_type",
+    "tbl_name": "user",
+    "sql": "CREATE INDEX idx_user_type ON user(type)"
+  },
+  {
+    "type": "table",
+    "name": "account",
+    "tbl_name": "account",
+    "sql": "CREATE TABLE account ( account_id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL, status INTEGER DEFAULT 0 NOT NULL, latest_email_time DATETIME, create_time DATETIME DEFAULT CURRENT_TIMESTAMP, user_id INTEGER NOT NULL, is_del INTEGER DEFAULT 0 NOT NULL , name TEXT NOT NULL DEFAULT '', all_receive INTEGER NOT NULL DEFAULT 0, sort INTEGER NOT NULL DEFAULT 0)"
+  },
+  {
+    "type": "table",
+    "name": "attachments",
+    "tbl_name": "attachments",
+    "sql": "CREATE TABLE attachments ( att_id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, email_id INTEGER NOT NULL, account_id INTEGER NOT NULL, key TEXT NOT NULL, filename TEXT, mime_type TEXT, size INTEGER, disposition TEXT, related TEXT, content_id TEXT, encoding TEXT, create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL , status INTEGER NOT NULL DEFAULT 0, type INTEGER NOT NULL DEFAULT 0)"
+  },
+  {
+    "type": "table",
+    "name": "email",
+    "tbl_name": "email",
+    "sql": "CREATE TABLE email ( email_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, send_email TEXT, name TEXT, account_id INTEGER NOT NULL, user_id INTEGER NOT NULL, subject TEXT, content TEXT, text TEXT, create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, is_del INTEGER DEFAULT 0 NOT NULL , type INTEGER NOT NULL DEFAULT 0, status INTEGER NOT NULL DEFAULT 0, resend_email_id TEXT, message TEXT, recipient TEXT NOT NULL DEFAULT '[]', cc TEXT NOT NULL DEFAULT '[]', bcc TEXT NOT NULL DEFAULT '[]', message_id TEXT NOT NULL DEFAULT '', in_reply_to TEXT NOT NULL DEFAULT '', relation TEXT NOT NULL DEFAULT '', to_email TEXT NOT NULL DEFAULT '', to_name TEXT NOT NULL DEFAULT '', unread INTEGER NOT NULL DEFAULT 0, code TEXT NOT NULL DEFAULT '')"
+  },
+  {
+    "type": "table",
+    "name": "oauth",
+    "tbl_name": "oauth",
+    "sql": "CREATE TABLE oauth ( oauth_id INTEGER PRIMARY KEY AUTOINCREMENT, oauth_user_id TEXT, username TEXT, name TEXT, avatar TEXT, active INTEGER, trust_level INTEGER, silenced INTEGER, create_time DATETIME DEFAULT CURRENT_TIMESTAMP, platform INTEGER NOT NULL DEFAULT 0, user_id INTEGER NOT NULL DEFAULT 0 )"
+  },
+  {
+    "type": "table",
+    "name": "perm",
+    "tbl_name": "perm",
+    "sql": "CREATE TABLE perm ( perm_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, perm_key TEXT, pid INTEGER NOT NULL DEFAULT 0, type INTEGER NOT NULL DEFAULT 2, sort INTEGER )"
+  },
+  {
+    "type": "table",
+    "name": "reg_key",
+    "tbl_name": "reg_key",
+    "sql": "CREATE TABLE reg_key ( rege_key_id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL COLLATE NOCASE DEFAULT '', count INTEGER NOT NULL DEFAULT 0, role_id INTEGER NOT NULL DEFAULT 0, user_id INTEGER NOT NULL DEFAULT 0, expire_time DATETIME, create_time DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  },
+  {
+    "type": "table",
+    "name": "role",
+    "tbl_name": "role",
+    "sql": "CREATE TABLE role ( role_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, key TEXT, create_time DATETIME DEFAULT CURRENT_TIMESTAMP, sort INTEGER DEFAULT 0, description TEXT, user_id INTEGER, is_default INTEGER DEFAULT 0, send_count INTEGER, send_type TEXT NOT NULL DEFAULT 'count', account_count INTEGER , ban_email TEXT NOT NULL DEFAULT '', ban_email_type INTEGER NOT NULL DEFAULT 0, avail_domain TEXT NOT NULL DEFAULT '')"
+  },
+  {
+    "type": "table",
+    "name": "role_perm",
+    "tbl_name": "role_perm",
+    "sql": "CREATE TABLE role_perm ( id INTEGER PRIMARY KEY AUTOINCREMENT, role_id INTEGER, perm_id INTEGER )"
+  },
+  {
+    "type": "table",
+    "name": "setting",
+    "tbl_name": "setting",
+    "sql": "CREATE TABLE setting ( register INTEGER NOT NULL, receive INTEGER NOT NULL, add_email INTEGER NOT NULL, many_email INTEGER NOT NULL, title TEXT NOT NULL, auto_refresh INTEGER NOT NULL, register_verify INTEGER NOT NULL, add_email_verify INTEGER NOT NULL , resend_tokens TEXT NOT NULL DEFAULT '{}', send INTEGER NOT NULL DEFAULT 0, r2_domain TEXT, site_key TEXT, secret_key TEXT, background TEXT, login_opacity INTEGER NOT NULL DEFAULT 0.90, tg_bot_token TEXT NOT NULL DEFAULT '', tg_chat_id TEXT NOT NULL DEFAULT '', tg_bot_status INTEGER NOT NULL DEFAULT 1, forward_email TEXT NOT NULL DEFAULT '', forward_status INTEGER TIME NOT NULL DEFAULT 1, rule_email TEXT NOT NULL DEFAULT '', rule_type INTEGER NOT NULL DEFAULT 0, reg_key INTEGER NOT NULL DEFAULT 1, reg_verify_count INTEGER NOT NULL DEFAULT 1, add_verify_count INTEGER NOT NULL DEFAULT 1, notice_title TEXT NOT NULL DEFAULT 'Cloud Mail', notice_content TEXT NOT NULL DEFAULT '', notice_type TEXT NOT NULL DEFAULT 'none', notice_duration INTEGER NOT NULL DEFAULT 0, notice_offset INTEGER NOT NULL DEFAULT 0, notice_position TEXT NOT NULL DEFAULT 'top-right', notice_width INTEGER NOT NULL DEFAULT 340, notice INTEGER NOT NULL DEFAULT 0, no_recipient INTEGER NOT NULL DEFAULT 1, login_domain INTEGER NOT NULL DEFAULT 0, bucket TEXT NOT NULL DEFAULT '', region TEXT NOT NULL DEFAULT '', endpoint TEXT NOT NULL DEFAULT '', s3_access_key TEXT NOT NULL DEFAULT '', s3_secret_key TEXT NOT NULL DEFAULT '', force_path_style INTEGER NOT NULL DEFAULT 1, custom_domain TEXT NOT NULL DEFAULT '', tg_msg_to TEXT NOT NULL DEFAULT 'show', tg_msg_from TEXT NOT NULL DEFAULT 'only-name', tg_msg_text TEXT NOT NULL DEFAULT 'show', min_email_prefix INTEGER NOT NULL DEFAULT 1, email_prefix_filter text NOT NULL DEFAULT '', ai_code INTEGER NOT NULL DEFAULT 1, ai_code_filter TEXT NOT NULL DEFAULT '', black_subject TEXT NOT NULL DEFAULT '', black_content TEXT NOT NULL DEFAULT '', black_from TEXT NOT NULL DEFAULT '', sync_delete INTEGER NOT NULL DEFAULT 0, linuxdo_client_id TEXT NOT NULL DEFAULT '', linuxdo_client_secret TEXT NOT NULL DEFAULT '', github_client_id TEXT NOT NULL DEFAULT '', github_client_secret TEXT NOT NULL DEFAULT '', google_client_id TEXT NOT NULL DEFAULT '', google_client_secret TEXT NOT NULL DEFAULT '', linuxdo_switch INTEGER NOT NULL DEFAULT 1, github_switch INTEGER NOT NULL DEFAULT 1, google_switch INTEGER NOT NULL DEFAULT 1, auto_clean_days INTEGER NOT NULL DEFAULT 0, auto_clean_exclude TEXT NOT NULL DEFAULT '', webhook_url TEXT NOT NULL DEFAULT '', webhook_status INTEGER NOT NULL DEFAULT 1, webhook_retry INTEGER NOT NULL DEFAULT 0, webhook_secret TEXT NOT NULL DEFAULT '')"
+  },
+  {
+    "type": "table",
+    "name": "star",
+    "tbl_name": "star",
+    "sql": "CREATE TABLE star ( star_id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, email_id INTEGER NOT NULL, create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL )"
+  },
+  {
+    "type": "table",
+    "name": "user",
+    "tbl_name": "user",
+    "sql": "CREATE TABLE user ( user_id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL, type INTEGER DEFAULT 1 NOT NULL, password TEXT NOT NULL, salt TEXT NOT NULL, status INTEGER DEFAULT 0 NOT NULL, create_time DATETIME DEFAULT CURRENT_TIMESTAMP, active_time DATETIME, is_del INTEGER DEFAULT 0 NOT NULL , create_ip TEXT, active_ip TEXT, os TEXT, browser TEXT, device TEXT, sort INTEGER NOT NULL DEFAULT 0, send_count INTEGER NOT NULL DEFAULT 0, reg_key_id INTEGER NOT NULL DEFAULT 0)"
+  },
+  {
+    "type": "table",
+    "name": "verify_record",
+    "tbl_name": "verify_record",
+    "sql": "CREATE TABLE verify_record ( vr_id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT NOT NULL DEFAULT '', count INTEGER NOT NULL DEFAULT 1, type INTEGER NOT NULL DEFAULT 0, update_time DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  }
+]

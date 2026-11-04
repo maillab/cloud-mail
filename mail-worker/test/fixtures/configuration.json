@@ -1,0 +1,89 @@
+{
+  "wrangler.toml": {
+    "bindings": [
+      "ai",
+      "assets",
+      "db",
+      "kv",
+      "r2"
+    ],
+    "environmentKeys": [
+      "admin",
+      "ai_model",
+      "analysis_cache",
+      "domain",
+      "jwt_secret",
+      "orm_log"
+    ],
+    "emailBinding": "email",
+    "compatibilityDate": "2025-06-04",
+    "main": "src/index",
+    "assetsDirectory": "./dist",
+    "crons": "[\"0 * * * *\"]"
+  },
+  "wrangler-dev.toml": {
+    "bindings": [
+      "ai",
+      "assets",
+      "db",
+      "kv",
+      "r2"
+    ],
+    "environmentKeys": [
+      "admin",
+      "ai_model",
+      "analysis_cache",
+      "domain",
+      "jwt_secret",
+      "orm_log"
+    ],
+    "emailBinding": "email",
+    "compatibilityDate": "2025-06-04",
+    "main": "src/index",
+    "assetsDirectory": "./dist",
+    "crons": null
+  },
+  "wrangler-test.toml": {
+    "bindings": [
+      "ai",
+      "assets",
+      "db",
+      "kv",
+      "r2"
+    ],
+    "environmentKeys": [
+      "admin",
+      "ai_model",
+      "analysis_cache",
+      "domain",
+      "jwt_secret",
+      "orm_log"
+    ],
+    "compatibilityDate": "2025-06-04",
+    "main": "src/index",
+    "assetsDirectory": "./dist",
+    "crons": "[\"0 * * * *\"]"
+  },
+  "wrangler-action.toml": {
+    "bindings": [
+      "ai",
+      "assets",
+      "db",
+      "kv",
+      "r2"
+    ],
+    "environmentKeys": [
+      "admin",
+      "ai_model",
+      "analysis_cache",
+      "domain",
+      "jwt_secret",
+      "orm_log",
+      "project_link"
+    ],
+    "compatibilityDate": "2025-06-04",
+    "main": "src/index",
+    "assetsDirectory": "./dist",
+    "crons": "[\"0 * * * *\"]"
+  }
+}
