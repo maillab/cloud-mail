@@ -5,9 +5,9 @@
       <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
       <span class="star" v-if="emailStore.contentData.showStar">
         <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
-        <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
+        <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18.5" height="18.5"/>
       </span>
-      <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="la:reply" width="21" height="21" />
+      <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="fluent-mdl2:reply" width="19" height="19" />
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openForward" icon="iconoir:arrow-up-right" width="20" height="20" />
     </div>
     <div></div>
@@ -20,9 +20,16 @@
           <div class="email-info">
             <div>
               <div class="send"><span class="send-source">{{$t('from')}}</span>
-                <div class="send-name">
+                <div class="send-name" ref="sendNameRef" :class="{ 'is-wrapped': senderWrapped }">
                   <span class="send-name-title">{{ email.name }}</span>
-                  <span><{{ email.sendEmail }}></span>
+                  <span class="send-email"><{{ email.sendEmail }}></span>
+                  <span class="sent-via" v-if="sentViaEmail">
+                    <el-tooltip effect="dark" :content="$t('sentVia', { email: sentViaEmail })">
+                      <span>
+                        <el-tag size="small" disable-transitions>{{ $t('sentViaTag') }}</el-tag>
+                      </span>
+                    </el-tooltip>
+                  </span>
                 </div>
               </div>
               <div class="receive"><span class="source">{{$t('recipient')}}</span><span class="receive-email">{{  formateReceive(email.recipient) }}</span></div>
@@ -75,7 +82,7 @@
 </template>
 <script setup>
 import ShadowHtml from '@/components/shadow-html/index.vue'
-import {computed, reactive, ref, watch, onMounted, onUnmounted} from "vue";
+import {computed, reactive, ref, watch, onMounted, onUnmounted, nextTick} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
 import {emailDelete, emailRead} from "@/request/email.js";
@@ -92,12 +99,21 @@ import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+const { t } = useI18n()
 
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
 const accountStore = useAccountStore();
 const emailStore = useEmailStore();
 const router = useRouter()
+const sendNameRef = ref(null)
+const senderWrapped = ref(false)
+let senderResizeObserver = null
+
+const showPreview = ref(false)
+const srcList = reactive([])
+
+
 const email = computed(() => emailStore.contentData.email || {
   emailId: 0,
   attList: [],
@@ -105,15 +121,46 @@ const email = computed(() => emailStore.contentData.email || {
   text: '',
   recipient: '[]',
 })
-const showPreview = ref(false)
-const srcList = reactive([])
 
-const { t } = useI18n()
+const sentViaEmail = computed(() => {
+  const raw = String(email.value.senderEmail || '').trim()
+  if (!raw) return ''
+  const matched = raw.match(/<([^>]+)>/)
+  const address = (matched ? matched[1] : raw).trim()
+  if (!address || address.toLowerCase() === String(email.value.sendEmail || '').trim().toLowerCase()) return ''
+  return address
+})
+
 watch(() => accountStore.currentAccountId, () => {
   handleBack()
 })
 
 let readRequesting = false
+
+function contentWidth(el) {
+  const range = document.createRange()
+  range.selectNodeContents(el)
+  const width = range.getBoundingClientRect().width
+  range.detach()
+  return width
+}
+
+function updateSenderWrap() {
+  const root = sendNameRef.value
+  if (!root) return
+  const name = root.querySelector('.send-name-title')
+  const mail = root.querySelector('.send-email')
+  const tag = root.querySelector('.sent-via')
+  if (!name || !mail) {
+    senderWrapped.value = false
+    return
+  }
+  const gap = 6
+  let need = contentWidth(name) + gap + contentWidth(mail)
+  if (tag) need += gap + contentWidth(tag)
+  senderWrapped.value = need > root.clientWidth + 0.5
+}
+
 
 function tryMarkRead() {
   if (!emailStore.contentData.showUnread || readRequesting) return
@@ -148,15 +195,24 @@ watch(
   { flush: 'post' }
 )
 
+watch(
+  () => [email.value?.name, email.value?.sendEmail, sentViaEmail.value],
+  () => nextTick(updateSenderWrap)
+)
+
 onMounted(() => {
   tryMarkRead()
   window.addEventListener('keydown', handleKeyDown);
+  senderResizeObserver = new ResizeObserver(() => updateSenderWrap())
+  if (sendNameRef.value) senderResizeObserver.observe(sendNameRef.value)
+  nextTick(updateSenderWrap)
 })
 
 onUnmounted(() => {
   emailStore.contentData.showUnread = false;
   readRequesting = false
   window.removeEventListener('keydown', handleKeyDown);
+  senderResizeObserver?.disconnect()
 })
 
 function handleKeyDown(event) {
@@ -272,7 +328,7 @@ const handleDelete = () => {
 }
 
 .header-actions {
-  padding: 9px 15px 8px;
+  padding: 9px 15px 9px;
   display: flex;
   align-items: center;
   gap: 20px;
@@ -419,10 +475,28 @@ const handleDelete = () => {
           color: var(--regular-text-color);
           display: flex;
           flex-wrap: wrap;
-        }
+          align-items: center;
+          column-gap: 6px;
 
-        .send-name-title {
-          padding-right: 5px;
+          .send-email {
+            max-width: 100%;
+            overflow-wrap: anywhere;
+          }
+
+          &.is-wrapped {
+            .send-name-title {
+              order: 1;
+            }
+
+            .sent-via {
+              order: 2;
+            }
+
+            .send-email {
+              order: 3;
+              flex-basis: 100%;
+            }
+          }
         }
       }
 

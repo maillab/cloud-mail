@@ -104,6 +104,9 @@ onBeforeUnmount(() => {
   background: var(--el-bg-color);
   border-bottom: solid 1px var(--el-border-color);
   padding: 0 0 0 0;
+  @media (max-width: 767px) {
+    height: 50px;
+  }
 }
 
 .overlay-show {

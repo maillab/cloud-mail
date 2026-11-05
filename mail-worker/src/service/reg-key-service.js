@@ -1,9 +1,9 @@
 import orm from '../entity/orm';
 import regKey from '../entity/reg-key';
-import { inArray, like, eq, desc, sql, or } from 'drizzle-orm';
+import { inArray, like, eq, desc, sql, or, and, gt } from 'drizzle-orm';
 import roleService from './role-service';
 import BizError from '../error/biz-error';
-import { formatDetailDate, toUtc } from '../utils/date-uitil';
+import { toUtc } from '../utils/date-uitil';
 import userService from './user-service';
 import { t } from '../i18n/i18n.js';
 
@@ -31,12 +31,16 @@ const regKeyService = {
 			throw new BizError(t('isExistRegKye'));
 		}
 
-		const roleRow = roleService.selectById(c, roleId);
+		const roleRow = await roleService.selectById(c, roleId);
 		if (!roleRow) {
 			throw new BizError(t('roleNotExist'));
 		}
 
-		expireTime = formatDetailDate(expireTime)
+		const expireUtc = toUtc(expireTime)
+		if (!expireUtc.isValid()) {
+			throw new BizError(t('emptyRegKeyExpire'));
+		}
+		expireTime = expireUtc.format('YYYY-MM-DD HH:mm:ss')
 
 		await orm(c).insert(regKey).values({code,roleId,count,userId,expireTime}).run();
 	},
@@ -48,8 +52,8 @@ const regKeyService = {
 	},
 
 	async clearNotUse(c) {
-		let now = formatDetailDate(toUtc().tz('Asia/Shanghai').startOf('day'))
-		await orm(c).delete(regKey).where(or(eq(regKey.count, 0),sql`datetime(${regKey.expireTime}, '+8 hours') < datetime(${now})`)).run();
+		const now = toUtc().format('YYYY-MM-DD HH:mm:ss')
+		await orm(c).delete(regKey).where(or(eq(regKey.count, 0), sql`datetime(${regKey.expireTime}) <= datetime(${now})`)).run();
 	},
 
 	selectByCode(c, code) {
@@ -68,16 +72,16 @@ const regKeyService = {
 		const regKeyList = await query.orderBy(desc(regKey.regKeyId)).all();
 		const roleList = await roleService.roleSelectUse(c);
 
-		const today = toUtc().tz('Asia/Shanghai').startOf('day')
+		const now = toUtc()
 
 		regKeyList.forEach(regKeyRow => {
 
 			const index = roleList.findIndex(roleRow => roleRow.roleId === regKeyRow.roleId)
 			regKeyRow.roleName = index > -1 ? roleList[index].name : ''
 
-			const expireTime = toUtc(regKeyRow.expireTime).tz('Asia/Shanghai').startOf('day');
+			const expireTime = toUtc(regKeyRow.expireTime);
 
-			if (expireTime.isBefore(today)) {
+			if (!expireTime.isAfter(now)) {
 				regKeyRow.expireTime = null
 			}
 		})
@@ -85,12 +89,19 @@ const regKeyService = {
 		return regKeyList;
 	},
 
-	async reduceCount(c, code, count) {
-		await orm(c).update(regKey).set({
-			count: sql`${regKey.count}
-	  -
-	  ${count}`
-		}).where(eq(regKey.code, code)).run();
+	async consumeCount(c, code) {
+		const rows = await orm(c).update(regKey)
+			.set({ count: sql`${regKey.count} - 1` })
+			.where(and(eq(regKey.code, code), gt(regKey.count, 0)))
+			.returning({ regKeyId: regKey.regKeyId });
+		return rows.length > 0;
+	},
+
+	async restoreCount(c, code) {
+		await orm(c).update(regKey)
+			.set({ count: sql`${regKey.count} + 1` })
+			.where(eq(regKey.code, code))
+			.run();
 	},
 
 	async history(c, params) {

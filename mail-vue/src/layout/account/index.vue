@@ -105,13 +105,15 @@
         </el-button>
       </div>
       <div
+          ref="turnstileContainer"
+          :key="turnstileContainerKey"
           class="add-email-turnstile"
           :class="verifyShow ? 'turnstile-show' : 'turnstile-hide'"
           :data-sitekey="settingStore.settings.siteKey"
           data-callback="onTurnstileSuccess"
           data-error-callback="onTurnstileError"
       >
-        <span style="font-size: 12px;color: #F56C6C" v-if="botJsError">{{ $t('verifyModuleFailed') }}</span>
+        <span style="font-size: 12px;color: #F56C6C" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('add')}) }}</span>
       </div>
     </el-dialog>
     <el-dialog v-model="setNameShow" :title="$t('changeUserName')">
@@ -145,6 +147,7 @@ import {useUserStore} from "@/store/user.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
 import {AccountAllReceiveEnum} from "@/enums/account-enum.js";
+import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
 
 const {t} = useI18n();
 const userStore = useUserStore();
@@ -169,6 +172,9 @@ let turnstileId = null
 const botJsError = ref(false)
 let verifyToken = ''
 let verifyErrorCount = 0
+let turnstileRecoveryAttempted = false
+const turnstileContainer = ref(null)
+const turnstileContainerKey = ref(0)
 let first = true
 const addForm = reactive({
   email: '',
@@ -198,6 +204,26 @@ watch(() => settingStore.domainList, (list) => {
 
 const openSelect = () => {
   mySelect.value.toggleMenu()
+}
+
+async function recoverTurnstile() {
+  if (turnstileRecoveryAttempted) return
+  turnstileRecoveryAttempted = true
+  botJsError.value = false
+  verifyToken = ''
+  turnstileId = null
+  turnstileContainerKey.value++
+  try {
+    const api = await reloadTurnstileScript()
+    await nextTick()
+    if (!showAdd.value || !turnstileContainer.value) return
+    turnstileId = api.render(turnstileContainer.value)
+  } catch (error) {
+    botJsError.value = true
+    console.warn('Turnstile recovery failed', error)
+  } finally {
+    turnstileRecoveryAttempted = false
+  }
 }
 
 window.onTurnstileError = (e) => {
@@ -459,6 +485,7 @@ function submit() {
   }
 
   if (!verifyToken && (settingStore.settings.addEmailVerify === 0 || (settingStore.settings.addEmailVerify === 2 && settingStore.settings.addVerifyOpen))) {
+    if (turnstileRecoveryAttempted) return
     if (!verifyShow.value) {
       verifyShow.value = true
       nextTick(() => {
@@ -468,12 +495,15 @@ function submit() {
           } catch (e) {
             botJsError.value = true
             console.log('人机验证js加载失败')
+            recoverTurnstile()
           }
         } else {
           window.turnstile.reset('.add-email-turnstile')
         }
       })
-    } else if (!botJsError.value) {
+    } else if (botJsError.value) {
+      recoverTurnstile()
+    } else {
       ElMessage({
         message: t('botVerifyMsg'),
         type: "error",

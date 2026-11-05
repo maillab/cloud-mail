@@ -1,26 +1,46 @@
 <template>
-  <div class="header" :class="!hasPerm('email:send') ? 'not-send' : ''">
+  <div class="header">
     <div class="header-btn">
       <hanburger @click="changeAside"></hanburger>
       <span class="breadcrumb-item">{{ $t(route.meta.title) }}</span>
     </div>
-    <div v-perm="'email:send'" class="writer-box" @click="openSend">
-      <div class="writer">
-        <Icon icon="material-symbols:edit-outline-sharp" width="22" height="22"/>
-      </div>
+    <div v-perm="'email:send'" class="writer-box">
+      <el-button
+        class="writer"
+        size="default"
+        :aria-label="$t('compose')"
+        @click="openSend"
+      >
+        <el-icon :size="21">
+          <Icon icon="material-symbols:edit-outline-sharp"/>
+        </el-icon>
+      </el-button>
     </div>
+    <email-search
+      v-if="showInboxSearch"
+      :store="emailStore"
+      :search-options="inboxSearchOptions"
+      :class="{ 'account-show': accountPanelShow }"
+      @search="returnToList('email')"
+      @reset="returnToList('email')"
+    />
+    <email-search
+      v-else-if="showSentSearch"
+      :store="sendStore"
+      :search-options="sentSearchOptions"
+      :class="{ 'account-show': accountPanelShow }"
+      @search="returnToList('send')"
+      @reset="returnToList('send')"
+    />
     <div class="toolbar">
-      <div v-if="uiStore.dark" class="sun-icon icon-item" @click="openDark($event)">
-        <Icon icon="mingcute:sun-fill"/>
-      </div>
-      <div v-else class="dark-icon icon-item" @click="openDark($event)">
-        <Icon icon="solar:moon-linear"/>
-      </div>
-      <div class="notice icon-item" @click="openNotice">
-        <Icon icon="streamline-plump:announcement-megaphone"/>
-      </div>
-      <el-dropdown ref="userinfoRef" @visible-change="e => userInfoShow = e" :teleported="false" popper-class="detail-dropdown">
-        <div class="avatar" @click="userInfoHide" >
+      <el-dropdown
+        ref="userDropdownRef"
+        trigger="click"
+        :teleported="false"
+        popper-class="detail-dropdown"
+        @visible-change="userCardVisible = $event"
+      >
+        <div class="avatar">
           <div class="avatar-text">
             <div>{{ formatName(userStore.user.email) }}</div>
           </div>
@@ -80,20 +100,54 @@ import {Icon} from "@iconify/vue";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
 import {useRoute} from "vue-router";
-import {computed, ref} from "vue";
+import {computed, onBeforeUnmount, onMounted, ref} from "vue";
 import {useSettingStore} from "@/store/setting.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
 import {setExtend} from "@/utils/day.js"
+import emailSearch from '@/components/email-search/index.vue'
+import {useEmailStore} from '@/store/email.js'
+import {useSendStore} from '@/store/send.js'
 
 const {t} = useI18n();
 const route = useRoute();
 const settingStore = useSettingStore();
 const userStore = useUserStore();
 const uiStore = useUiStore();
+const emailStore = useEmailStore()
+const sendStore = useSendStore()
 const logoutLoading = ref(false)
-const userInfoShow = ref(false)
-const userinfoRef = ref({})
+const userDropdownRef = ref(null)
+const userCardVisible = ref(false)
+const outsidePointerEvents = ['mousedown', 'pointerup', 'mouseup', 'click', 'pointercancel']
+let blockOutsideClick = false
+const inboxSearchOptions = computed(() => [
+  {label: t('titleDesc'), type: 'subject'},
+  {label: t('searchSummaryContent'), type: 'content'},
+  {label: t('sender'), type: 'sender'},
+  {label: t('searchSenderAddress'), type: 'senderAddress'},
+])
+const sentSearchOptions = computed(() => [
+  {label: t('titleDesc'), type: 'subject'},
+  {label: t('searchSummaryContent'), type: 'content'},
+  {label: t('searchRecipientAddress'), type: 'recipientAddress'},
+])
+const accountPanelShow = computed(() => uiStore.accountShow && hasPerm('account:query'))
+const showInboxSearch = computed(() =>
+  route.meta.name === 'email' || isMailboxDetail('inbox')
+)
+const showSentSearch = computed(() =>
+  route.meta.name === 'send' || isMailboxDetail('sent')
+)
+
+function isMailboxDetail(mailbox) {
+  return route.meta.name === 'content' && route.params.mailbox === mailbox
+}
+
+function returnToList(listName) {
+  if (route.meta.name !== 'content') return
+  router.push({name: listName})
+}
 
 const accountCount = computed(() => {
   return userStore.user.role.accountCount
@@ -156,14 +210,6 @@ const sendCount = computed(() => {
   return userStore.user.sendCount + '/' + userStore.user.role.sendCount
 })
 
-function userInfoHide(e) {
-    if (userInfoShow.value) {
-        userinfoRef.value.handleClose()
-    } else {
-        userinfoRef.value.handleOpen()
-    }
-}
-
 async function copyEmail(email) {
   try {
     await navigator.clipboard.writeText(email);
@@ -187,51 +233,6 @@ function changeLang(lang) {
   settingStore.lang = lang
 }
 
-function openNotice() {
-  uiStore.showNotice()
-}
-
-function openDark(e) {
-
-  const nextIsDark = !uiStore.dark
-  const root = document.documentElement
-
-  if (!document.startViewTransition) {
-    switchDark(nextIsDark, root);
-    return
-  }
-
-  const x = e.clientX
-  const y = e.clientY
-
-  const maxX = Math.max(x, window.innerWidth - x)
-  const maxY = Math.max(y, window.innerHeight - y)
-  const endRadius = Math.hypot(maxX, maxY)
-
-  // 标记切换目标，供 CSS 选择器使用
-  root.setAttribute('data-theme-to', nextIsDark ? 'dark' : 'light')
-  root.style.setProperty('--vt-x', `${x}px`)
-  root.style.setProperty('--vt-y', `${y}px`)
-  root.style.setProperty('--vt-end-radius', `${endRadius + 10}px`)
-
-  const transition = document.startViewTransition(() => {
-    switchDark(nextIsDark, root);
-  })
-
-  transition.finished.finally(() => {
-    // 清理标记
-    root.removeAttribute('data-theme-to')
-  })
-}
-
-function switchDark(nextIsDark, root) {
-  root.setAttribute('class', nextIsDark ? 'dark' : '')
-  const metaTag = document.getElementById('theme-color-meta');
-  const isMobile =  !window.matchMedia("(pointer: fine) and (hover: hover)").matches;
-  metaTag.setAttribute('content', nextIsDark ? (isMobile ? '#141414' : '#000000') : (isMobile ? '#191A23' : '#F1F1F1'));
-  uiStore.dark = nextIsDark
-}
-
 function openSend() {
   uiStore.writerRef.open()
 }
@@ -253,6 +254,47 @@ function clickLogout() {
 function formatName(email) {
   return email[0]?.toUpperCase() || ''
 }
+
+function isInsideUserCard(target) {
+  const element = target instanceof Element ? target : target?.parentElement
+  if (!(element instanceof Element)) return false
+  if (userDropdownRef.value?.$el?.contains(element)) return true
+  return !!element.closest('.detail-dropdown')
+}
+
+function handleUserCardPointerDown(event) {
+  blockOutsideClick = userCardVisible.value && !isInsideUserCard(event.target)
+  if (!blockOutsideClick) return
+
+  event.preventDefault()
+  event.stopPropagation()
+  userDropdownRef.value?.handleClose()
+}
+
+function handleUserCardPointerEvent(event) {
+  if (!blockOutsideClick) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (event.type === 'pointerup' || event.type === 'pointercancel') {
+    setTimeout(() => {
+      blockOutsideClick = false
+    })
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('pointerdown', handleUserCardPointerDown, true)
+  outsidePointerEvents.forEach(type => {
+    document.addEventListener(type, handleUserCardPointerEvent, true)
+  })
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleUserCardPointerDown, true)
+  outsidePointerEvents.forEach(type => {
+    document.removeEventListener(type, handleUserCardPointerEvent, true)
+  })
+})
 
 </script>
 <style>
@@ -361,35 +403,50 @@ function formatName(email) {
   display: grid;
   height: 100%;
   gap: 10px;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: auto 1fr;
+  position: relative;
 }
 
-.header.not-send {
-  grid-template-columns: auto 1fr;
+@media (max-width: 767px) {
+  .header {
+    display: flex;
+    align-items: center;
+  }
+
+  .header-btn {
+    flex: 1;
+  }
+
+  .toolbar {
+    flex-shrink: 0;
+  }
 }
 
 .writer-box {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 5px;
+  display: none;
 
-  .writer {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    color: #ffffff;
-    background: linear-gradient(135deg, #1890ff, #3a80dd);
-    transition: all 0.3s ease;
+  @media (max-width: 767px) {
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-left: 0;
+    flex-shrink: 0;
 
-    .writer-text {
-      margin-left: 15px;
-      font-size: 14px;
-      font-weight: bold;;
+    .writer {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      box-shadow: none;
+      --el-button-bg-color: transparent;
+      --el-button-border-color: transparent;
+      --el-button-hover-bg-color: transparent;
+      --el-button-hover-border-color: transparent;
+      --el-button-active-bg-color: transparent;
+      --el-button-active-border-color: transparent;
+      --el-button-outline-color: transparent;
     }
   }
 }
@@ -413,6 +470,7 @@ function formatName(email) {
 .toolbar {
   display: flex;
   justify-content: end;
+  align-items: center;
   gap: 15px;
   @media (max-width: 767px) {
     gap: 10px;
@@ -433,29 +491,17 @@ function formatName(email) {
     background: var(--base-fill);
   }
 
-  .notice {
-    font-size: 22px;
-    margin-right: 4px;
-  }
-
-  .dark-icon {
-    font-size: 20px;
-  }
-
-  .sun-icon {
-    font-size: 24px;
-  }
-
   .avatar {
     display: flex;
     align-items: center;
     cursor: pointer;
 
     .avatar-text {
+      box-sizing: border-box;
       background: var(--el-bg-color);
       color: var(--el-text-color-primary);
-      height: 30px;
-      width: 30px;
+      height: 32px;
+      width: 32px;
       display: flex;
       justify-content: center;
       align-items: center;

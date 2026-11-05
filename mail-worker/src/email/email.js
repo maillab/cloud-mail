@@ -105,12 +105,14 @@ export async function email(message, env, ctx) {
 
 		const toName = email.to.find(item => item.address === message.to)?.name || '';
 		const code = await aiService.extractCode({ env }, email, { aiCode, aiCodeFilter });
+		const fromAddress = email.from?.address || '';
 
 		const params = {
 			toEmail: message.to,
 			toName: toName,
-			sendEmail: email.from.address,
-			name: email.from.name || emailUtils.getName(email.from.address),
+			sendEmail: fromAddress,
+			name: email.from?.name || emailUtils.getName(fromAddress),
+			senderEmail: message.from || '',
 			subject: email.subject,
 			code,
 			content: email.html,

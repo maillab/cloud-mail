@@ -19,6 +19,7 @@
     "date-time-format-timezone": "^1.0.22",
     "dayjs": "^1.11.13",
     "dexie": "^4.0.11",
+    "dompurify": "^3.4.17",
     "echarts": "^5.6.0",
     "element-plus": "^2.13.1",
     "lodash-es": "^4.17.21",

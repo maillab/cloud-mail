@@ -34,6 +34,8 @@ run_worker_first = true
 #[[send_email]]
 #name = "email"
 
+[[send_email]]
+name = "forward"
 
 [vars]
 ai_model = ""

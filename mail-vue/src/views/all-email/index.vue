@@ -15,6 +15,7 @@
                  @jump="jumpContent"
                  @refresh-before="refreshBefore"
                  @right-search="rightSearch"
+                 :highlight-text="appliedSearchText"
                  :type="'all-email'"
 
     >
@@ -165,6 +166,8 @@ function closedClear() {
   clearTime.value = null
 }
 
+const appliedSearchText = computed(() => params.name || params.subject || params.userEmail || params.accountEmail || '')
+
 const selectTitle = computed(() => {
   if (params.searchType === 'user') return t('user')
   if (params.searchType === 'account') return t('selectEmail')
@@ -286,7 +289,7 @@ function jumpContent(email) {
   emailStore.contentData.delType = 'physics'
   emailStore.contentData.showStar = false
   emailStore.contentData.showReply = false
-  router.push({name: 'content'})
+  router.push({name: 'content', params: {mailbox: 'all-mail'}})
 }
 
 

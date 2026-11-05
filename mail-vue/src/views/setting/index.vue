@@ -1,8 +1,10 @@
 <template>
+  <div class="settings-page">
+    <el-scrollbar height="100%">
   <div class="box">
     <div class="container">
       <div class="title">{{$t('profile')}}</div>
-      <div class="item">
+      <div class="item setting-row">
         <div>{{$t('username')}}</div>
         <div>
           <span v-if="setNameShow" class="edit-name-input">
@@ -19,11 +21,11 @@
           </span>
         </div>
       </div>
-      <div class="item">
+      <div class="item setting-row">
         <div>{{$t('emailAccount')}}</div>
         <div>{{ userStore.user.email }}</div>
       </div>
-      <div class="item">
+      <div class="item setting-row">
         <div>{{$t('password')}}</div>
         <div>
           <el-button type="primary" @click="pwdShow = true">{{$t('changePwdBtn')}}</el-button>
@@ -32,15 +34,31 @@
     </div>
     <div class="language">
       <div class="title">{{$t('language')}}</div>
-      <el-select
-          :model-value="langSelect"
-          class="language-select"
-          placeholder="Select"
-          @change="changeLang"
-      >
-        <el-option label="中文" value="zh" @pointerdown.prevent.stop="changeLang('zh')"/>
-        <el-option label="English" value="en" @pointerdown.prevent.stop="changeLang('en')"/>
-      </el-select>
+      <div class="language-row setting-row">
+        <div>{{$t('preferredLanguage')}}</div>
+        <el-select
+            :model-value="langSelect"
+            class="language-select"
+            placeholder="Select"
+            @change="changeLang"
+        >
+          <el-option label="中文" value="zh" @pointerdown.prevent.stop="changeLang('zh')"/>
+          <el-option label="English" value="en" @pointerdown.prevent.stop="changeLang('en')"/>
+        </el-select>
+      </div>
+    </div>
+    <div class="preference-item">
+      <div class="title" id="theme-label">{{$t('themeStyle')}}</div>
+      <ThemeSelector/>
+    </div>
+    <div class="preference-item">
+      <div class="title">{{$t('noticeTitle')}}</div>
+      <div class="language-row setting-row">
+        <div>{{$t('noticeInfo')}}</div>
+        <div>
+          <el-button @click="uiStore.showNotice()">{{$t('viewNotice')}}</el-button>
+        </div>
+      </div>
     </div>
     <div class="del-email" v-perm="'my:delete'">
       <div class="title">{{$t('deleteUser')}}</div>
@@ -59,6 +77,8 @@
       </div>
     </el-dialog>
   </div>
+    </el-scrollbar>
+  </div>
 </template>
 <script setup>
 import {reactive, ref, defineOptions} from 'vue'
@@ -69,10 +89,13 @@ import {accountSetName} from "@/request/account.js";
 import {useAccountStore} from "@/store/account.js";
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
+import {useUiStore} from "@/store/ui.js";
+import ThemeSelector from "@/components/theme-selector/index.vue";
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
 const settingStore = useSettingStore()
+const uiStore = useUiStore()
 const userStore = useUserStore();
 const setPwdLoading = ref(false)
 const setNameShow = ref(false)
@@ -208,6 +231,13 @@ function submitPwd() {
 
 </script>
 <style scoped lang="scss">
+.settings-page {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .box {
   padding: 40px 40px;
 
@@ -233,14 +263,14 @@ function submitPwd() {
     margin-bottom: 40px;
 
     .item {
-      display: grid;
-      grid-template-columns: 50px 1fr;
-      gap: 140px;
       position: relative;
       .user-name {
         display: grid;
-        grid-template-columns: auto 1fr;
+        grid-template-columns: minmax(0, auto) max-content;
+        justify-content: start;
+        align-items: center;
         span:first-child {
+          min-width: 0;
           overflow: hidden;
           white-space: nowrap;
           text-overflow: ellipsis;
@@ -258,34 +288,52 @@ function submitPwd() {
       .edit-name {
         color: #4dabff;
         padding-left: 10px;
+        white-space: nowrap;
         cursor: pointer;
       }
 
-      @media (max-width: 767px) {
-        gap: 70px;
-      }
-
-      div:first-child {
-        font-weight: bold;
-      }
-
-      div:last-child {
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
     }
   }
 
+  .preference-item,
   .language {
     display: flex;
     flex-direction: column;
     gap: 20px;
     margin-bottom: 40px;
+    align-items: flex-start;
 
-    .language-select {
-      width: 100px;
+  }
+
+  .setting-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 120px 220px;
+    align-items: center;
+    column-gap: 110px;
+    font-size: 14px;
+
+    > div:first-child {
+      font-weight: bold;
+      min-width: 0;
+      text-align: left;
     }
+
+    > div:last-child {
+      min-width: 0;
+      overflow: hidden;
+      text-align: left;
+    }
+
+    @media (max-width: 767px) {
+      grid-template-columns: 120px minmax(0, 1fr);
+      column-gap: 24px;
+    }
+  }
+
+  .language-select {
+    width: 110px;
+    max-width: 100%;
   }
 
   .del-email {

@@ -110,7 +110,7 @@ const routers = {
         }
     }],
     'analysis:query': [{
-        path: '/analysis',
+        path: '/dashboard',
         name: 'analysis',
         component: () => import('@/views/analysis/index.vue'),
         meta: {

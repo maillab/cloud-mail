@@ -1,11 +1,15 @@
 <template>
   <el-scrollbar class="scroll">
     <div>
-      <div class="title" >
-        <Icon icon="mdi:email-outline" width="24" height="24" />
+      <div class="title" :class="{ 'title-display': titleUsesDisplayFont }">
+        <img class="logo" :src="logoUrl" alt="" />
         <div>{{settingStore.settings.title}}</div>
       </div>
-      <el-menu :collapse="false" text-color="#fff" active-text-color="#fff" style="margin-top: 10px">
+      <button v-perm="'email:send'" class="compose-bar" type="button" @click="openCompose">
+        <Icon icon="material-symbols:edit-outline-sharp" width="22" height="22" />
+        <span>{{ $t('compose') }}</span>
+      </button>
+      <el-menu :collapse="false" text-color="#fff" active-text-color="#fff" style="margin-top: 6px">
         <el-menu-item @click="router.push({name: 'email'})" index="email"
                       :class="route.meta.name === 'email' ? 'choose-item' : ''">
           <Icon icon="hugeicons:mailbox-01" width="20" height="20" />
@@ -71,30 +75,46 @@
 
 <script setup>
 import router from "@/router/index.js";
+import {computed} from "vue";
 import { useRoute } from "vue-router";
 import {Icon} from "@iconify/vue";
 import {useSettingStore} from "@/store/setting.js";
+import {useUiStore} from "@/store/ui.js";
 
 const settingStore = useSettingStore();
+const uiStore = useUiStore();
 const route = useRoute();
+const logoUrl = `${import.meta.env.BASE_URL}mail.png`
+const titleUsesDisplayFont = computed(() => !/\p{Script=Han}/u.test(settingStore.settings.title || ''))
+
+function openCompose() {
+  uiStore.writerRef.open()
+}
 
 </script>
 
 <style lang="scss" scoped>
 
+@font-face {
+  font-family: "BAHAMASB";
+  src: url("/fonts/BAHAMASB.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 .title {
-  margin: 15px 10px;
+  margin: 10px 6px;
   height: 45px;
   border-radius: 6px;
   display: flex;
   position: relative;
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 18px;
+  font-weight: 600;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
+  justify-content: flex-start;
+  gap: 10px;
   color: #ffffff;
-  background: linear-gradient(135deg, #1890ff, #3a80dd);
   transition: all 0.3s ease;
   max-width: 240px;
   padding: 0 10px;
@@ -102,12 +122,14 @@ const route = useRoute();
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    max-width: calc(240px - 20px - 30px);
+    max-width: calc(240px - 20px - 32px - 5px);
   }
 
-  :deep(.el-icon) {
+  .logo {
+    width: 36px;
+    height: 36px;
     flex-shrink: 0;
-    font-size: 20px;
+    object-fit: contain;
   }
 
   .user-right-icon {
@@ -120,15 +142,48 @@ const route = useRoute();
 
 }
 
+.title.title-display {
+  font-family: "BAHAMASB", Inter, "Helvetica Neue", Helvetica, sans-serif;
+  font-size: 22px;
+  font-weight: normal;
+}
+
+.compose-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: calc(100% - 24px);
+  height: 42px;
+  margin-right: 12px;
+  margin-left: 12px;
+  margin-bottom: 15px;
+  border: 0;
+  border-radius: 8px;
+  background: #1890ff;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    background: #1064c0;
+  }
+
+  @media (max-width: 767px) {
+    display: none;
+  }
+}
 
 .manage-title {
-  margin-top: 10px;
+  margin-top: 12px;
   padding-left: 20px;
   color: #fff;
 }
 
 .el-menu-item {
-  margin: 3px 10px !important;
+  margin: 3px 12px !important;
   border-radius: 6px;
   height: 36px;
   padding: 10px !important;
