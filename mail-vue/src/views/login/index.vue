@@ -1,19 +1,19 @@
 <template>
   <div id="login-box" :style=" background ? 'background: var(--el-bg-color)' : ''" v-loading="oauthLoading" element-loading-text="登录中...">
-    <div id="background-wrap" v-if="!settingStore.settings.background">
-      <div class="x1 cloud"></div>
-      <div class="x2 cloud"></div>
-      <div class="x3 cloud"></div>
-      <div class="x4 cloud"></div>
-      <div class="x5 cloud"></div>
-    </div>
-    <div v-else :style="background"></div>
+    <div id="background-wrap" v-if="!settingStore.settings.background"></div>
+    <div v-else class="login-bg" :style="background"></div>
     <div class="form-wrapper">
       <div class="container">
-        <span class="form-title">{{ settingStore.settings.title }}</span>
-        <span class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</span>
-        <span class="form-desc" v-else>{{ $t('regTitle') }}</span>
-        <div v-show="show === 'login'">
+        <div class="brand-lockup">
+          <span class="brand-mark">
+            <Icon icon="mdi:email-outline" width="18" height="18"/>
+          </span>
+          <span class="brand-text">{{ settingStore.settings.title }}</span>
+        </div>
+        <h1 class="form-title">{{ show === 'login' ? $t('loginBtn') : $t('regBtn') }}</h1>
+        <p class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</p>
+        <p class="form-desc" v-else>{{ $t('regTitle') }}</p>
+        <div class="form-body" v-show="show === 'login'">
           <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="form.email"
                     type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="submit">
             <template #append v-if="!hideLoginDomain">
@@ -50,7 +50,7 @@
             {{ p.label }}
           </el-button>
         </div>
-        <div v-show="show !== 'login'">
+        <div class="form-body" v-show="show !== 'login'">
           <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="registerForm.email" type="text" :placeholder="$t('emailAccount')"
                     autocomplete="off" @keyup.enter="submitRegister">
             <template #append v-if="!hideLoginDomain">
@@ -147,7 +147,7 @@
       </div>
     </el-dialog>
     <a v-show="settingStore.settings.projectLink" class="github" href="https://github.com/maillab/cloud-mail">
-      <Icon icon="mingcute:github-line" color="#1890ff" width="20" height="20" />
+      <Icon icon="mingcute:github-line" color="#2a76b8" width="20" height="20" />
     </a>
   </div>
 </template>
@@ -663,88 +663,131 @@ function submitRegister() {
 <style lang="scss" scoped>
 
 .form-wrapper {
-  position: fixed;
-  right: 0;
-  height: 100%;
+  position: relative;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  @media (max-width: 767px) {
-    width: 100%;
-  }
+  width: 100%;
+  min-height: 100%;
+  padding: 32px 20px;
 }
 
 .container {
   background: v-bind(loginOpacity);
-  padding-left: 40px;
-  padding-right: 40px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  width: 450px;
-  height: 100%;
-  border-left: 1px solid var(--login-border);
-  box-shadow: var(--el-box-shadow-light);
-  @media (max-width: 1024px) {
-    padding: 20px 18px;
-    width: 384px;
-    margin-left: 18px;
-  }
-  @media (max-width: 767px) {
-    border: 1px solid var(--login-border);
-    padding: 20px 18px;
-    border-radius: 6px;
-    height: fit-content;
-    width: 100%;
-    margin-right: 18px;
-    margin-left: 18px;
+  width: 100%;
+  max-width: 420px;
+  padding: 40px 40px 36px;
+  border: 1px solid var(--login-line);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 32px rgba(16, 24, 40, 0.07);
+  @media (max-width: 480px) {
+    padding: 28px 22px 26px;
+    border-radius: 12px;
   }
 
-  .btn {
-    height: 36px;
-    width: 100%;
-    border-radius: 6px;
-  }
+  /* 顶部品牌标识，仿 Google / Microsoft 的登录页排布 */
+  .brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 26px;
+    color: var(--login-ink);
 
-  .form-desc {
-    margin-top: 5px;
-    margin-bottom: 18px;
-    color: var(--form-desc-color);
+    .brand-mark {
+      width: 26px;
+      height: 26px;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 7px;
+      background: var(--login-accent);
+      color: #ffffff;
+    }
+
+    .brand-text {
+      font-size: 13.5px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
   }
 
   .form-title {
-    font-weight: bold;
-    font-size: 22px !important;
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: var(--login-ink);
+  }
+
+  .form-desc {
+    margin-top: 6px;
+    margin-bottom: 26px;
+    font-size: 14px;
+    color: var(--login-ink-soft);
+  }
+
+  /* 主按钮靠右，第三方按钮整行，跟 Google / Microsoft 的行动区一致 */
+  .form-body {
+    text-align: right;
+  }
+
+  .btn {
+    height: 42px;
+    min-width: 112px;
+    padding: 0 26px;
+    border-radius: 999px;
+    font-weight: 500;
+  }
+
+  .btn + .btn {
+    width: 100%;
   }
 
   .switch {
-    margin-top: 20px;
-    text-align: center;
+    margin-top: 22px;
+    font-size: 13px;
+    color: var(--login-ink-soft);
 
     span {
-      color: var(--login-switch-color);
+      color: var(--login-accent);
       cursor: pointer;
+      font-weight: 500;
+
+      &:hover {
+        text-decoration: underline;
+      }
     }
   }
 
   :deep(.el-input__wrapper) {
-    border-radius: 6px;
+    border-radius: 10px;
     background: var(--el-bg-color);
+    padding: 1px 14px;
+    box-shadow: 0 0 0 1px var(--login-line) inset;
+  }
+
+  :deep(.el-input__wrapper.is-focus) {
+    box-shadow: 0 0 0 1px var(--login-accent) inset;
   }
 
   .email-input :deep(.el-input__wrapper) {
-    border-radius: 6px 0 0 6px;
-    background: var(--el-bg-color);
+    border-radius: 10px 0 0 10px;
   }
 
   .el-input {
-    height: 38px;
+    height: 46px;
     width: 100%;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
 
     :deep(.el-input__inner) {
-      height: 36px;
+      height: 44px;
     }
   }
 }
@@ -792,10 +835,14 @@ function submitRegister() {
 
 :deep(.el-input-group__append) {
   padding: 0 !important;
-  padding-left: 8px !important;
-  padding-right: 4px !important;
+  padding-left: 12px !important;
+  padding-right: 10px !important;
+  margin-left: -1px;
   background: var(--el-bg-color);
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 10px 10px 0;
+  box-shadow: 0 0 0 1px var(--login-line) inset;
+  color: var(--login-ink);
+  font-size: 13.5px;
 }
 
 :deep(.el-button+.el-button) {
@@ -826,88 +873,42 @@ function submitRegister() {
 
 
 #login-box {
-  background: linear-gradient(to bottom, #2980b9, #6dd5fa, #fff);
-  font: 100% Arial, sans-serif;
+  /* 登录页自带的浅色底与文字色，不依赖登录后的 .layout 变量 */
+  --login-canvas: #f4f5f7;
+  --login-ink: #1f2328;
+  --login-ink-soft: #6b7280;
+  --login-line: #e3e6ea;
+  --login-accent: #2a76b8;
+
   height: 100%;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--login-canvas);
 }
 
+html.dark #login-box {
+  --login-canvas: #141414;
+  --login-ink: #e7e8ea;
+  --login-ink-soft: #9ba0a8;
+  --login-line: #33363c;
+  --login-accent: #4a92d0;
+}
+
+/* 用户自定义背景图：铺满底层，卡片浮在上面 */
+.login-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-size: cover !important;
+  background-position: center !important;
+}
 
 #background-wrap {
-  height: 100%;
-  z-index: 0;
-}
-
-@keyframes animateCloud {
-  0% {
-    margin-left: -500px;
-  }
-
-  100% {
-    margin-left: 100%;
-  }
-}
-
-.x1 {
-  animation: animateCloud 30s linear infinite;
-  transform: scale(0.65);
-}
-
-.x2 {
-  animation: animateCloud 15s linear infinite;
-  transform: scale(0.3);
-}
-
-.x3 {
-  animation: animateCloud 25s linear infinite;
-  transform: scale(0.5);
-}
-
-.x4 {
-  animation: animateCloud 13s linear infinite;
-  transform: scale(0.4);
-}
-
-.x5 {
-  animation: animateCloud 20s linear infinite;
-  transform: scale(0.55);
-}
-
-.cloud {
-  background: linear-gradient(to bottom, #fff 5%, #f1f1f1 100%);
-  border-radius: 100px;
-  box-shadow: 0 8px 5px rgba(0, 0, 0, 0.1);
-  height: 120px;
-  width: 350px;
-  position: relative;
-}
-
-.cloud:after,
-.cloud:before {
-  content: "";
-  position: absolute;
-  background: #fff;
-  z-index: -1;
-}
-
-.cloud:after {
-  border-radius: 100px;
-  height: 100px;
-  left: 50px;
-  top: -50px;
-  width: 100px;
-}
-
-.cloud:before {
-  border-radius: 200px;
-  height: 180px;
-  width: 180px;
-  right: 50px;
-  top: -90px;
+  display: none;
 }
 
 </style>

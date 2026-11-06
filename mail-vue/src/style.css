@@ -179,6 +179,100 @@ button, input, select, textarea {
     --el-input-text-color: var(--el-text-color-primary) !important;
 }
 
+/* ------------------------------------------------------------------
+   邮箱界面视觉基线（登录后主框架：侧边栏 / 顶栏 / 邮件列表 / 邮件详情）
+   只覆盖颜色与尺寸变量，不改动任何交互逻辑。
+------------------------------------------------------------------ */
+.layout {
+    /* 中性色：略偏暖的灰，避免纯黑纯白的生硬感 */
+    --mail-hairline: #e7e9ec;
+    --mail-hairline-strong: #dcdfe3;
+    --mail-canvas: #f6f7f9;
+    --mail-hover: #f4f6f8;
+    --mail-selected: #edf3f9;
+    --mail-ink: #23262b;
+    --mail-ink-soft: #6c727c;
+    --mail-nav-hover: #f1f3f6;
+    --mail-icon: #5f6368;
+    --mail-read-bg: #f7f9fc;
+    --mail-unread-bg: var(--el-bg-color);
+
+    /* 收敛主色：沿用原来的蓝色相，降低饱和度 */
+    --el-color-primary: #2a76b8;
+    --el-color-primary-dark-2: #236194;
+    --el-color-primary-light-3: #5f96ca;
+    --el-color-primary-light-5: #95b9dc;
+    --el-color-primary-light-7: #c9dced;
+    --el-color-primary-light-8: #dce8f4;
+    --el-color-primary-light-9: #eef5fa;
+
+    --el-text-color-primary: var(--mail-ink);
+    --el-text-color-regular: #4a4f57;
+    --el-border-color: var(--mail-hairline-strong);
+    --el-border-color-lighter: var(--mail-hairline);
+
+    --light-border-color: var(--mail-hairline);
+    --light-ill: #f7f8fa;
+    --light-border: var(--mail-hairline-strong);
+    --base-fill: #f1f3f5;
+    --base-border-color: var(--mail-hairline-strong);
+    --regular-text-color: var(--mail-ink-soft);
+    --secondary-text-color: #8b9099;
+    --dark-border: #d7dae0;
+    --extra-light-fill: #fafbfc;
+    --settings-page-background: var(--mail-canvas);
+
+    --choose-account-background: var(--mail-selected);
+    --email-hover-background: var(--mail-hover);
+    --email-right-click-background: var(--mail-selected);
+    --email-scroll-content-color: #8b9099;
+    --header-actions-border: inset 0 -1px 0 0 var(--mail-hairline);
+    --scrollbar-track-color: #c9ccd1;
+    --loadding-background: rgba(255, 255, 255, 0.78);
+}
+
+.dark .layout {
+    --mail-hairline: #2c2e33;
+    --mail-hairline-strong: #383a40;
+    --mail-canvas: #17181b;
+    --mail-hover: #212327;
+    --mail-selected: #22303d;
+    --mail-ink: #e7e8ea;
+    --mail-ink-soft: #9ba0a8;
+    --mail-nav-hover: #23252a;
+    --mail-icon: #a2a6ad;
+    --mail-read-bg: var(--el-bg-color);
+    --mail-unread-bg: #1d1f23;
+
+    --el-color-primary: #4a92d0;
+    --el-color-primary-dark-2: #3d7db4;
+    --el-color-primary-light-3: #3d7db4;
+    --el-color-primary-light-5: #2f6389;
+    --el-color-primary-light-7: #244a66;
+    --el-color-primary-light-8: #1e3d54;
+    --el-color-primary-light-9: #18303f;
+
+    --el-text-color-primary: var(--mail-ink);
+    --el-text-color-regular: #c3c6cc;
+    --el-border-color-lighter: var(--mail-hairline);
+
+    --light-ill: #212327;
+    --light-border-color: var(--mail-hairline);
+    --base-fill: #26282c;
+    --regular-text-color: var(--mail-ink-soft);
+    --secondary-text-color: #8b9099;
+    --dark-border: #43464c;
+    --extra-light-fill: var(--mail-canvas);
+    --settings-page-background: var(--mail-canvas);
+
+    --choose-account-background: var(--mail-selected);
+    --email-hover-background: var(--mail-hover);
+    --email-right-click-background: var(--mail-selected);
+    --email-scroll-content-color: #85898f;
+    --header-actions-border: inset 0 -1px 0 0 var(--mail-hairline);
+    --loadding-background: rgba(0, 0, 0, 0.35);
+}
+
 /* 视图过渡，基于径向剪裁 */
 html.dark,
 html:not(.dark) {
@@ -218,3 +312,34 @@ html[data-theme-to="light"]::view-transition-old(root) {
     from { clip-path: circle(var(--vt-end-radius, 0px) at var(--vt-x) var(--vt-y)); }
     to   { clip-path: circle(0px at var(--vt-x) var(--vt-y)); }
 }
+
+/* ------------------------------------------------------------------
+   发件人首字母头像的配色：低饱和的几组底色，浅色与深色各一套
+------------------------------------------------------------------ */
+.mail-avatar {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-weight: 600;
+    user-select: none;
+    overflow: hidden;
+    background: #eceff4;
+    color: #4a5568;
+}
+
+.mail-avatar.tone-0 { background: #e7edf6; color: #3f5f88; }
+.mail-avatar.tone-1 { background: #e9f0e9; color: #4a6b52; }
+.mail-avatar.tone-2 { background: #f4ece6; color: #8a5f45; }
+.mail-avatar.tone-3 { background: #efeaf4; color: #6b5583; }
+.mail-avatar.tone-4 { background: #e8f0f2; color: #3f666e; }
+.mail-avatar.tone-5 { background: #f2efe3; color: #77683a; }
+
+.dark .mail-avatar { background: #26282c; color: #b3b8c0; }
+.dark .mail-avatar.tone-0 { background: #1f2a3a; color: #93b2d8; }
+.dark .mail-avatar.tone-1 { background: #1f2b22; color: #92b79c; }
+.dark .mail-avatar.tone-2 { background: #2c241f; color: #c79a7c; }
+.dark .mail-avatar.tone-3 { background: #272231; color: #b09cc4; }
+.dark .mail-avatar.tone-4 { background: #1e2b2d; color: #8cb6bd; }
+.dark .mail-avatar.tone-5 { background: #2b281d; color: #c0b077; }

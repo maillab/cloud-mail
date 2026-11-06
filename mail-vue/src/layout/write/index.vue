@@ -1,84 +1,82 @@
 <template>
-  <div class="send" v-show="show">
-    <div class="write-box">
-      <div class="title">
-        <div class="title-left">
-          <span class="title-text">
-            <Icon icon="hugeicons:quill-write-01" width="28" height="28"/>
-          </span>
-          <span class="sender">{{ $t('sender') }}:</span>
-          <span class="sender-name">{{ form.name }}</span>
-          <span class="send-email"><{{ form.sendEmail }}></span>
-        </div>
-        <div @click="close" style="cursor: pointer;">
-          <Icon icon="material-symbols-light:close-rounded" width="22" height="22"/>
-        </div>
+  <div class="compose-page">
+    <div class="compose-head">
+      <button type="button" class="head-btn" @click="close">
+        <Icon icon="material-symbols-light:arrow-back-ios-new" width="20" height="20"/>
+      </button>
+      <span class="head-title">{{ $t('compose') }}</span>
+      <div class="head-actions">
+        <el-dropdown split-button type="primary" trigger="click" @click="sendEmail" @command="selectSendMode">
+          {{ sendButtonLabel }}
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="together">
+                {{ $t(form.sendType === 'forward' ? 'forward' : 'send') }}
+              </el-dropdown-item>
+              <el-dropdown-item command="divide">
+                {{ separateSendLabel }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
-      <div class="container">
-        <el-input-tag  @add-tag="addTagChange" tag-type="primary" @input="inputChange" size="default" v-model="form.receiveEmail" >
-          <template #prefix>
-            <div class="item-title" >{{ $t('recipient') }}</div>
-            <el-select
-                ref="mySelect"
-                class="write-select"
-                popper-class="write-select"
-                :show-arrow="false"
-                :no-match-text="' '"
-                :no-data-text="' '"
-                @visible-change="selectStatusChange"
-                @change="selectChange"
-            >
-              <el-option
-                  v-for="item in selectRecipientList"
-                  :key="item"
-                  :label="item"
-                  :value="item"
-                  style="color: #999896;"
-              />
-            </el-select>
-          </template>
-          <template #suffix>
-            <div style="display: flex;margin-right: 3px;">
-              <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts" />
-            </div>
-          </template>
-        </el-input-tag>
-        <el-input v-model="form.subject" :placeholder="t('subject')" />
-        <tinyEditor :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
-        <div class="button-item">
-          <div class="att-add" @click="chooseFile">
-            <Icon icon="iconamoon:attachment-fill" width="24" height="24"/>
+    </div>
+
+    <div class="compose-body">
+      <div class="field from-field">
+        <span class="field-label">{{ $t('sender') }}</span>
+        <span class="from-name">{{ form.name }}</span>
+        <span class="from-email">&lt;{{ form.sendEmail }}&gt;</span>
+      </div>
+      <el-input-tag  @add-tag="addTagChange" tag-type="primary" @input="inputChange" size="default" v-model="form.receiveEmail" >
+        <template #prefix>
+          <div class="item-title" >{{ $t('recipient') }}</div>
+          <el-select
+              ref="mySelect"
+              class="write-select"
+              popper-class="write-select"
+              :show-arrow="false"
+              :no-match-text="' '"
+              :no-data-text="' '"
+              @visible-change="selectStatusChange"
+              @change="selectChange"
+          >
+            <el-option
+                v-for="item in selectRecipientList"
+                :key="item"
+                :label="item"
+                :value="item"
+                style="color: #999896;"
+            />
+          </el-select>
+        </template>
+        <template #suffix>
+          <div style="display: flex;margin-right: 3px;">
+            <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts" />
           </div>
-          <div class="att-clear" @click="clearContent">
-            <Icon icon="icon-park-outline:clear-format" width="24" height="24 "/>
-          </div>
-          <div class="att-list">
-            <div class="att-item" v-for="(item,index) in form.attachments" :key="index">
-              <Icon v-bind="getIconByName(item.filename)"/>
-              <span class="att-filename">{{ item.filename }}</span>
-              <span class="att-size">{{ formatBytes(item.size) }}</span>
-              <Icon style="cursor: pointer;" icon="material-symbols-light:close-rounded" @click="delAtt(index)"
-                    width="22" height="22"/>
-            </div>
-          </div>
-          <div>
-            <el-dropdown split-button type="primary" trigger="click" @click="sendEmail" @command="selectSendMode">
-              {{ sendButtonLabel }}
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="together">
-                    {{ $t(form.sendType === 'forward' ? 'forward' : 'send') }}
-                  </el-dropdown-item>
-                  <el-dropdown-item command="divide">
-                    {{ separateSendLabel }}
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+        </template>
+      </el-input-tag>
+      <el-input v-model="form.subject" :placeholder="t('subject')" />
+      <tinyEditor :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
+      <div class="button-item">
+        <div class="att-add" @click="chooseFile">
+          <Icon icon="iconamoon:attachment-fill" width="24" height="24"/>
+        </div>
+        <div class="att-clear" @click="clearContent">
+          <Icon icon="icon-park-outline:clear-format" width="24" height="24 "/>
+        </div>
+        <div class="att-list">
+          <div class="att-item" v-for="(item,index) in form.attachments" :key="index">
+            <Icon v-bind="getIconByName(item.filename)"/>
+            <span class="att-filename">{{ item.filename }}</span>
+            <span class="att-size">{{ formatBytes(item.size) }}</span>
+            <Icon style="cursor: pointer;" icon="material-symbols-light:close-rounded" @click="delAtt(index)"
+                  width="22" height="22"/>
           </div>
         </div>
       </div>
     </div>
+
     <el-dialog top="10vh" v-model="showContacts" @closed="clearSelectContact" :title="t('recentContacts')">
       <el-table ref="contactsTabRef" row-key="email" :data="contacts" style="height: 445px">
         <el-table-column type="selection" width="32" />
@@ -140,7 +138,31 @@ const emailStore = useEmailStore();
 const accountStore = useAccountStore()
 const editor = ref({})
 const userStore = useUserStore();
-const show = ref(false);
+
+// 写信面板由 writerStore.open 控制挂载，关闭即卸载
+function leaveCompose() {
+  writerStore.closeCompose()
+}
+
+// 挂载时按 intent 初始化内容
+function applyIntent() {
+  const payload = writerStore.intentPayload
+  switch (writerStore.intent) {
+    case 'reply':
+      openReply(payload)
+      break
+    case 'forward':
+      openForward(payload)
+      break
+    case 'draft':
+      openDraft(payload)
+      break
+    default:
+      open()
+  }
+  writerStore.clearIntent()
+}
+
 const percent = ref(0)
 let percentMessage = null
 let sending = false
@@ -360,8 +382,6 @@ async function sendEmail() {
 
   sending = true
 
-  show.value = false
-
   emailSend(form, (e) => {
     percent.value = Math.round((e.loaded * 98) / e.total)
   }).then(result => {
@@ -376,7 +396,6 @@ async function sendEmail() {
 
     if (result.failedRecipients?.length) {
       form.receiveEmail = result.failedRecipients
-      show.value = true
       ElNotification({
         title: t('partialSendMsg', {count: emailList.length, failed: result.failedRecipients.length}),
         type: 'warning',
@@ -400,8 +419,8 @@ async function sendEmail() {
       draftStore.setDraft = {...toRaw(form)}
     }
 
-    show.value = false
     resetForm();
+    leaveCompose();
   }).catch((e) => {
     ElNotification({
       title: t('sendFailMsg'),
@@ -413,7 +432,6 @@ async function sendEmail() {
       localStorage.removeItem('token');
       router.replace('/login');
     }
-    show.value = true
     addRecipientRecord();
   }).finally(() => {
     percentMessage.close()
@@ -539,7 +557,6 @@ function open() {
     form.accountId = accountStore.currentAccount.accountId;
     form.name = accountStore.currentAccount.name;
   }
-  show.value = true;
   editor.value.focus()
 }
 
@@ -547,7 +564,6 @@ function openDraft(draft) {
   Object.assign(form, {...draft, manyType: draft.manyType || 'together'})
   defValue.value = ''
   setTimeout(() => defValue.value = form.content)
-  show.value = true;
   editor.value.focus()
 }
 
@@ -559,6 +575,7 @@ const handleKeyDown = (event) => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
+  applyIntent();
 });
 
 onUnmounted(() => {
@@ -575,14 +592,14 @@ function close() {
 
   if (form.draftId) {
     draftStore.setDraft = {...toRaw(form)}
-    show.value = false
     resetForm()
+    leaveCompose()
     return;
   }
 
   if (!(form.content || form.subject || form.receiveEmail.length > 0)) {
-    show.value = false
     resetForm()
+    leaveCompose()
     return;
   }
 
@@ -613,14 +630,14 @@ function close() {
     const draftId = await db.value.draft.add({...formData})
     db.value.att.add({draftId, attachments: toRaw(form.attachments)})
     draftStore.refreshList++
-    show.value = false
     await nextTick(() => {
       resetForm()
     })
+    leaveCompose()
   }).catch((action) => {
     if (action === 'cancel') {
-      show.value = false
       resetForm()
+      leaveCompose()
     }
   })
 
@@ -640,132 +657,201 @@ function close() {
 }
 </style>
 <style scoped lang="scss">
-.send {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
+/* 写信独立页面：占满主区域，不再是浮层 */
+.compose-page {
   height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--el-bg-color);
+  overflow: hidden;
+}
+
+.compose-head {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
+  height: 56px;
+  padding: 0 16px;
+  box-shadow: var(--header-actions-border);
 
-  .write-box {
-    background: var(--el-bg-color);
-    width: min(1367px, calc(100% - 80px));
-    box-shadow: var(--el-box-shadow-light);
-    border: 1px solid var(--el-border-color-light);
-    transition: var(--el-transition-duration);
-    padding: 15px;
+  .head-btn {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 8px;
-    display: grid;
-    grid-template-rows: auto 1fr;
+    color: var(--regular-text-color);
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+
+    &:hover {
+      background: var(--mail-nav-hover);
+      color: var(--el-text-color-primary);
+    }
+  }
+
+  .head-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+  }
+
+  .head-actions {
+    margin-left: auto;
+
+    /* 上游的发送按钮是「主按钮 + 下拉」的 split-button，做成一个整体 */
+    :deep(.el-button-group) {
+      .el-button {
+        height: 36px;
+        font-weight: 500;
+        border-radius: 0;
+      }
+
+      .el-button:first-child {
+        padding: 0 18px;
+        border-radius: 9px 0 0 9px;
+      }
+
+      .el-button:last-child {
+        padding: 0 8px;
+        border-radius: 0 9px 9px 0;
+      }
+    }
+
+    :deep(.el-button:not(.el-button-group > .el-button)) {
+      height: 36px;
+      padding: 0 22px;
+      border-radius: 999px;
+      font-weight: 500;
+    }
+  }
+}
+
+.compose-body {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  padding: 0 24px 14px;
+
+  @media (max-width: 767px) {
+    padding: 0 14px 10px;
+  }
+
+  .from-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--mail-hairline);
     overflow: hidden;
-    @media (max-width: 1024px) {
-      width: 100%;
-      height: 100%;
-      border-radius: 0;
-      border: 0;
-      padding-top: 10px;
+
+    .field-label {
+      flex-shrink: 0;
+      color: var(--secondary-text-color);
     }
 
-    @media (min-width: 1025px) {
-      height: min(800px, calc(100vh - 60px));
+    .from-name {
+      flex-shrink: 0;
+      font-weight: 600;
+      color: var(--el-text-color-primary);
     }
 
-    .title {
+    .from-email {
+      color: var(--secondary-text-color);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+  }
+
+  /* 收件人 / 主题只留一条底线，去掉输入框的方框 */
+  :deep(.el-input-tag),
+  :deep(.el-input__wrapper) {
+    box-shadow: none !important;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  :deep(.el-input-tag) {
+    min-height: 44px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--mail-hairline);
+  }
+
+  /* 收件人前缀要跟「发件人 / 主题」左对齐 */
+  :deep(.el-input-tag__prefix) {
+    padding-left: 0;
+    margin-left: 0;
+  }
+
+  :deep(.el-input) {
+    --el-input-height: 44px;
+    border-bottom: 1px solid var(--mail-hairline);
+  }
+
+  :deep(.el-input__wrapper) {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .item-title {
+    color: var(--secondary-text-color);
+  }
+
+  .button-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 12px;
+
+    .att-add,
+    .att-clear {
+      cursor: pointer;
+      color: var(--regular-text-color);
+      transition: color 0.12s ease;
+    }
+
+    .att-add:hover,
+    .att-clear:hover {
+      color: var(--el-color-primary);
+    }
+
+    .att-list {
+      margin-left: auto;
       display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      max-height: 84px;
+      overflow-y: auto;
 
-      .title-left {
-        align-items: center;
+      .att-item {
         display: grid;
-        grid-template-columns: auto auto auto 1fr;
-      }
-
-      .title-text {
-      }
-
-      .sender {
-        margin-left: 8px;
-      }
-
-      .sender-name {
-        margin-left: 8px;
-        font-weight: bold;
-      }
-
-      .send-email {
-        color: #999896;
-        margin-left: 5px;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        overflow: hidden;
-      }
-
-
-      div {
-        display: flex;
+        grid-template-columns: auto 1fr auto auto;
         align-items: center;
-      }
-    }
+        gap: 6px;
+        height: 30px;
+        font-size: 13px;
+        padding: 0 8px;
+        background: var(--light-ill);
+        border-radius: 6px;
 
-    .container {
-      height: 100%;
-      display: grid;
-      grid-template-rows: auto auto 1fr auto;
-      gap: 15px;
-
-      .item-title {
-      }
-
-      .button-item {
-        display: grid;
-        grid-template-columns: auto auto 1fr auto;
-
-        .att-add {
-          cursor: pointer;
+        .att-filename {
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          overflow: hidden;
         }
 
-        .att-clear {
-          cursor: pointer;
-          margin-left: 10px;
-        }
-
-        .att-list {
-          display: grid;
-          gap: 5px;
-          grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-          padding-left: 10px;
-          padding-right: 10px;
-          max-height: 110px;
-          overflow-y: auto;
-          @media (max-width: 450px) {
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-          }
-
-          .att-item {
-            display: grid;
-            grid-template-columns: auto 1fr auto auto;
-            gap: 5px;
-            height: 32px;
-            font-size: 14px;
-            padding: 4px 5px;
-            background: var(--light-ill);
-            border-radius: 4px;
-            .att-filename {
-              white-space: nowrap;
-              text-overflow: ellipsis;
-              overflow: hidden;
-            }
-          }
+        .att-size {
+          color: var(--secondary-text-color);
         }
       }
     }
   }
-
 }
+
 
 .email-row {
   white-space: nowrap;

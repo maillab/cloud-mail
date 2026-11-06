@@ -28,6 +28,7 @@ import {emailDelete} from "@/request/email.js";
 import {starAdd, starCancel} from "@/request/star.js";
 import {defineOptions, ref, watch, toRaw} from "vue";
 import {useUiStore} from "@/store/ui.js";
+import {useWriterStore} from "@/store/writer.js";
 import {userDraftStore} from "@/store/draft.js";
 import db from "@/db/db.js"
 
@@ -37,6 +38,7 @@ defineOptions({
 
 const draftStore = userDraftStore();
 const uiStore = useUiStore();
+const writerStore = useWriterStore();
 const scroll = ref({})
 
 watch(() => draftStore.setDraft, async () => {
@@ -85,7 +87,7 @@ async function deleteDraft(draftIds) {
 async function jumpContent(email) {
   const att = await db.value.att.get(email.draftId)
   email.attachments = att.attachments
-  uiStore.writerRef.openDraft(email);
+  writerStore.startDraft(email)
 }
 
 </script>

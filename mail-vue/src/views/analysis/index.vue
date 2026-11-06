@@ -250,7 +250,7 @@ const widthChange = debounce(initPicture, 500, {
 })
 
 
-watch(() => uiStore.asideShow, () => {
+watch(() => [uiStore.asideShow, uiStore.asideCollapse], () => {
   if (window.innerWidth > 1024) {
     widthChange()
   }

@@ -1,6 +1,9 @@
 const en = {
-    inbox: 'Inbox',
     compose: 'Compose',
+    quotaSend: 'Sent',
+    quotaAccount: 'Mailboxes',
+    quotaRole: 'Role',
+    inbox: 'Inbox',
     drafts: 'Drafts',
     sent: 'Sent',
     starred: 'Starred',
