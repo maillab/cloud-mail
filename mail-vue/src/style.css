@@ -129,6 +129,7 @@ button, input, select, textarea {
     --choose-account-background: var(--el-color-primary-light-8);
     --el-text-color-regular: var(--el-text-color-primary);
     --email-scroll-content-color: rgba(25, 41, 59, 0.4);
+    --search-hit-background: #ffe58f;
     --email-hover-background: #F2F6FC;
     --email-right-click-background: #FDF6EC;
     --login-border: none;
@@ -161,6 +162,7 @@ button, input, select, textarea {
     --aside-right-border: 3px 0 5px #0A0A0A;
     --choose-account-background: #39393A;
     --email-scroll-content-color: rgba(255, 255, 255, 0.3);
+    --search-hit-background: #8a6a12;
     --email-hover-background: #1D1E1F;
     --email-right-click-background: var(--email-hover-background);
     --login-border: none;

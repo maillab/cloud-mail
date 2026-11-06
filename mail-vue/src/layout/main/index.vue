@@ -90,7 +90,7 @@ const handleResize = () => {
 <style lang="scss" scoped>
 
 .main-box {
-  height: calc(100% - 56px);
+  height: calc(100% - var(--mail-header-height, 56px));
   overflow: hidden;
 }
 

@@ -1,15 +1,31 @@
 <template>
-  <div class="header" :class="!hasPerm('email:send') ? 'not-send' : ''">
+  <div class="header">
     <div class="header-btn">
       <hanburger @click="changeAside"></hanburger>
       <span class="breadcrumb-item">{{ $t(route.meta.title) }}</span>
     </div>
-    <div class="toolbar">
-      <div v-perm="'email:send'" class="writer-box" @click="openSend">
-        <div class="writer">
-          <Icon icon="material-symbols:edit-outline-sharp" width="22" height="22"/>
-        </div>
+    <div v-perm="'email:send'" class="writer-box" @click="openSend">
+      <div class="writer">
+        <Icon icon="material-symbols:edit-outline-sharp" width="22" height="22"/>
       </div>
+    </div>
+    <email-search
+      v-if="showInboxSearch"
+      :store="emailStore"
+      :search-options="inboxSearchOptions"
+      class="header-search"
+      @search="returnToList('email')"
+      @reset="returnToList('email')"
+    />
+    <email-search
+      v-else-if="showSentSearch"
+      :store="sendStore"
+      :search-options="sentSearchOptions"
+      class="header-search"
+      @search="returnToList('send')"
+      @reset="returnToList('send')"
+    />
+    <div class="toolbar">
       <el-dropdown v-if="canManage" :teleported="false" trigger="click" placement="bottom-end"
                    popper-class="manage-dropdown">
         <div class="icon-item manage-entry" :title="$t('manage')">
@@ -36,8 +52,9 @@
       <div class="notice icon-item" @click="openNotice">
         <Icon icon="streamline-plump:announcement-megaphone"/>
       </div>
-      <el-dropdown ref="userinfoRef" @visible-change="e => userInfoShow = e" :teleported="false" popper-class="detail-dropdown">
-        <div class="avatar" @click="userInfoHide" >
+      <el-dropdown ref="userDropdownRef" trigger="click" :teleported="false" popper-class="detail-dropdown"
+                   @visible-change="userCardVisible = $event">
+        <div class="avatar">
           <div class="avatar-text">
             <div>{{ formatName(userStore.user.email) }}</div>
           </div>
@@ -105,12 +122,15 @@ import {Icon} from "@iconify/vue";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
 import {useRoute} from "vue-router";
-import {computed, ref} from "vue";
+import {computed, onBeforeUnmount, onMounted, ref} from "vue";
 import {useSettingStore} from "@/store/setting.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
 import {setExtend} from "@/utils/day.js"
 import {useWriterStore} from "@/store/writer.js"
+import emailSearch from '@/components/email-search/index.vue'
+import {useEmailStore} from '@/store/email.js'
+import {useSendStore} from '@/store/send.js'
 
 const {t} = useI18n();
 const route = useRoute();
@@ -118,9 +138,40 @@ const settingStore = useSettingStore();
 const userStore = useUserStore();
 const uiStore = useUiStore();
 const writerStore = useWriterStore();
+const emailStore = useEmailStore()
+const sendStore = useSendStore()
 const logoutLoading = ref(false)
-const userInfoShow = ref(false)
-const userinfoRef = ref({})
+const userDropdownRef = ref(null)
+const userCardVisible = ref(false)
+const outsidePointerEvents = ['mousedown', 'pointerup', 'mouseup', 'click', 'pointercancel']
+let blockOutsideClick = false
+const inboxSearchOptions = computed(() => [
+  {label: t('titleDesc'), type: 'subject'},
+  {label: t('searchSummaryContent'), type: 'content'},
+  {label: t('sender'), type: 'sender'},
+  {label: t('searchSenderAddress'), type: 'senderAddress'},
+])
+const sentSearchOptions = computed(() => [
+  {label: t('titleDesc'), type: 'subject'},
+  {label: t('searchSummaryContent'), type: 'content'},
+  {label: t('searchRecipientAddress'), type: 'recipientAddress'},
+])
+const accountPanelShow = computed(() => uiStore.accountShow && hasPerm('account:query'))
+const showInboxSearch = computed(() =>
+  route.meta.name === 'email' || isMailboxDetail('inbox')
+)
+const showSentSearch = computed(() =>
+  route.meta.name === 'send' || isMailboxDetail('sent')
+)
+
+function isMailboxDetail(mailbox) {
+  return route.meta.name === 'content' && route.params.mailbox === mailbox
+}
+
+function returnToList(listName) {
+  if (route.meta.name !== 'content') return
+  router.push({name: listName})
+}
 
 const MANAGE_ITEMS = [
   {name: 'analysis', icon: 'fluent:data-pie-20-regular', label: 'analytics', perm: 'analysis:query'},
@@ -199,14 +250,6 @@ const sendCount = computed(() => {
 
   return userStore.user.sendCount + '/' + userStore.user.role.sendCount
 })
-
-function userInfoHide(e) {
-    if (userInfoShow.value) {
-        userinfoRef.value.handleClose()
-    } else {
-        userinfoRef.value.handleOpen()
-    }
-}
 
 async function copyEmail(email) {
   try {
@@ -302,6 +345,47 @@ function clickLogout() {
 function formatName(email) {
   return email[0]?.toUpperCase() || ''
 }
+
+function isInsideUserCard(target) {
+  const element = target instanceof Element ? target : target?.parentElement
+  if (!(element instanceof Element)) return false
+  if (userDropdownRef.value?.$el?.contains(element)) return true
+  return !!element.closest('.detail-dropdown')
+}
+
+function handleUserCardPointerDown(event) {
+  blockOutsideClick = userCardVisible.value && !isInsideUserCard(event.target)
+  if (!blockOutsideClick) return
+
+  event.preventDefault()
+  event.stopPropagation()
+  userDropdownRef.value?.handleClose()
+}
+
+function handleUserCardPointerEvent(event) {
+  if (!blockOutsideClick) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (event.type === 'pointerup' || event.type === 'pointercancel') {
+    setTimeout(() => {
+      blockOutsideClick = false
+    })
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('pointerdown', handleUserCardPointerDown, true)
+  outsidePointerEvents.forEach(type => {
+    document.addEventListener(type, handleUserCardPointerEvent, true)
+  })
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleUserCardPointerDown, true)
+  outsidePointerEvents.forEach(type => {
+    document.removeEventListener(type, handleUserCardPointerEvent, true)
+  })
+})
 
 </script>
 <style>
@@ -437,6 +521,23 @@ function formatName(email) {
   gap: 8px;
 }
 
+/* 上游的搜索框是绝对定位的，这里改成参与 flex 布局，居中放在标题和工具区之间 */
+.header-search {
+  position: static !important;
+  top: auto !important;
+  transform: none !important;
+  flex: 1 1 0;
+  width: auto !important;
+  min-width: 0;
+  max-width: 460px;
+  margin: 0 12px;
+
+  @media (max-width: 767px) {
+    flex: 0 0 auto;
+    margin: 0 2px;
+  }
+}
+
 .writer-box {
   cursor: pointer;
   display: flex;
@@ -477,6 +578,7 @@ function formatName(email) {
   gap: 2px;
   height: 100%;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .breadcrumb-item {
@@ -493,6 +595,7 @@ function formatName(email) {
   align-items: center;
   justify-content: end;
   margin-left: auto;
+  flex-shrink: 0;
   gap: 6px;
   @media (max-width: 767px) {
     gap: 4px;

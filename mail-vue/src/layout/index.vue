@@ -104,6 +104,11 @@ onBeforeUnmount(() => {
 }
 
 .layout {
+  --mail-header-height: 56px;
+  @media (max-width: 767px) {
+    --mail-header-height: 50px;
+  }
+
   height: 100%;
   position: fixed;
   width: 100%;
@@ -139,7 +144,7 @@ onBeforeUnmount(() => {
 .el-header {
   background: var(--el-bg-color);
   border-bottom: solid 1px var(--mail-hairline);
-  height: 56px;
+  height: var(--mail-header-height);
   padding: 0 16px 0 10px;
 }
 

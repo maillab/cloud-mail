@@ -3,8 +3,10 @@
     <el-scrollbar class="scroll">
       <div class="aside-body">
         <div class="brand">
-          <Icon class="brand-icon" icon="mdi:email-outline" width="24" height="24"/>
-          <span class="brand-name">{{ settingStore.settings.title }}</span>
+          <img class="logo" :src="logoUrl" alt=""/>
+          <span class="brand-name" :class="{ 'title-display': titleUsesDisplayFont }">
+            {{ settingStore.settings.title }}
+          </span>
         </div>
 
         <el-tooltip v-if="canSend" :disabled="!collapsed" :content="$t('compose')" placement="right">
@@ -68,6 +70,10 @@ const userStore = useUserStore();
 const writerStore = useWriterStore();
 const route = useRoute();
 
+const logoUrl = `${import.meta.env.BASE_URL}mail.png`
+// 中文标题用系统字体，纯西文标题用上游带的展示字体
+const titleUsesDisplayFont = computed(() => !/\p{Script=Han}/u.test(settingStore.settings.title || ''))
+
 const NAV_ITEMS = [
   {name: 'email', icon: 'hugeicons:mailbox-01', label: 'inbox'},
   {name: 'send', icon: 'cil:send', label: 'sent', perm: 'email:send'},
@@ -99,6 +105,14 @@ function openWrite() {
 </script>
 
 <style lang="scss" scoped>
+@font-face {
+  font-family: "BAHAMASB";
+  src: url("/fonts/BAHAMASB.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 .aside-inner {
   height: 100%;
   display: flex;
@@ -123,9 +137,11 @@ function openWrite() {
   padding: 4px 10px 16px;
   color: var(--el-text-color-primary);
 
-  .brand-icon {
+  .logo {
+    width: 28px;
+    height: 28px;
     flex-shrink: 0;
-    color: var(--el-color-primary);
+    object-fit: contain;
   }
 
   .brand-name {
@@ -136,6 +152,12 @@ function openWrite() {
     white-space: nowrap;
     text-overflow: ellipsis;
   }
+}
+
+.title-display {
+  font-family: "BAHAMASB", Inter, "Helvetica Neue", Helvetica, sans-serif;
+  font-size: 20px;
+  font-weight: normal;
 }
 
 .compose-btn {
