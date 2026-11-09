@@ -99,6 +99,8 @@ const zh = {
     searchByContent: '输入内容查询',
     search: '搜索',
     searchMail: '搜索邮件',
+    filterAccounts: '筛选邮箱或名称',
+    noAccountsFound: '未找到邮箱账号',
     searchMailBy: '按{field}搜索邮件',
     searchType: '搜索类型',
     searchDateFrom: '从',

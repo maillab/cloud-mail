@@ -113,11 +113,13 @@ const accountService = {
 
 	list(c, params, userId) {
 
-		let { accountId, size, lastSort } = params;
+		let { accountId, size, lastSort, keyword } = params;
 
 		accountId = Number(accountId);
 		size = Number(size);
-		lastSort = Number(lastSort);
+		lastSort = lastSort == null || lastSort === '' ? NaN : Number(lastSort);
+		const searchText = typeof keyword === 'string' ? keyword.trim() : '';
+		const searchPattern = `%${searchText.replace(/[!%_]/g, '!$&')}%`;
 
 		if (size > 30) {
 			size = 30;
@@ -135,6 +137,10 @@ const accountService = {
 			and(
 				eq(account.userId, userId),
 				eq(account.isDel, isDel.NORMAL),
+				searchText ? or(
+					sql`${account.email} COLLATE NOCASE LIKE ${searchPattern} ESCAPE '!'`,
+					sql`${account.name} COLLATE NOCASE LIKE ${searchPattern} ESCAPE '!'`
+				) : undefined,
 					or(
 						lt(account.sort, lastSort),
 						and(

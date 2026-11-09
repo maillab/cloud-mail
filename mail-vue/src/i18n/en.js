@@ -99,6 +99,8 @@ const en = {
     searchByContent: 'Enter text to search',
     search: 'Search',
     searchMail: 'Search messages',
+    filterAccounts: 'Filter email or name',
+    noAccountsFound: 'No email accounts found',
     searchMailBy: 'Search messages by {field}',
     searchType: 'Search type',
     searchDateFrom: 'From',
