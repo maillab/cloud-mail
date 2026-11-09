@@ -107,6 +107,7 @@ const zh = {
     searchEndDate: '结束日期',
     searchSenderAddress: '发件地址',
     searchRecipientAddress: '收件地址',
+    searchAllInboxHint: '输入完整或部分收件地址，在我的全部邮箱中搜索',
     searchSummarySubject: '主题',
     searchSummaryContent: '内容',
     searchSummarySender: '发件人',

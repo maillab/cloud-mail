@@ -107,6 +107,7 @@ const en = {
     searchEndDate: 'End date',
     searchSenderAddress: 'Sender address',
     searchRecipientAddress: 'Recipient address',
+    searchAllInboxHint: 'Enter all or part of a recipient address to search all my inboxes',
     searchSummarySubject: 'subject',
     searchSummaryContent: 'content',
     searchSummarySender: 'sender',

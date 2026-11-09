@@ -126,6 +126,7 @@ const inboxSearchOptions = computed(() => [
   {label: t('searchSummaryContent'), type: 'content'},
   {label: t('sender'), type: 'sender'},
   {label: t('searchSenderAddress'), type: 'senderAddress'},
+  {label: t('searchRecipientAddress'), type: 'recipientAddress', hint: t('searchAllInboxHint')},
 ])
 const sentSearchOptions = computed(() => [
   {label: t('titleDesc'), type: 'subject'},
