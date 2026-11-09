@@ -665,7 +665,7 @@ function createSendGauge() {
     series: [{
       name: t('sentToday'),
       type: 'gauge',
-      max: 100,
+      max: daySendTotal >= 1000 ? 10000 : daySendTotal >= 100 ? 1000 : 100,
       // 进度条颜色（新增）
       progress: {
         show: true,
@@ -878,14 +878,14 @@ function createSendGauge() {
       }
 
       .sender-pie {
-        height: 350px;
+        height: 330px;
         @media (max-width: 767px) {
           height: 200px;
         }
       }
 
       .increase-line {
-        height: 350px;
+        height: 330px;
         @media (max-width: 767px) {
           height: 280px;
         }
@@ -908,14 +908,14 @@ function createSendGauge() {
       border: 1px solid var(--el-border-color);
 
       .send-count {
-        height: 350px;
+        height: 330px;
         @media (max-width: 767px) {
           height: 320px;
         }
       }
 
       .email-column {
-        height: 350px;
+        height: 330px;
         @media (max-width: 767px) {
           height: 250px;
         }

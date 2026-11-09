@@ -3,13 +3,11 @@ import app from '../hono/hono';
 
 app.get('/oss/*', async (c) => {
 	const key = c.req.path.split('/oss/')[1];
-	const obj = await r2Service.getObj(c, key);
-	return new Response(obj.body, {
-		headers: {
-			'Content-Type': obj.httpMetadata?.contentType || 'application/octet-stream',
-			'Content-Disposition': obj.httpMetadata?.contentDisposition || null
-		}
-	});
+	const resp = await r2Service.toObjResp(c, key);
+	if (!resp) {
+		return c.notFound();
+	}
+	return resp;
 });
 
 

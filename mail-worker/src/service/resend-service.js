@@ -1,6 +1,5 @@
 import emailService from './email-service';
 import { emailConst } from '../const/entity-const';
-import BizError from '../error/biz-error';
 
 const resendService = {
 
@@ -41,7 +40,10 @@ const resendService = {
 		const emailRow = await emailService.updateEmailStatus(c, params)
 
 		if (!emailRow) {
-			throw new BizError('更新邮件状态记录失败');
+			// 未知邮件事件（如历史数据、重复投递、测试事件）：记录日志后正常返回，
+			// 避免 Resend 因连续收到 500 而熔断关闭 Webhook
+			console.warn(`resend webhook: unknown email_id ${params.resendEmailId}, type ${body.type}`);
+			return;
 		}
 
 	}

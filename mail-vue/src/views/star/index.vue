@@ -32,7 +32,7 @@ function jumpContent(email) {
   emailStore.contentData.delType = 'logic'
   emailStore.contentData.showStar = true
   emailStore.contentData.showReply = true
-  router.push('/mail')
+  router.push({name: 'content', params: {mailbox: 'starred'}})
 }
 
 function getEmailList(emailId, size) {

@@ -216,7 +216,7 @@ const accountService = {
 	},
 
 	async restoreByEmail(c, email) {
-		await orm(c).update(account).set({isDel: isDel.NORMAL}).where(eq(account.email, email)).run();
+		await orm(c).update(account).set({isDel: isDel.NORMAL}).where(sql`${account.email} COLLATE NOCASE = ${email}`).run();
 	},
 
 	async restoreByUserId(c, userId) {

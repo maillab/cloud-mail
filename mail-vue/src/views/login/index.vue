@@ -84,6 +84,8 @@
           <el-input v-if="settingStore.settings.regKey === 2" v-model="registerForm.code"
                     :placeholder="$t('regKeyOptional')" type="text" autocomplete="off" @keyup.enter="submitRegister"/>
           <div v-show="verifyShow"
+               ref="turnstileContainer"
+               :key="turnstileContainerKey"
                class="register-turnstile"
                :data-sitekey="settingStore.settings.siteKey"
                data-callback="onTurnstileSuccess"
@@ -91,7 +93,7 @@
                data-after-interactive-callback="loadAfter"
                data-before-interactive-callback="loadBefore"
           >
-            <span style="font-size: 12px;color: #F56C6C" v-if="botJsError">{{ $t('verifyModuleFailed') }}</span>
+            <span style="font-size: 12px;color: #F56C6C" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('regBtn')}) }}</span>
           </div>
           <el-button class="btn" style="margin: 0" type="primary" @click="submitRegister" :loading="registerLoading"
           >{{ $t('regBtn') }}
@@ -168,6 +170,7 @@ import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
 import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
+import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
 
 const {t} = useI18n();
 const accountStore = useAccountStore();
@@ -226,6 +229,29 @@ let verifyToken = ''
 let turnstileId = null
 let botJsError = ref(false)
 let verifyErrorCount = 0
+let turnstileRecoveryAttempted = false
+const turnstileContainer = ref(null)
+const turnstileContainerKey = ref(0)
+
+async function recoverTurnstile() {
+  if (turnstileRecoveryAttempted) return
+  turnstileRecoveryAttempted = true
+  botJsError.value = false
+  verifyToken = ''
+  turnstileId = null
+  turnstileContainerKey.value++
+  try {
+    const api = await reloadTurnstileScript()
+    await nextTick()
+    if (show.value === 'login' || !turnstileContainer.value) return
+    turnstileId = api.render(turnstileContainer.value)
+  } catch (error) {
+    botJsError.value = true
+    console.warn('Turnstile recovery failed', error)
+  } finally {
+    turnstileRecoveryAttempted = false
+  }
+}
 
 window.onTurnstileSuccess = (token) => {
   verifyToken = token;
@@ -547,6 +573,7 @@ function submitRegister() {
   }
 
   if (!verifyToken && (settingStore.settings.registerVerify === 0 || (settingStore.settings.registerVerify === 2 && settingStore.settings.regVerifyOpen))) {
+    if (turnstileRecoveryAttempted) return
     if (!verifyShow.value) {
       verifyShow.value = true
       nextTick(() => {
@@ -556,12 +583,15 @@ function submitRegister() {
           } catch (e) {
             botJsError.value = true
             console.log('人机验证js加载失败')
+            recoverTurnstile()
           }
         } else {
           window.turnstile.reset('.register-turnstile')
         }
       })
-    } else if (!botJsError.value) {
+    } else if (botJsError.value) {
+      recoverTurnstile()
+    } else {
       ElMessage({
         message: t('botVerifyMsg'),
         type: "error",
