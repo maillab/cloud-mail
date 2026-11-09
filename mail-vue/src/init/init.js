@@ -8,7 +8,7 @@ import {websiteConfig} from "@/request/setting.js";
 import i18n from "@/i18n/index.js";
 
 export async function init() {
-    document.title = 'XPass Mail'
+    document.title = 'XPass HQ'
 
     const settingStore = useSettingStore();
     const userStore = useUserStore();
@@ -31,7 +31,7 @@ export async function init() {
         setting = s;
         settingStore.settings = setting;
         settingStore.domainList = setting.domainList;
-        document.title = 'XPass Mail';
+        document.title = 'XPass HQ';
 
         if (user) {
             accountStore.currentAccountId = user.account.accountId;
@@ -48,6 +48,6 @@ export async function init() {
         setting = await websiteConfig();
         settingStore.settings = setting;
         settingStore.domainList = setting.domainList;
-        document.title = 'XPass Mail';
+        document.title = 'XPass HQ';
     }
 }

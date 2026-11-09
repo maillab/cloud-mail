@@ -1,14 +1,21 @@
 import {createRouter, createWebHistory} from 'vue-router'
 import NProgress from 'nprogress';
 import {useUiStore} from "@/store/ui.js";
+import i18n from "@/i18n/index.js";
 
 const routes = [
     {
         path: '/',
         name: 'layout',
-        redirect: '/inbox',
+        redirect: '/overview',
         component: () => import('@/layout/index.vue'),
         children: [
+            {
+                path: '/overview',
+                name: 'overview',
+                component: () => import('@/views/hq/overview.vue'),
+                meta: {title: 'overview', name: 'overview', menu: true}
+            },
             {
                 path: '/inbox',
                 name: 'email',
@@ -177,6 +184,11 @@ router.afterEach((to) => {
     if (window.innerWidth < 1025) {
         uiStore.asideShow = false
     }
+
+    const pageTitle = to.meta.title
+        ? i18n.global.t(to.meta.title)
+        : to.name === 'login' ? 'Sign in' : 'XPass HQ'
+    document.title = `${pageTitle} | XPass HQ`
 
     first = false
 })

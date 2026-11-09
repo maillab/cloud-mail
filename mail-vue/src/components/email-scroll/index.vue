@@ -1579,43 +1579,58 @@ ul {
 }
 
 :deep(.email-row) {
-  height: 82px;
-  padding: 10px 12px;
-  box-shadow: inset 0 -1px 0 #f0edeb;
+  height: 74px;
+  padding: 8px 12px;
+  box-shadow: inset 0 -1px 0 var(--hq-border);
+  transition: background-color .12s ease, box-shadow .12s ease;
+}
+
+:deep(.email-row:hover) {
+  background: var(--hq-hover);
 }
 
 :deep(.email-row.selected-email),
 :deep(.email-row.selected-email:hover) {
-  background: #fff3ec;
-  box-shadow: inset 3px 0 #ff5500, inset 0 -1px 0 #f0edeb;
+  background: var(--hq-selected);
+  box-shadow: inset 3px 0 var(--hq-accent), inset 0 -1px 0 var(--hq-border);
+}
+
+:deep(.email-row .unread) {
+  background: var(--hq-accent);
 }
 
 :deep(.email-row .sender-avatar) {
-  border-color: #e8e2de;
-  background: #f3efec;
-  color: #5e5752;
+  border-color: var(--hq-border);
+  background: var(--hq-page);
+  color: var(--hq-text-secondary);
 }
 
 :deep(.email-row .email-subject) {
-  color: #36312e;
+  color: var(--hq-text);
   font-size: 12px;
 }
 
 :deep(.email-row .email-content) {
-  color: #817a75;
+  color: var(--hq-text-secondary);
   font-size: 11px;
 }
 
 :deep(.email-row .email-time),
 :deep(.email-row .phone-time) {
-  color: #817a75;
+  color: var(--hq-muted);
   font-size: 10px;
 }
 
 :deep(.email-row .row-quick-actions) {
-  border-color: #e7e2de;
-  background: #fff;
+  border-color: var(--hq-border);
+  background: var(--hq-surface);
   box-shadow: 0 4px 14px rgba(35, 29, 25, .08);
+}
+
+@media (max-width: 900px) {
+  :deep(.email-row) {
+    height: 80px;
+  }
 }
 
 </style>

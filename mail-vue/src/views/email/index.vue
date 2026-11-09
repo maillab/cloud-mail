@@ -270,7 +270,7 @@ async function applyMailboxAction(ids, action) {
 <style scoped>
 .inbox-workspace {
   display: grid;
-  grid-template-columns: minmax(220px, 42%) minmax(0, 1fr);
+  grid-template-columns: minmax(225px, 44%) minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -347,14 +347,13 @@ async function applyMailboxAction(ids, action) {
 
 .inbox-filters button.active {
   border-color: var(--el-border-color);
-  background: #252321;
+  background: var(--el-text-color-primary);
   color: #fff;
 }
 
 .inbox-filters button.active:hover {
-  background: #383431;
+  background: var(--el-text-color-primary);
   color: #fff;
-  color: var(--el-text-color-primary);
 }
 
 .reading-pane {
@@ -371,6 +370,12 @@ async function applyMailboxAction(ids, action) {
 @media (max-width: 700px) {
   .inbox-workspace {
     display: block;
+  }
+
+  @media (min-width: 701px) and (max-width: 900px) {
+    .inbox-workspace {
+      grid-template-columns: minmax(225px, 46%) minmax(0, 1fr);
+    }
   }
 
   .message-column {

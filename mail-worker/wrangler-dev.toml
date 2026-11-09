@@ -1,26 +1,26 @@
 name = "cloud-mail-dev"
 main = "src/index.js"
 compatibility_date = "2025-06-04"
-keep_vars = true
 
 [observability]
-enabled = true
+enabled = false
 
 [dev]
-ip = "0.0.0.0"
+ip = "127.0.0.1"
+port = 8787
 
 [[d1_databases]]
 binding = "db"
-database_name = "email"
-database_id = "a4c1a63a-6ef5-4e6d-8e8c-b6d9e8feb810"
+database_name = "xpass-local"
+database_id = "00000000-0000-0000-0000-000000000001"
 
 [[kv_namespaces]]
 binding = "kv"
-id = "2io01d4b299e481b9de060ece9e7785c"
+id = "00000000000000000000000000000001"
 
-#[[r2_buckets]]
-#binding = "r2"
-#bucket_name = "email"
+[[r2_buckets]]
+binding = "r2"
+bucket_name = "xpass-local"
 
 #[ai]
 #binding = "ai"
@@ -31,16 +31,9 @@ directory = "./dist"
 not_found_handling = "single-page-application"
 run_worker_first = true
 
-#[[send_email]]
-#name = "email"
-
-[[send_email]]
-name = "forward"
-
 [vars]
 ai_model = ""
 analysis_cache = false
-orm_log = true
-domain = ["example.com", "example2.com", "example3.com", "example4.com"]
+orm_log = false
+domain = ["example.com"]
 admin = "admin@example.com"
-jwt_secret = "b7f29a1d-18e2-4d3b-941f-f6b2c97c02fd"

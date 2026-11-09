@@ -1,14 +1,15 @@
 <template>
   <div class="header">
     <div class="header-btn">
-      <hanburger @toggle-click="changeAside"></hanburger>
+      <hanburger :is-active="navigationExpanded" @toggle-click="changeAside"></hanburger>
       <span class="breadcrumb-item">{{ $t(route.meta.title) }}</span>
     </div>
-    <div v-perm="'email:send'" class="writer-box">
+    <div v-if="showComposeAction" v-perm="'email:send'" class="writer-box">
       <el-button
         class="writer"
         size="default"
-        :aria-label="$t('compose')"
+        :aria-label="`${$t('compose')} email`"
+        title="Compose email"
         @click="openSend"
       >
         <el-icon :size="21">
@@ -40,12 +41,12 @@
         popper-class="detail-dropdown"
         @visible-change="userCardVisible = $event"
       >
-        <div class="avatar">
+        <button class="avatar" type="button" :aria-label="`User menu for ${userStore.user.email}`" aria-haspopup="menu">
           <div class="avatar-text">
             <div>{{ formatName(userStore.user.email) }}</div>
           </div>
           <Icon class="setting-icon" icon="mingcute:down-small-fill" width="24" height="24"/>
-        </div>
+        </button>
         <template #dropdown>
           <div class="user-details">
             <div class="details-avatar">
@@ -107,6 +108,7 @@ import {useI18n} from "vue-i18n";
 import emailSearch from '@/components/email-search/index.vue'
 import {useEmailStore} from '@/store/email.js'
 import {useSendStore} from '@/store/send.js'
+import {workspaceModules} from '@/modules/registry.js'
 
 const {t} = useI18n();
 const route = useRoute();
@@ -118,6 +120,8 @@ const sendStore = useSendStore()
 const logoutLoading = ref(false)
 const userDropdownRef = ref(null)
 const userCardVisible = ref(false)
+const isMobileLayout = ref(window.innerWidth < 700)
+const navigationExpanded = computed(() => isMobileLayout.value ? uiStore.asideShow : !uiStore.asideCollapsed)
 const outsidePointerEvents = ['mousedown', 'pointerup', 'mouseup', 'click', 'pointercancel']
 let blockOutsideClick = false
 const inboxSearchOptions = computed(() => [
@@ -131,6 +135,9 @@ const sentSearchOptions = computed(() => [
   {label: t('searchSummaryContent'), type: 'content'},
   {label: t('searchRecipientAddress'), type: 'recipientAddress'},
 ])
+const showComposeAction = computed(() =>
+  workspaceModules.find(module => module.id === 'mail')?.routeNames?.includes(route.name)
+)
 const accountPanelShow = computed(() => uiStore.accountShow && hasPerm('account:query'))
 const showInboxSearch = computed(() =>
   route.meta.name === 'email' || isMailboxDetail('inbox')
@@ -228,7 +235,15 @@ async function copyEmail(email) {
 }
 
 function changeAside() {
-  uiStore.asideShow = !uiStore.asideShow
+  if (window.innerWidth < 700) {
+    uiStore.asideShow = !uiStore.asideShow
+    return
+  }
+  uiStore.asideCollapsed = !uiStore.asideCollapsed
+}
+
+function openSend() {
+  uiStore.writerRef?.open()
 }
 
 function clickLogout() {
@@ -272,7 +287,12 @@ function handleUserCardPointerEvent(event) {
   }
 }
 
+function updateMobileLayout() {
+  isMobileLayout.value = window.innerWidth < 700
+}
+
 onMounted(() => {
+  window.addEventListener('resize', updateMobileLayout)
   document.addEventListener('pointerdown', handleUserCardPointerDown, true)
   outsidePointerEvents.forEach(type => {
     document.addEventListener(type, handleUserCardPointerEvent, true)
@@ -280,6 +300,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateMobileLayout)
   document.removeEventListener('pointerdown', handleUserCardPointerDown, true)
   outsidePointerEvents.forEach(type => {
     document.removeEventListener(type, handleUserCardPointerEvent, true)
@@ -424,13 +445,12 @@ onBeforeUnmount(() => {
   .writer {
     width: 34px;
     height: 34px;
-    border-radius: 10px;
-    color: #ffffff;
-    background: linear-gradient(135deg, #ff5500, #c43b00);
-    transition: all 0.3s ease;
+    border-radius: 7px;
+    color: #fff;
+    background: var(--el-color-primary);
   }
 
-  @media (max-width: 767px) {
+  @media (max-width: 700px) {
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -439,10 +459,10 @@ onBeforeUnmount(() => {
     flex-shrink: 0;
 
     .writer {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      border: 1px solid #ff5500;
+      width: 38px;
+      height: 38px;
+      border-radius: 7px;
+      border: 1px solid var(--el-color-primary);
       color: #fff;
       background: var(--el-color-primary);
     }
@@ -457,6 +477,8 @@ onBeforeUnmount(() => {
 }
 
 .breadcrumb-item {
+  min-width: 0;
+  margin-left: 4px;
   font-weight: bold;
   font-size: 13px;
   color: var(--el-text-color-primary);
@@ -492,6 +514,10 @@ onBeforeUnmount(() => {
   .avatar {
     display: flex;
     align-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
     cursor: pointer;
 
     .avatar-text {
@@ -515,6 +541,11 @@ onBeforeUnmount(() => {
     }
   }
 
+}
+
+.avatar:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 3px;
 }
 
 .el-tooltip__trigger:first-child:focus-visible {

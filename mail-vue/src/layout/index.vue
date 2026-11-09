@@ -1,8 +1,12 @@
 <template>
   <el-container class="layout">
     <el-aside
+        id="workspace-sidebar"
         class="aside"
-        :class="uiStore.asideShow ? 'aside-show' : 'el-aside-hide'">
+        :class="[
+          uiStore.asideShow ? 'aside-show' : 'el-aside-hide',
+          {'aside-collapsed': uiStore.asideCollapsed && !isMobile}
+        ]">
       <Aside />
     </el-aside>
     <div
@@ -62,6 +66,54 @@ onBeforeUnmount(() => {
 })
 </script>
 <style lang="scss" scoped>
+.el-aside.aside-collapsed {
+  width: 64px !important;
+  flex: 0 0 64px !important;
+}
+
+.aside-collapsed :deep(.sidebar-header) {
+  display: none;
+}
+
+.aside-collapsed :deep(.workspace-navigation) {
+  padding: 8px 8px 12px;
+}
+
+.aside-collapsed :deep(.navigation-label),
+.aside-collapsed :deep(.navigation-item > span),
+.aside-collapsed :deep(.future-modules),
+.aside-collapsed :deep(.admin-navigation),
+.aside-collapsed :deep(.sidebar-content-scroll),
+.aside-collapsed :deep(.account-switcher-copy),
+.aside-collapsed :deep(.account-switcher-arrow),
+.aside-collapsed :deep(.compose-cta span),
+.aside-collapsed :deep(.compose-cta kbd) {
+  display: none;
+}
+
+.aside-collapsed :deep(.navigation-item) {
+  justify-content: center;
+  padding: 0;
+}
+
+.aside-collapsed :deep(.mail-controls) {
+  padding: 10px 8px;
+}
+
+.aside-collapsed :deep(.account-switcher),
+.aside-collapsed :deep(.compose-cta) {
+  width: 38px;
+  min-height: 38px;
+  justify-content: center;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.aside-collapsed :deep(.account-avatar) {
+  width: 28px;
+  height: 28px;
+}
+
 .el-aside-hide {
   position: fixed;
   left: 0;
@@ -88,8 +140,8 @@ onBeforeUnmount(() => {
 }
 
 .el-aside {
-  width: 294px !important;
-  flex: 0 0 294px;
+  width: 256px !important;
+  flex: 0 0 256px;
   transition: width 100ms ease, transform 220ms ease;
 }
 

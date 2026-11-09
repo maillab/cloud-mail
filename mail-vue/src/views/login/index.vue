@@ -339,7 +339,7 @@ function refreshWebsiteConfig() {
     if (!suffix.value && setting.domainList.length > 0) {
       suffix.value = setting.domainList[0]
     }
-    document.title = 'XPass Mail'
+    document.title = 'Sign in | XPass HQ'
   }).catch(e => {
     console.error(e)
   })

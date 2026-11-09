@@ -10,7 +10,7 @@ export default defineConfig(({mode}) => {
     const env = loadEnv(mode, process.cwd(), 'VITE')
     return {
         server: {
-            host: true,
+            host: '127.0.0.1',
             port: 3001,
             hmr: true,
         },

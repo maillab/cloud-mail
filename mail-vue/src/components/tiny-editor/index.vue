@@ -169,7 +169,9 @@ function initEditor() {
 
 function focus() {
   nextTick(() => {
-    editor.value.focus()
+    if (editor.value?.initialized) {
+      editor.value.focus()
+    }
   })
 }
 

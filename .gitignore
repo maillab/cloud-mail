@@ -24,5 +24,6 @@ dist
 mail-vue/node_modules
 mail-vue/dist
 .wrangler
+mail-worker/.dev.vars
 .venv
 git-tools.js

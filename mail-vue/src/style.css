@@ -27,7 +27,7 @@ html, body {
 }
 
 body {
-    font-family: Inter, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-family: Manrope, "Segoe UI", Helvetica, Arial, sans-serif;
     line-height: 1.5;
     color: var(--el-text-color-primary);
     font-size: 14px;
@@ -107,6 +107,33 @@ button, input, select, textarea {
 }
 
 :root {
+    --hq-page: #f7f6f4;
+    --hq-sidebar: #fff;
+    --hq-surface: #fff;
+    --hq-text: #282522;
+    --hq-text-secondary: #69635f;
+    --hq-muted: #85807c;
+    --hq-border: #e8e4e0;
+    --hq-border-strong: #d3cdc8;
+    --hq-hover: #f5f2ef;
+    --hq-selected: #fff0e7;
+    --hq-accent: #ed5a19;
+    --hq-accent-hover: #d84c12;
+    --hq-accent-strong: #a63d11;
+    --hq-focus: #df5319;
+    --hq-danger: #b42318;
+    --hq-space-1: 4px;
+    --hq-space-2: 8px;
+    --hq-space-3: 12px;
+    --hq-space-4: 16px;
+    --hq-space-5: 24px;
+    --hq-space-6: 32px;
+    --hq-radius-sm: 5px;
+    --hq-radius-md: 7px;
+    --hq-radius-lg: 9px;
+    --hq-font-body: Manrope, "Segoe UI", Helvetica, Arial, sans-serif;
+    --hq-font-heading: "Space Grotesk", Manrope, "Segoe UI", sans-serif;
+
     --el-color-primary: #ff5500;
     --el-color-primary-dark-2: #d94700;
     --el-color-primary-light-3: #ff7b3d;
