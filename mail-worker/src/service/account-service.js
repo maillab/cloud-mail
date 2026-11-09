@@ -113,18 +113,20 @@ const accountService = {
 
 	list(c, params, userId) {
 
-		let { accountId, size, lastSort } = params;
+		let { accountId, size, lastSort, keyword } = params;
 
 		accountId = Number(accountId);
 		size = Number(size);
-		lastSort = Number(lastSort);
+		lastSort = lastSort == null || lastSort === '' ? NaN : Number(lastSort);
+		const searchText = typeof keyword === 'string' ? keyword.trim() : '';
+		const searchPattern = `%${searchText.replace(/[!%_]/g, '!$&')}%`;
 
 		if (size > 30) {
 			size = 30;
 		}
 
 		if (!accountId) {
-			accountId = 0;
+			accountId = 9999999999;
 		}
 
 		if(Number.isNaN(lastSort)) {
@@ -135,15 +137,19 @@ const accountService = {
 			and(
 				eq(account.userId, userId),
 				eq(account.isDel, isDel.NORMAL),
+				searchText ? or(
+					sql`${account.email} COLLATE NOCASE LIKE ${searchPattern} ESCAPE '!'`,
+					sql`${account.name} COLLATE NOCASE LIKE ${searchPattern} ESCAPE '!'`
+				) : undefined,
 					or(
 						lt(account.sort, lastSort),
 						and(
 							eq(account.sort, lastSort),
-							gt(account.accountId, accountId)
+							lt(account.accountId, accountId)
 						)
 					))
 				)
-			.orderBy(desc(account.sort), asc(account.accountId))
+			.orderBy(desc(account.sort), desc(account.accountId))
 			.limit(size)
 			.all();
 	},
@@ -273,11 +279,10 @@ const accountService = {
 
 	async setAsTop(c, params, userId) {
 		const { accountId } = params;
-		const userRow = await userService.selectById(c, userId);
-		const mainAccountRow = await accountService.selectByEmailIncludeDel(c, userRow.email);
-		let mainSort = mainAccountRow.sort === 0 ? 2 : mainAccountRow.sort + 1;
-		await orm(c).update(account).set({ sort: mainSort }).where(eq(account.accountId, mainAccountRow.accountId)).run();
-		await orm(c).update(account).set({ sort: mainSort - 1 }).where(and(eq(account.accountId, accountId),eq(account.userId,userId))).run();
+		const maxRow = await orm(c).select({ maxSort: sql`max(${account.sort})` }).from(account).where(
+			and(eq(account.userId, userId), eq(account.isDel, isDel.NORMAL))).get();
+		const topSort = (Number(maxRow?.maxSort) || 0) + 1;
+		await orm(c).update(account).set({ sort: topSort }).where(and(eq(account.accountId, accountId),eq(account.userId,userId))).run();
 	}
 };
 

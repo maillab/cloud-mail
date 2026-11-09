@@ -19,6 +19,7 @@
 import {useAccountStore} from "@/store/account.js";
 import {useEmailStore} from "@/store/email.js";
 import {useSettingStore} from "@/store/setting.js";
+import {AccountAllReceiveEnum} from "@/enums/account-enum.js";
 import emailScroll from "@/components/email-scroll/index.vue"
 import {emailList, emailDelete, emailLatest, emailRead} from "@/request/email.js";
 import {starAdd, starCancel} from "@/request/star.js";
@@ -136,9 +137,13 @@ function cancelStar(email) {
 
 function getEmailList(emailId, size) {
   const accountId =  accountStore.currentAccountId;
-  const allReceive = accountStore.currentAccount.allReceive;
+  const searchParams = emailStore.searchParams;
+  const searchAllAccounts = searchParams.type === 'recipientAddress' && searchParams.text?.trim();
+  const allReceive = searchAllAccounts
+    ? AccountAllReceiveEnum.ENABLED
+    : accountStore.currentAccount.allReceive;
   return emailStore.fetchList(full =>
-    emailList(accountId, allReceive, emailId, 0, size, 0, full, emailStore.searchParams)
+    emailList(accountId, allReceive, emailId, 0, size, 0, full, searchParams)
   ).then(data => {
     data.latestEmail.reqAccountId = accountId;
     data.latestEmail.allReceive = allReceive;

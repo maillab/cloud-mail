@@ -38,6 +38,9 @@
                 :props="{ label: 'label', value: 'type' }"
               />
             </div>
+            <p v-if="selectedSearchOption?.hint" class="search-hint">
+              {{ selectedSearchOption.hint }}
+            </p>
             <div class="search-date-range">
               <div class="search-date-field">
                 <div class="search-date-label">{{ t('searchDateFrom') }}</div>
@@ -444,10 +447,19 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: flex-start;
   margin-top: 8px;
+  overflow-x: auto;
 }
 
 .custom-style .el-segmented {
   --el-border-radius-base: 6px;
+  flex-shrink: 0;
+}
+
+.search-hint {
+  margin: 8px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .search-date-range {

@@ -3,10 +3,23 @@
     <div class="head-opt">
       <Icon v-perm="'account:add'" class="icon add" icon="ion:add-outline" width="23" height="23" @click="add"/>
       <Icon class="icon refresh" icon="ion:reload" width="18" height="18" @click="refresh"/>
+      <el-input
+        v-model="accountKeyword"
+        class="account-filter"
+        size="small"
+        clearable
+        :placeholder="$t('filterAccounts')"
+        :aria-label="$t('filterAccounts')"
+        @keyup.enter="refresh"
+      >
+        <template #prefix>
+          <Icon icon="akar-icons:search" width="14" height="14"/>
+        </template>
+      </el-input>
     </div>
     <el-scrollbar class="scrollbar" ref="scrollbarRef">
       <div v-infinite-scroll="getAccountList" :infinite-scroll-distance="600" :infinite-scroll-immediate="false">
-        <el-card class="item" :class="itemBg(item.accountId)" v-for="(item, index) in accounts" :key="item.accountId"
+        <el-card class="item" :class="itemBg(item.accountId)" v-for="item in accounts" :key="item.accountId"
                  @click="changeAccount(item)">
           <div class="account">
             {{ item.email }}
@@ -25,7 +38,7 @@
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item v-if="hasPerm('email:send')" @click="openSetName(item)">{{ $t('rename') }}</el-dropdown-item>
-                    <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId" @click="setAsTop(item, index)">{{ $t('pin') }}</el-dropdown-item>
+                    <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId" @click="setAsTop(item)">{{ $t('pin') }}</el-dropdown-item>
                     <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId && hasPerm('account:delete')"
                                       @click="remove(item)">{{ $t('delete') }}
                     </el-dropdown-item>
@@ -37,7 +50,7 @@
         </el-card>
 
         <!-- Initial Loading Skeleton -->
-        <template v-if="loading">
+        <template v-if="loading || searchPending">
           <el-skeleton v-for="i in skeletonRows" :key="i" animated>
             <template #template>
               <el-card class="item">
@@ -70,7 +83,7 @@
           <div>{{ $t('noMoreData') }}</div>
         </div>
         <div class="empty" v-if="noLoading && accounts.length === 0">
-          <el-empty :description="$t('noMessagesFound')"/>
+          <el-empty :description="$t('noAccountsFound')"/>
         </div>
       </div>
 
@@ -129,7 +142,7 @@
 </template>
 <script setup>
 import {Icon} from "@iconify/vue";
-import {computed, nextTick, reactive, ref, watch} from "vue";
+import {computed, nextTick, onBeforeUnmount, reactive, ref, watch} from "vue";
 import {
   accountList,
   accountAdd,
@@ -158,6 +171,10 @@ const showAdd = ref(false)
 const addLoading = ref(false);
 const domainList = computed(() => settingStore.domainList)
 const accounts = reactive([])
+const accountKeyword = ref('')
+const searchPending = ref(false)
+let searchTimer = null
+let accountRequestVersion = 0
 const noLoading = ref(false)
 const loading = ref(false)
 const followLoading = ref(false);
@@ -191,8 +208,19 @@ if (hasPerm('account:query')) {
   getAccountList()
 }
 
+watch(() => accountKeyword.value.trim(), filterAccounts, {flush: 'sync'})
+
+onBeforeUnmount(() => {
+  clearTimeout(searchTimer)
+  accountRequestVersion++
+})
+
 watch(() => accountStore.changeUserAccountName, () => {
-  accounts[0].name = accountStore.changeUserAccountName
+  const userAccount = accounts.find(item => item.accountId === userStore.user.account.accountId)
+  if (userAccount) {
+    userAccount.name = accountStore.changeUserAccountName
+  }
+  if (accountKeyword.value.trim()) refresh()
 })
 
 watch(() => settingStore.domainList, (list) => {
@@ -281,6 +309,7 @@ function setName() {
     if (account.accountId === userStore.user.account.accountId) {
       userStore.user.name = name
     }
+    if (accountKeyword.value.trim()) refresh()
 
     ElMessage({
       message: t('saveSuccessMsg'),
@@ -337,11 +366,10 @@ function remove(account) {
     type: 'warning'
   }).then(() => {
     accountDelete(account.accountId).then(() => {
-      const index = accounts.findIndex(item => item.accountId === account.accountId);
-      accounts.splice(index, 1);
-      if (accounts.length < queryParams.size) {
-        getAccountList()
+      if (accountStore.currentAccountId === account.accountId) {
+        changeAccount(userStore.user.account)
       }
+      refresh()
       ElMessage({
         message: t('delSuccessMsg'),
         type: 'success',
@@ -351,19 +379,37 @@ function remove(account) {
   });
 }
 
-function refresh() {
-  if (loading.value) {
-    return
-  }
+function resetAccountList() {
+  accountRequestVersion++
+  first = false
+  clearTimeout(searchTimer)
+  searchTimer = null
+  searchPending.value = false
   loading.value = false
   followLoading.value = false
   noLoading.value = false
-  queryParams.accountId = 0
-  queryParams.lastSort = null
   getSkeletonRows();
-  scrollbarRef.value.setScrollTop(0)
+  scrollbarRef.value?.setScrollTop?.(0)
   accounts.splice(0, accounts.length)
+}
+
+function refresh() {
+  resetAccountList()
   getAccountList()
+}
+
+function filterAccounts() {
+  resetAccountList()
+  if (!accountKeyword.value.trim()) {
+    getAccountList()
+    return
+  }
+  searchPending.value = true
+  searchTimer = setTimeout(() => {
+    searchTimer = null
+    searchPending.value = false
+    getAccountList()
+  }, 250)
 }
 
 function changeAccount(account) {
@@ -379,7 +425,7 @@ function add() {
   }, 100)
 }
 
-function setAsTop(account, index) {
+function setAsTop(account) {
   accountSetAsTop(account.accountId).then(() => {
     ElMessage({
       message: t('setSuccess'),
@@ -387,8 +433,7 @@ function setAsTop(account, index) {
       plain: true,
     })
 
-    const [item] = accounts.splice(index, 1);
-    accounts.splice(1, 0, item);
+    refresh();
 
   });
 }
@@ -413,7 +458,7 @@ async function copyAccount(account) {
 
 function getAccountList() {
 
-  if (loading.value || followLoading.value || noLoading.value) return;
+  if (!hasPerm('account:query') || searchPending.value || loading.value || followLoading.value || noLoading.value) return;
 
   if (accounts.length === 0) {
     loading.value = true
@@ -425,28 +470,32 @@ function getAccountList() {
 
   const accountId = accounts.length > 0 ? accounts.at(-1).accountId : 0;
   const lastSort = accounts.length > 0 ? accounts.at(-1).sort : null;
+  const keyword = accountKeyword.value.trim();
+  const requestVersion = accountRequestVersion;
 
-  accountList(accountId, queryParams.size, lastSort).then(async list => {
+  return accountList(accountId, queryParams.size, lastSort, keyword).then(async list => {
 
     let end = Date.now();
     let duration = end - start;
     if (duration < 300) {
       await sleep(300 - duration)
     }
+    if (requestVersion !== accountRequestVersion) return
 
     if (list.length < queryParams.size) {
       noLoading.value = true
     }
-    if (accounts.length === 0) {
-      accountStore.currentAccount = list[0]
+    if (first && !keyword && list.length > 0) {
+      changeAccount(list[0])
     }
 
     accounts.push(...list)
 
-    loading.value = false
-    followLoading.value = false
     first = false
   }).catch(() => {
+    // Request errors are already reported by the shared HTTP client.
+  }).finally(() => {
+    if (requestVersion !== accountRequestVersion) return
     loading.value = false
     followLoading.value = false
   })
@@ -517,7 +566,13 @@ function submit() {
   accountAdd(addForm.email + addForm.suffix, verifyToken).then(account => {
     addLoading.value = false
     addForm.email = ''
-    accounts.push(account)
+    changeAccount(account)
+    first = false
+    if (accountKeyword.value.trim()) {
+      accountKeyword.value = ''
+    } else {
+      refresh()
+    }
     verifyToken = ''
     settingStore.settings.addVerifyOpen = account.addVerifyOpen
     ElMessage({
@@ -567,6 +622,13 @@ path[fill="#ffdda1"] {
 
     .icon {
       cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .account-filter {
+      flex: 1;
+      min-width: 0;
+      margin-left: 10px;
     }
 
     .refresh {

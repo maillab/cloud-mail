@@ -2,14 +2,16 @@ name: 🚀 Deploy cloud-mail to Cloudflare Workers
 
 on:
   push:
-    branches: [ main ]
+    branches: [ feat/account-desc-order ]
     paths:
       - "mail-worker/**"
       - "mail-vue/**"
+      - ".github/workflows/deploy-cloudflare.yml"
   workflow_dispatch:
 
 jobs:
   Deploy-cloud-mail:
+    if: github.ref == 'refs/heads/feat/account-desc-order'
     name: 🏗️ Build and Deploy
     runs-on: ubuntu-latest
 

@@ -2,7 +2,8 @@ import {useUserStore} from "@/store/user.js";
 import {useSettingStore} from "@/store/setting.js";
 import {useAccountStore} from "@/store/account.js";
 import {loginUserInfo} from "@/request/my.js";
-import {permsToRouter} from "@/perm/perm.js";
+import {permsToRouter, hasPerm} from "@/perm/perm.js";
+import {accountList} from "@/request/account.js";
 import router from "@/router";
 import {websiteConfig} from "@/request/setting.js";
 import i18n from "@/i18n/index.js";
@@ -46,6 +47,14 @@ export async function init() {
             routers.forEach(routerData => {
                 router.addRoute('layout', routerData);
             });
+
+            if (hasPerm('account:query')) {
+                const [latestAccount] = await accountList(0, 1).catch(() => []);
+                if (latestAccount) {
+                    accountStore.currentAccountId = latestAccount.accountId;
+                    accountStore.currentAccount = latestAccount;
+                }
+            }
         }
 
     } else {
