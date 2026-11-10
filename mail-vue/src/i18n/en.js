@@ -196,6 +196,8 @@ const en = {
     disable: 'Disable',
     disabled: 'Disabled',
     otherEmail: 'Forwarding to external email',
+    userForward: 'User forwarding',
+    userForwardDesc: 'Let users auto-forward their mailboxes to external addresses. Forwarding uses your sending quota.',
     webhook: 'Webhook',
     webhookDesc: 'POST received emails as JSON to this URL',
     webhookUrl: 'Request URL',
