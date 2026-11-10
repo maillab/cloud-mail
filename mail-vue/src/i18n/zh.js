@@ -387,5 +387,17 @@ const zh = {
     clientId: '客户端 ID',
     clientSecret: '客户端密钥',
     notOwner: '基础邮箱不属于您',
+    forwardSetting: '转发设置',
+    forwardDesc: '收到的邮件会自动转发到以下已验证的邮箱',
+    forwardInputDesc: '输入要转发到的邮箱地址',
+    forwardLimitTip: '最多添加 3 个，站内域名的地址不能作为转发目标',
+    forwardPending: '待验证',
+    forwardActive: '已验证',
+    forwardFailed: '已停用，连续失败 {count} 次',
+    forwardEnterCode: '输入验证码',
+    forwardResend: '重发',
+    forwardReEnable: '重新启用',
+    forwardCodeSent: '验证码已发送到 {email}',
+    forwardDelConfirm: '确认删除这个转发地址吗？',
 }
 export default zh
