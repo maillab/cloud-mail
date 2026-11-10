@@ -22,7 +22,8 @@
           <el-button size="small" type="danger" plain @click="remove(item)">{{ $t('delete') }}</el-button>
         </div>
         <div class="code-row" v-if="codeId === item.forwardId">
-          <el-input v-model="code" size="small" maxlength="6" :placeholder="$t('forwardEnterCode')" @keyup.enter="submitCode(item)"/>
+          <el-input :model-value="code" @update:model-value="onCodeInput" size="small" inputmode="numeric"
+                    :placeholder="$t('forwardEnterCode')" @keyup.enter="submitCode(item)"/>
           <el-button size="small" type="primary" :loading="codeLoading" @click="submitCode(item)">{{ $t('confirm') }}</el-button>
         </div>
       </div>
@@ -104,6 +105,11 @@ function add() {
 function openCode(item) {
   code.value = ''
   codeId.value = codeId.value === item.forwardId ? null : item.forwardId
+}
+
+// 先去掉非数字再截断，粘贴 " 202721 " 这类带空格/分隔符的码不会被截掉一位
+function onCodeInput(value) {
+  code.value = String(value ?? '').replace(/\D/g, '').slice(0, 6)
 }
 
 function submitCode(item) {
