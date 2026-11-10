@@ -81,6 +81,7 @@ const en = {
 		"邮箱查看": "View email",
 		"邮箱添加": "Add email",
 		"邮箱删除": "Delete email",
+		"邮箱转发": "Mail forwarding",
 		"个人设置": "Settings",
 		"用户注销": "Delete user",
 		"分析页": "Dashboard",

@@ -227,7 +227,8 @@ const settingService = {
 			googleClientId: settingRow.googleClientId,
 			googleSwitch: settingRow.googleSwitch,
 			minEmailPrefix: settingRow.minEmailPrefix,
-			projectLink: settingRow.projectLink
+			projectLink: settingRow.projectLink,
+			userForward: settingRow.userForward
 		};
 	},
 
