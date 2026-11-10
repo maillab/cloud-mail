@@ -260,8 +260,8 @@
                   </el-tooltip>
                 </div>
                 <div>
-                  <el-switch :active-value="0" :inactive-value="1" v-model="setting.userForward"
-                             @change="editSetting({ userForward: $event })"/>
+                  <el-switch @change="changeField('userForward', $event)" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                             v-model="setting.userForward"/>
                 </div>
               </div>
               <div class="setting-item">
