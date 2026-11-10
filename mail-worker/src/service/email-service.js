@@ -25,6 +25,7 @@ import { att } from '../entity/att';
 import telegramService from './telegram-service';
 import webhookService from './webhook-service';
 import forwardMime from '../utils/forward-mime';
+import { buildSendHeaders, formatFromAddress } from '../lib/send-headers';
 
 const emailService = {
 
@@ -640,17 +641,13 @@ const emailService = {
 	async sendBatchByResend(resendToken, params) {
 		const resend = new Resend(resendToken);
 		const sendForm = {
-			from: `${params.name} <${params.accountEmail}>`,
+			from: formatFromAddress(params.name, params.accountEmail),
 			subject: params.subject,
 			text: params.text,
 			html: params.html
 		};
-		if (params.sendType === 'reply' && params.messageId) {
-			sendForm.headers = {
-				'in-reply-to': params.messageId,
-				'references': params.messageId
-			};
-		}
+		const headers = buildSendHeaders(params);
+		if (headers) sendForm.headers = headers;
 		return resend.batch.send(params.receiveEmail.map(address => ({
 			...sendForm, to: [address]
 		})), { batchValidation: 'strict' });
@@ -676,12 +673,10 @@ const emailService = {
 			sendForm.attachments = attachments;
 		}
 
-		if (params.sendType === 'reply' && params.messageId) {
-			sendForm.headers = {
-				'in-reply-to': params.messageId,
-				'references': params.messageId
-			};
-		}
+		const headers = buildSendHeaders(params);
+		if (headers) sendForm.headers = headers;
+
+		if (params.replyTo) sendForm.replyTo = params.replyTo;
 
 		const result = await c.env.email.send(sendForm);
 
@@ -696,7 +691,7 @@ const emailService = {
 		const resend = new Resend(resendToken);
 
 		const sendForm = {
-			from: `${params.name} <${params.accountEmail}>`,
+			from: formatFromAddress(params.name, params.accountEmail),
 			to: [...params.receiveEmail],
 			subject: params.subject,
 			text: params.text,
@@ -704,12 +699,10 @@ const emailService = {
 			attachments: await this.toResendAttachments(params.attachments)
 		};
 
-		if (params.sendType === 'reply') {
-			sendForm.headers = {
-				'in-reply-to': params.messageId,
-				'references': params.messageId
-			};
-		}
+		const headers = buildSendHeaders(params);
+		if (headers) sendForm.headers = headers;
+
+		if (params.replyTo) sendForm.replyTo = params.replyTo;
 
 		return await resend.emails.send(sendForm);
 	},
