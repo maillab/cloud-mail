@@ -253,6 +253,18 @@
                 </div>
               </div>
               <div class="setting-item">
+                <div>
+                  <span>{{ $t('userForward') }}</span>
+                  <el-tooltip effect="dark" :content="$t('userForwardDesc')">
+                    <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+                  </el-tooltip>
+                </div>
+                <div>
+                  <el-switch :active-value="0" :inactive-value="1" v-model="setting.userForward"
+                             @change="editSetting({ userForward: $event })"/>
+                </div>
+              </div>
+              <div class="setting-item">
                 <div><span>{{ $t('webhook') }}</span></div>
                 <div class="forward">
                   <span>{{ setting.webhookStatus === 0 ? $t('enabled') : $t('disabled') }}</span>

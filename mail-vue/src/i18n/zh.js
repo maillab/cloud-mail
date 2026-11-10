@@ -196,6 +196,8 @@ const zh = {
     disable: '关闭',
     disabled: '已关闭',
     otherEmail: '第三方邮箱',
+    userForward: '用户自助转发',
+    userForwardDesc: '允许用户把自己的邮箱自动转发到外部地址，转发会消耗发信额度',
     webhook: 'Webhook',
     webhookDesc: '收到邮件后向指定地址 POST JSON',
     webhookUrl: '请求地址',
