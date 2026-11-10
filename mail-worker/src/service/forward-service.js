@@ -58,8 +58,7 @@ const forwardService = {
 			.orderBy(asc(accountForward.forwardId)).all();
 	},
 
-	async add(c, { accountId, targetEmail }, userId, lang) {
-		const accountRow = await this.getOwnAccount(c, Number(accountId), userId);
+	async assertCanForward(c, userId) {
 		const setting = await settingService.query(c);
 
 		if (setting.userForward !== settingConst.userForward.OPEN) {
@@ -76,6 +75,13 @@ const forwardService = {
 				throw new BizError(t('forwardNoPerm'));
 			}
 		}
+
+		return setting;
+	},
+
+	async add(c, { accountId, targetEmail }, userId, lang) {
+		const accountRow = await this.getOwnAccount(c, Number(accountId), userId);
+		const setting = await this.assertCanForward(c, userId);
 
 		const existing = await orm(c).select({ targetEmail: accountForward.targetEmail }).from(accountForward)
 			.where(eq(accountForward.accountId, accountRow.accountId)).all();
@@ -160,7 +166,7 @@ const forwardService = {
 		const { row, accountRow } = await this.getOwnForward(c, forwardId, userId);
 		if (row.status !== FORWARD_STATUS.PENDING) return;
 
-		const setting = await settingService.query(c);
+		const setting = await this.assertCanForward(c, userId);
 		const channel = pickChannel({
 			hasCfEmail: !!c.env.email,
 			resendTokens: setting.resendTokens,
