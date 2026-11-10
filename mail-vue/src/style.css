@@ -107,20 +107,20 @@ button, input, select, textarea {
 }
 
 :root {
-    --hq-page: #f7f6f4;
-    --hq-sidebar: #fff;
-    --hq-surface: #fff;
-    --hq-text: #282522;
-    --hq-text-secondary: #69635f;
-    --hq-muted: #85807c;
-    --hq-border: #e8e4e0;
-    --hq-border-strong: #d3cdc8;
-    --hq-hover: #f5f2ef;
+    --hq-page: #f8f7f5;
+    --hq-sidebar: #ffffff;
+    --hq-surface: #ffffff;
+    --hq-text: #201c19;
+    --hq-text-secondary: #635c57;
+    --hq-muted: #8c847e;
+    --hq-border: #e7e2dc;
+    --hq-border-strong: #d0c8c0;
+    --hq-hover: #f3efe9;
     --hq-selected: #fff0e7;
-    --hq-accent: #ed5a19;
-    --hq-accent-hover: #d84c12;
-    --hq-accent-strong: #a63d11;
-    --hq-focus: #df5319;
+    --hq-accent: #ff5500;
+    --hq-accent-hover: #e64d00;
+    --hq-accent-strong: #cc4400;
+    --hq-focus: #ff5500;
     --hq-danger: #b42318;
     --hq-space-1: 4px;
     --hq-space-2: 8px;
@@ -128,9 +128,9 @@ button, input, select, textarea {
     --hq-space-4: 16px;
     --hq-space-5: 24px;
     --hq-space-6: 32px;
-    --hq-radius-sm: 5px;
-    --hq-radius-md: 7px;
-    --hq-radius-lg: 9px;
+    --hq-radius-sm: 6px;
+    --hq-radius-md: 8px;
+    --hq-radius-lg: 12px;
     --hq-font-body: Manrope, "Segoe UI", Helvetica, Arial, sans-serif;
     --hq-font-heading: "Space Grotesk", Manrope, "Segoe UI", sans-serif;
 
@@ -141,30 +141,30 @@ button, input, select, textarea {
     --el-color-primary-light-7: #ffbd9e;
     --el-color-primary-light-9: #fff1e8;
 
-    --extra-light-fill: #FAFCFF;
-    --settings-page-background: #fafbfc;
-    --light-ill: #F5F7FA;
-    --light-border: #E4E7ED;
+    --extra-light-fill: #faf8f6;
+    --settings-page-background: #f8f7f5;
+    --light-ill: #f3efe9;
+    --light-border: #e7e2dc;
     --header-actions-border: inset 0 -1px 0 0 var(--el-border-color-lighter);
-    --aside-backgound: #191A23;
-    --aside-menu-active-background: #27282D;
+    --aside-backgound: #191a23;
+    --aside-menu-active-background: #27282d;
     --loadding-background: rgba(255, 255, 255, 0.8);
-    --dark-border: #CDD0D6;
-    --base-fill: #F0F2F5;
-    --regular-text-color: #585d69;
-    --light-border-color: #e7e9ec;
-    --aside-right-border: 3px 0 5px rgba(0, 21, 41, .35);
-    --choose-account-background: var(--el-color-primary-light-8);
+    --dark-border: #d0c8c0;
+    --base-fill: #f3efe9;
+    --regular-text-color: #635c57;
+    --light-border-color: #e7e2dc;
+    --aside-right-border: 1px solid var(--hq-border);
+    --choose-account-background: rgba(255, 85, 0, 0.08);
     --el-text-color-regular: var(--el-text-color-primary);
-    --email-scroll-content-color: rgba(25, 41, 59, 0.4);
-    --email-hover-background: #F2F6FC;
-    --email-right-click-background: #FDF6EC;
-    --login-border: none;
+    --email-scroll-content-color: rgba(32, 28, 25, 0.6);
+    --email-hover-background: #f5f1eb;
+    --email-right-click-background: #fff0e7;
+    --login-border: #e7e2dc;
     --form-desc-color: #71717a;
-    --login-switch-color: #006be6;
-    --scrollbar-track-color: #A8ABB2;
-    --base-border-color: #DCDFE6;
-    --secondary-text-color: #909399;
+    --login-switch-color: #ff5500;
+    --scrollbar-track-color: #d0c8c0;
+    --base-border-color: #e7e2dc;
+    --secondary-text-color: #8c847e;
     --message-block-color: rgba(0, 0, 0, 0);
     --loading-hide-transition: all 200ms;
     --vt-x: 50%;
@@ -175,6 +175,22 @@ button, input, select, textarea {
 
 .dark {
     color-scheme: dark;
+    --hq-page: #100e0c;
+    --hq-sidebar: #161310;
+    --hq-surface: #181411;
+    --hq-text: #f5f0eb;
+    --hq-text-secondary: #b8aea7;
+    --hq-muted: #8a7f78;
+    --hq-border: #362e28;
+    --hq-border-strong: #4a3e35;
+    --hq-hover: #231c17;
+    --hq-selected: #331e13;
+    --hq-accent: #ff5500;
+    --hq-accent-hover: #ff6e26;
+    --hq-accent-strong: #ff8547;
+    --hq-focus: #ff5500;
+    --hq-danger: #f87171;
+
     --el-color-primary: #ff5500;
     --el-color-primary-dark-2: #d94700;
     --el-color-primary-light-3: #ff7b3d;

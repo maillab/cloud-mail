@@ -6,7 +6,8 @@ export default function emailHtmlTemplate(html, domain) {
 	const { document } = parseHTML(html);
 	document.querySelectorAll('script').forEach(script => script.remove());
 	html = document.toString();
-	html = html.replace(/{{domain}}/g, domainUtils.toOssDomain(domain) + '/');
+	const ossDomain = domainUtils.toOssDomain(domain);
+	html = html.replace(/{{domain}}/g, ossDomain ? ossDomain + '/' : '/oss/');
 	const safeHtmlJson = JSON.stringify(html).replace(/</g, '\\u003C');
 
 	return `<!DOCTYPE html>

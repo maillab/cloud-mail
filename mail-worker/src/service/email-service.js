@@ -436,15 +436,27 @@ const emailService = {
 			throw new BizError(t('sendEmailNotCurUser'));
 		}
 
-		const accountHasSignature = accountRow.signatureText || accountRow.signatureImageKey;
+		let userSigSettings = {};
+		try {
+			userSigSettings = userRow.signatureSettings ? JSON.parse(userRow.signatureSettings) : {};
+		} catch {
+			userSigSettings = {};
+		}
+		const accountHasSignature = Boolean(accountRow.signature || accountRow.signatureText || accountRow.signatureImageKey);
 		const signatureProfile = accountHasSignature ? accountRow : userRow;
-		const signatureHtml = accountHasSignature
-			? signatureService.html(accountRow, c.req.url)
-			: userRow.signature || signatureService.html(userRow, c.req.url);
-		if (signatureIncluded !== true) {
-			content = `${content || ''}${signatureHtml}`;
-			if (!accountHasSignature && !userRow.signature && signatureProfile.signatureText) {
-				text = `${text || ''}\n\n${signatureProfile.signatureText}`;
+		const isSigEnabled = (accountRow.signatureEnabled ?? 1) === 1 && (userSigSettings.enabled !== false);
+		const isReply = sendType === 'reply' || sendType === 'forward';
+		const isReplyAllowed = !isReply || ((accountRow.signatureReplyEnabled ?? 1) === 1 && (userSigSettings.replyForward !== false));
+
+		const alreadyHasSignature = Boolean(content && content.includes('xpass-user-signature'));
+		if (isSigEnabled && isReplyAllowed && !alreadyHasSignature && signatureIncluded !== true) {
+			const signatureHtml = signatureService.html(signatureProfile, c.req.url);
+			if (signatureHtml) {
+				content = `${content || ''}${signatureHtml}`;
+				const plainSig = signatureService.plainText(signatureProfile);
+				if (plainSig && (!text || !text.includes(plainSig))) {
+					text = `${text || ''}\n\n--\n${plainSig}`;
+				}
 			}
 		}
 		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
@@ -1126,10 +1138,9 @@ const emailService = {
 
 			}
 
-			r2domain = domainUtils.toOssDomain(r2domain)
-
-			if (src && src.startsWith(r2domain + '/')) {
-				img.setAttribute('src', src.replace(r2domain + '/', '{{domain}}'));
+			const ossDomain = domainUtils.toOssDomain(r2domain);
+			if (ossDomain && src && src.startsWith(ossDomain + '/')) {
+				img.setAttribute('src', src.replace(ossDomain + '/', '{{domain}}'));
 			}
 
 		}

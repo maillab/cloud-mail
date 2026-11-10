@@ -20,6 +20,7 @@ const user = sqliteTable('user', {
 	signatureImageKey: text('signature_image_key'),
 	signatureText: text('signature_text').default('').notNull(),
 	signature: text('signature').default('').notNull(),
+	signatureSettings: text('signature_settings').default('{}').notNull(),
 	isDel: integer('is_del').default(0).notNull()
 });
 export default user

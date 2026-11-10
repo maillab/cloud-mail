@@ -7,8 +7,29 @@
             <Icon icon="hugeicons:quill-write-01" width="28" height="28"/>
           </span>
           <span class="sender">{{ $t('sender') }}:</span>
-          <span class="sender-name">{{ form.name }}</span>
-          <span class="send-email"><{{ form.sendEmail }}></span>
+          <el-dropdown v-if="senderAccounts.length > 1" trigger="click" @command="handleSenderChange">
+            <button type="button" class="sender-switch-btn">
+              <span class="sender-name">{{ form.name }}</span>
+              <span class="send-email">&lt;{{ form.sendEmail }}&gt;</span>
+              <Icon icon="mingcute:down-small-fill" width="16" height="16" />
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item
+                  v-for="acc in senderAccounts"
+                  :key="acc.accountId"
+                  :command="acc.accountId"
+                  :class="{ 'is-active': acc.accountId === form.accountId }"
+                >
+                  {{ acc.email }} ({{ acc.name || 'Account' }})
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <template v-else>
+            <span class="sender-name">{{ form.name }}</span>
+            <span class="send-email">&lt;{{ form.sendEmail }}&gt;</span>
+          </template>
         </div>
         <div @click="close" style="cursor: pointer;">
           <Icon icon="material-symbols-light:close-rounded" width="22" height="22"/>
@@ -55,6 +76,25 @@
             <el-option v-for="template in templates" :key="template.templateId"
                        :label="template.name" :value="template.templateId" />
           </el-select>
+          <el-dropdown trigger="click" @command="applySignatureChoice">
+            <el-button plain size="default" class="sig-picker-btn">
+              <Icon icon="hugeicons:quill-write-01" width="16" height="16" />
+              <span>{{ activeSignatureLabel }}</span>
+              <Icon icon="mingcute:down-small-fill" width="14" height="14" />
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="default">
+                  <Icon icon="fluent:checkmark-20-regular" width="16" height="16" v-if="currentSignatureChoice === 'default'" />
+                  <span>Insert signature</span>
+                </el-dropdown-item>
+                <el-dropdown-item command="none">
+                  <Icon icon="fluent:checkmark-20-regular" width="16" height="16" v-if="currentSignatureChoice === 'none'" />
+                  <span>No signature</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
         <tinyEditor :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
         <div class="button-item">
@@ -139,6 +179,7 @@ import router from "@/router/index.js";
 import {ElMessageBox} from "element-plus";
 import {ElMessage} from "element-plus";
 import {mailboxTemplates, mailboxTemplateSave} from "@/request/mailbox.js";
+import {accountList} from "@/request/account.js";
 import {sanitizeSignatureHtml} from "@/utils/email-html.js";
 
 defineExpose({
@@ -214,25 +255,112 @@ function escapeHtml(value) {
   })[character])
 }
 
-function getComposeSignatureHtml() {
-  const account = accountStore.currentAccount || {}
+const senderAccounts = ref([])
+const currentSignatureChoice = ref('default')
+const activeSignatureLabel = computed(() => {
+  return currentSignatureChoice.value === 'none' ? 'No signature' : 'Signature: On'
+})
+
+function loadSenderAccounts() {
+  accountList(null, 50).then(res => {
+    senderAccounts.value = Array.isArray(res) ? res : (res?.list || [])
+  }).catch(() => {})
+}
+
+function handleSenderChange(accountId) {
+  const acc = senderAccounts.value.find(a => a.accountId === accountId)
+  if (!acc) return
+  form.accountId = acc.accountId
+  form.sendEmail = acc.email
+  form.name = acc.name || userStore.user.name || ''
+
+  if (currentSignatureChoice.value !== 'none') {
+    const currentContent = editor.value?.getContent?.() || ''
+    const newSig = getComposeSignatureHtml(acc.accountId)
+    const updatedContent = replaceOrAppendSignature(currentContent, newSig)
+    defValue.value = updatedContent
+    editor.value?.setContent?.(updatedContent)
+  }
+}
+
+function applySignatureChoice(choice) {
+  currentSignatureChoice.value = choice
+  const currentContent = editor.value?.getContent?.() || ''
+  const newSig = choice === 'none' ? '' : getComposeSignatureHtml(form.accountId)
+  const updatedContent = replaceOrAppendSignature(currentContent, newSig)
+  defValue.value = updatedContent
+  editor.value?.setContent?.(updatedContent)
+}
+
+function replaceOrAppendSignature(content = '', newSig = '') {
+  const sigRegex = /<div class="xpass-user-signature"[^>]*>[\s\S]*?<\/div>/i
+  if (sigRegex.test(content)) {
+    if (newSig) {
+      return content.replace(sigRegex, newSig)
+    } else {
+      return content.replace(sigRegex, '').replace(/<div><br><br><\/div>\s*$/, '').replace(/(<br\s*\/?>\s*){1,2}$/, '')
+    }
+  } else if (newSig) {
+    if (quotedContent.value && content.includes(quotedContent.value)) {
+      return content.replace(quotedContent.value, `${newSig}<br><br>${quotedContent.value}`)
+    } else {
+      return `${content ? content + '<br><br>' : '<div><br><br></div>'}${newSig}`
+    }
+  }
+  return content
+}
+
+function getComposeSignatureHtml(accountId = form.accountId) {
+  if (currentSignatureChoice.value === 'none') {
+    return ''
+  }
+
   const user = userStore.user || {}
-  const accountHasSignature = Boolean(account.signatureText || account.signatureImageUrl)
-  const profile = accountHasSignature ? account : user
-  const htmlSignature = accountHasSignature ? '' : sanitizeSignatureHtml(user.signature || '')
-  if (htmlSignature) return htmlSignature
+  const userSettings = user.signature_settings || {}
+  const accounts = senderAccounts.value || []
+  const acc = (accountId ? accounts.find(a => a.accountId === accountId) : null) || accountStore.currentAccount || user.account || {}
 
-  const text = profile.signatureText || profile.signature_text || ''
-  const imageUrl = profile.signatureImageUrl || profile.signature_image_url
-  if (!text && !imageUrl) return ''
+  const isEnabled = (acc.signatureEnabled ?? 1) === 1 && (userSettings.enabled !== false)
+  const isReply = form.sendType === 'reply' || form.sendType === 'forward'
+  const isReplyAllowed = !isReply || ((acc.signatureReplyEnabled ?? 1) === 1 && (userSettings.replyForward !== false))
 
-  const textHtml = text
-    ? `<div style="font-size: 14px; color: #333333; margin-bottom: 6px;">${escapeHtml(text).replace(/\r\n?|\n/g, '<br>')}</div>`
-    : ''
-  const imageHtml = imageUrl
-    ? `<img src="${escapeHtml(imageUrl)}" width="250" alt="Signature" style="max-width: 250px; height: auto; display: block; border: 0;" />`
-    : ''
-  return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #e5e5e5; font-family: sans-serif;">${textHtml}${imageHtml}</div>`
+  if (!isEnabled || !isReplyAllowed) {
+    return ''
+  }
+
+  // Account custom HTML signature
+  if (acc.signature && acc.signature.trim()) {
+    const sanitized = sanitizeSignatureHtml(acc.signature.trim())
+    if (sanitized.includes('xpass-user-signature')) return sanitized
+    return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--hq-border); font-family: sans-serif;">${sanitized}</div>`
+  }
+
+  // Account text or image
+  const accText = acc.signatureText || ''
+  const accImg = acc.signatureImageUrl || ''
+  if (accText || accImg) {
+    const textHtml = accText ? `<div style="font-size: 13px; color: var(--hq-text); line-height: 1.5; margin-bottom: 6px;">${escapeHtml(accText).replace(/\r\n?|\n/g, '<br>')}</div>` : ''
+    const imgHtml = accImg ? `<img src="${escapeHtml(accImg)}" width="250" alt="Signature" style="max-width: 250px; height: auto; display: block; border: 0; border-radius: 4px;" />` : ''
+    return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--hq-border); font-family: sans-serif;">${textHtml}${imgHtml}</div>`
+  }
+
+  // Fallback to user default HTML signature
+  if (user.signature && user.signature.trim()) {
+    const sanitized = sanitizeSignatureHtml(user.signature.trim())
+    if (sanitized.includes('xpass-user-signature')) return sanitized
+    return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--hq-border); font-family: sans-serif;">${sanitized}</div>`
+  }
+
+  // Fallback to user default text or image
+  const userText = user.signature_text || ''
+  const userImg = user.signature_image_url || ''
+  if (userText || userImg) {
+    const textHtml = userText ? `<div style="font-size: 13px; color: var(--hq-text); line-height: 1.5; margin-bottom: 6px;">${escapeHtml(userText).replace(/\r\n?|\n/g, '<br>')}</div>` : ''
+    const imgHtml = userImg ? `<img src="${escapeHtml(userImg)}" width="250" alt="Signature" style="max-width: 250px; height: auto; display: block; border: 0; border-radius: 4px;" />` : ''
+    return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--hq-border); font-family: sans-serif;">${textHtml}${imgHtml}</div>`
+  }
+
+  return ''
 }
 
 function composeWithSignature(bodyContent = '', quote = '') {
@@ -452,7 +580,7 @@ async function sendEmail() {
 
   form.content = editor.value.getContent();
   form.text = editor.value.getText();
-  const signatureIncluded = Boolean(getComposeSignatureHtml())
+  const signatureIncluded = currentSignatureChoice.value === 'none' || Boolean(form.content && form.content.includes('xpass-user-signature'));
 
   if (!form.content) {
     ElMessage({
@@ -649,19 +777,21 @@ function openReply(email) {
 function formatImage(content) {
   content = content || '';
   const domain = settingStore.settings.r2Domain;
-  return content.replace(/{{domain}}/g, toOssDomain(domain) + '/');
+  const ossDomain = toOssDomain(domain);
+  return content.replace(/{{domain}}/g, ossDomain ? ossDomain + '/' : '/oss/');
 }
 
 function open() {
+  loadSenderAccounts()
   if (!form.sendType) {
     resetForm(newDraftContent())
   }
   mailboxTemplates()
     .then(templateRows => templates.value = templateRows)
     .catch(error => console.error(error))
-  if (!accountStore.currentAccount.email) {
+  if (!accountStore.currentAccount?.email) {
     form.sendEmail = userStore.user.email;
-    form.accountId = userStore.user.account.accountId;
+    form.accountId = userStore.user.account?.accountId || -1;
     form.name = userStore.user.name;
   } else {
     form.sendEmail = accountStore.currentAccount.email;
@@ -669,7 +799,7 @@ function open() {
     form.name = accountStore.currentAccount.name;
   }
   show.value = true;
-  editor.value.focus()
+  editor.value?.focus?.()
 }
 
 function openDraft(draft) {
@@ -819,8 +949,27 @@ function close() {
 
       .title-left {
         align-items: center;
-        display: grid;
-        grid-template-columns: auto auto auto 1fr;
+        display: flex;
+        gap: 4px;
+
+        .sender-switch-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: var(--hq-page);
+          border: 1px solid var(--hq-border);
+          border-radius: 4px;
+          padding: 2px 8px;
+          margin-left: 6px;
+          cursor: pointer;
+          color: var(--el-text-color-primary);
+          font-size: 12.5px;
+          font-family: inherit;
+
+          &:hover {
+            background: var(--hq-hover);
+          }
+        }
       }
 
       .title-text {
@@ -831,13 +980,13 @@ function close() {
       }
 
       .sender-name {
-        margin-left: 8px;
+        margin-left: 4px;
         font-weight: bold;
       }
 
       .send-email {
         color: #999896;
-        margin-left: 5px;
+        margin-left: 4px;
         white-space: nowrap;
         text-overflow: ellipsis;
         overflow: hidden;
@@ -857,9 +1006,21 @@ function close() {
       gap: 15px;
 
       .subject-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(150px, 230px);
+        display: flex;
+        align-items: center;
         gap: 10px;
+
+        .el-input {
+          flex: 1;
+        }
+
+        .sig-picker-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 13px;
+          white-space: nowrap;
+        }
       }
 
       .item-title {

@@ -126,8 +126,12 @@
         </el-button>
       </div>
     </el-dialog>
-    <el-dialog v-model="signatureShow" :title="`Email signature — ${signatureAccount?.email || ''}`" width="min(560px, 95vw)">
+    <el-dialog v-model="signatureShow" :title="`Email signature — ${signatureAccount?.email || ''}`" width="min(600px, 95vw)">
       <div class="signature-editor">
+        <div class="sig-dialog-toggles">
+          <el-checkbox v-model="signatureEnabled">Automatically insert signature in new emails</el-checkbox>
+          <el-checkbox v-model="signatureReplyEnabled">Include signature on replies and forwards</el-checkbox>
+        </div>
         <label>Email signature picture (optional)</label>
         <input
           ref="signatureFileRef"
@@ -141,9 +145,11 @@
           <el-button @click="signatureFileRef?.click()">Choose image</el-button>
           <el-button v-if="signaturePreview" @click="removeSignatureImage">Remove image</el-button>
         </div>
-        <div class="signature-helper">Recommended size: 300x100px (Max 2MB). Fits all mobile &amp; desktop devices.</div>
+        <div class="signature-helper">Custom branded XPass signature graphic (PNG, JPG, WEBP, max 2MB).</div>
         <label>Signature title / text</label>
-        <el-input v-model="signatureText" type="textarea" :rows="3" maxlength="2000" show-word-limit />
+        <el-input v-model="signatureText" type="textarea" :rows="2" maxlength="2000" show-word-limit placeholder="e.g. Rodney Adams | Engineering Operations" />
+        <label>HTML signature (optional)</label>
+        <el-input v-model="signatureHtml" type="textarea" :rows="3" maxlength="10000" show-word-limit placeholder="<table style='...'>...</table>" />
       </div>
       <template #footer>
         <el-button @click="signatureShow = false">Cancel</el-button>

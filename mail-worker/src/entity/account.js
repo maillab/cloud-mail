@@ -13,5 +13,8 @@ export const account = sqliteTable('account', {
 	isDel: integer('is_del').default(0).notNull(),
 	signatureImageKey: text('signature_image_key'),
 	signatureText: text('signature_text').default('').notNull(),
+	signature: text('signature').default('').notNull(),
+	signatureEnabled: integer('signature_enabled').default(1).notNull(),
+	signatureReplyEnabled: integer('signature_reply_enabled').default(1).notNull(),
 });
 export default account

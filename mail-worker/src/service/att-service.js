@@ -57,11 +57,15 @@ const attService = {
 
 		let imageDataList = [];
 
+		const ossDomain = domainUtils.toOssDomain(r2Domain);
+
 		for (const img of images) {
 
 			//邮件正文base64图片转cid附件
 			const src = img.getAttribute('src');
-			if (src && src.startsWith('data:image')) {
+			if (!src) continue;
+
+			if (src.startsWith('data:image')) {
 				const file = fileUtils.base64ToFile(src);
 				const buff = await file.arrayBuffer();
 				const cid = uuidv4().replace(/-/g, '');
@@ -73,27 +77,60 @@ const attService = {
 				attData.key = key;
 				attData.filename = file.name;
 				attData.mimeType = file.type;
+				attData.contentType = file.type;
 				attData.size = file.size;
 				attData.buff = buff;
 				attData.content = fileUtils.base64ToDataStr(src);
 				attData.contentId = cid;
+				attData.type = attConst.type.EMBED;
 
 				imageDataList.push(attData);
+				continue;
+			}
+
+			// Signature images from R2 (e.g. /oss/signatures/... or signatures/...)
+			const sigMatch = src.match(/(?:^|\/oss\/)(signatures\/[^"'?\s]+)/);
+			if (sigMatch) {
+				const key = sigMatch[1];
+				try {
+					const obj = await r2Service.getObj(c, key);
+					if (obj) {
+						const buff = obj instanceof ArrayBuffer ? obj : await obj.arrayBuffer();
+						const mimeType = obj.httpMetadata?.contentType || 'image/png';
+						const ext = mimeType.split('/')[1] || 'png';
+						const cid = uuidv4().replace(/-/g, '');
+						img.setAttribute('src', 'cid:' + cid);
+
+						const attData = {
+							key,
+							filename: `signature.${ext}`,
+							mimeType,
+							contentType: mimeType,
+							size: buff.byteLength || buff.length,
+							buff,
+							content: fileUtils.arrayBufferToBase64(buff),
+							contentId: cid,
+							type: attConst.type.EMBED
+						};
+						imageDataList.push(attData);
+						continue;
+					}
+				} catch (err) {
+					console.error('Failed to load signature image from R2 for email:', err);
+				}
 			}
 
 			//邮件正文站内图片转cid附件
-			if (src && (src.startsWith(domainUtils.toOssDomain(r2Domain)) || src.startsWith('attachments/'))) {
+			if ((ossDomain && src.startsWith(ossDomain + '/attachments/')) || src.startsWith('attachments/')) {
 
-				const cid = uuidv4().replace(/-/g, '')
+				const cid = uuidv4().replace(/-/g, '');
 				img.setAttribute('src', 'cid:' + cid);
 
 				const attData = {};
 
-				if (src.startsWith(domainUtils.toOssDomain(r2Domain))) {
-					attData.key = src.replace(domainUtils.toOssDomain(r2Domain) + '/','');
-				}
-
-				if (src.startsWith('attachments/')) {
+				if (ossDomain && src.startsWith(ossDomain + '/')) {
+					attData.key = src.replace(ossDomain + '/', '');
+				} else if (src.startsWith('attachments/')) {
 					attData.key = src;
 				}
 

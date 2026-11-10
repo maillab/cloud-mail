@@ -65,11 +65,15 @@ async function deleteImage(c, key) {
 }
 
 function imageUrl(requestUrl, key) {
-	return key ? new URL(`/oss/${key}`, requestUrl).href : null;
+	if (!key) return null;
+	if (typeof key === 'string' && (key.startsWith('http://') || key.startsWith('https://'))) {
+		return key;
+	}
+	return new URL(`/oss/${String(key).replace(/^\//, '')}`, requestUrl).href;
 }
 
 function escapeHtml(value) {
-	return value.replace(/[&<>"']/g, character => ({
+	return String(value || '').replace(/[&<>"']/g, character => ({
 		'&': '&amp;',
 		'<': '&lt;',
 		'>': '&gt;',
@@ -78,18 +82,38 @@ function escapeHtml(value) {
 	})[character]);
 }
 
-function html(user, requestUrl) {
-	const text = user.signatureText
-		? `<div style="font-size: 14px; color: #333333; margin-bottom: 6px;">${escapeHtml(user.signatureText).replace(/\r\n?|\n/g, '<br>')}</div>`
+function html(profile, requestUrl) {
+	if (!profile) return '';
+
+	// If explicit HTML signature is provided
+	if (profile.signature && profile.signature.trim()) {
+		const rawHtml = profile.signature.trim();
+		if (rawHtml.includes('xpass-user-signature')) {
+			return rawHtml;
+		}
+		return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #e5e5e5; font-family: sans-serif;">${rawHtml}</div>`;
+	}
+
+	const text = profile.signatureText || profile.signature_text || '';
+	const textHtml = text
+		? `<div style="font-size: 14px; color: #333333; margin-bottom: 6px; line-height: 1.5;">${escapeHtml(text).replace(/\r\n?|\n/g, '<br>')}</div>`
 		: '';
-	const src = imageUrl(requestUrl, user.signatureImageKey);
+
+	const imageKey = profile.signatureImageKey || profile.signature_image_key;
+	const src = imageUrl(requestUrl, imageKey) || profile.signatureImageUrl || profile.signature_image_url;
 	const image = src
-		? `<img src="${src}" width="250" alt="Signature" style="max-width: 250px; height: auto; display: block; border: 0;" />`
+		? `<img src="${escapeHtml(src)}" width="250" alt="Signature" style="max-width: 250px; height: auto; display: block; border: 0;" />`
 		: '';
-	if (!text && !image) {
+
+	if (!textHtml && !image) {
 		return '';
 	}
-	return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #e5e5e5; font-family: sans-serif;">${text}${image}</div>`;
+	return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #e5e5e5; font-family: sans-serif;">${textHtml}${image}</div>`;
 }
 
-export default { normalizeText, normalizeHtml, saveImage, deleteImage, imageUrl, html };
+function plainText(profile) {
+	if (!profile) return '';
+	return (profile.signatureText || profile.signature_text || '').trim();
+}
+
+export default { normalizeText, normalizeHtml, saveImage, deleteImage, imageUrl, html, plainText };

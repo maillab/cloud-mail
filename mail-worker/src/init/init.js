@@ -36,8 +36,32 @@ const dbInit = {
 		await this.v3_5DB(c);
 		await this.v3_6DB(c);
 		await this.v3_7DB(c);
+		await this.v3_8DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async v3_8DB(c) {
+		for (const [column, definition] of [
+			['signature', "TEXT NOT NULL DEFAULT ''"],
+			['signature_enabled', 'INTEGER NOT NULL DEFAULT 1'],
+			['signature_reply_enabled', 'INTEGER NOT NULL DEFAULT 1']
+		]) {
+			try {
+				await c.env.db.prepare(`ALTER TABLE account ADD COLUMN ${column} ${definition};`).run();
+			} catch (error) {
+				if (!error.message?.toLowerCase().includes('duplicate column')) {
+					throw error;
+				}
+			}
+		}
+		try {
+			await c.env.db.prepare(`ALTER TABLE user ADD COLUMN signature_settings TEXT NOT NULL DEFAULT '{}';`).run();
+		} catch (error) {
+			if (!error.message?.toLowerCase().includes('duplicate column')) {
+				throw error;
+			}
+		}
 	},
 
 	async v3_7DB(c) {
@@ -754,6 +778,7 @@ const dbInit = {
 			signature_image_key TEXT,
 			signature_text TEXT NOT NULL DEFAULT '',
 			signature TEXT NOT NULL DEFAULT '',
+			signature_settings TEXT NOT NULL DEFAULT '{}',
 			is_del INTEGER DEFAULT 0 NOT NULL
 		  )
 		`).run();
@@ -766,6 +791,11 @@ const dbInit = {
 			latest_email_time DATETIME,
 			create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
 			user_id INTEGER NOT NULL,
+			signature_image_key TEXT,
+			signature_text TEXT NOT NULL DEFAULT '',
+			signature TEXT NOT NULL DEFAULT '',
+			signature_enabled INTEGER NOT NULL DEFAULT 1,
+			signature_reply_enabled INTEGER NOT NULL DEFAULT 1,
 			is_del INTEGER DEFAULT 0 NOT NULL
 		  )
 		`).run();

@@ -19,6 +19,9 @@ export default {
 
 		if (url.pathname.startsWith('/oss/')) {
 			const key = url.pathname.slice('/oss/'.length);
+			if (key.includes('..') || !/^(?:signatures|static|public)\//.test(key)) {
+				return new Response('Forbidden: private storage object', { status: 403 });
+			}
 			const resp = await r2Service.toObjResp({ env }, key);
 			return resp || new Response('Not Found', { status: 404 });
 		}

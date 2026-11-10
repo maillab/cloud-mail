@@ -11,14 +11,41 @@ export const useUiStore = defineStore('ui', {
         changePreview: 0,
         previewData: {},
         key: 0,
-        dark: true,
+        theme: 'system',
+        dark: false,
         asideCount: {
             email: 0,
             send: 0,
             sysEmail: 0
         }
     }),
+    getters: {
+        isDark(state) {
+            if (state.theme === 'dark') return true;
+            if (state.theme === 'light') return false;
+            if (typeof window !== 'undefined' && window.matchMedia) {
+                return window.matchMedia('(prefers-color-scheme: dark)').matches;
+            }
+            return false;
+        }
+    },
     actions: {
+        setTheme(newTheme) {
+            this.theme = newTheme;
+            this.applyTheme();
+        },
+        applyTheme() {
+            const dark = this.isDark;
+            this.dark = dark;
+            if (typeof document !== 'undefined') {
+                document.documentElement.classList.toggle('dark', dark);
+                const isMobile = typeof window !== 'undefined' && !window.matchMedia("(pointer: fine) and (hover: hover)").matches;
+                document.getElementById('theme-color-meta')?.setAttribute(
+                    'content',
+                    dark ? (isMobile ? '#110e0c' : '#050403') : (isMobile ? '#f8f7f5' : '#ffffff')
+                );
+            }
+        },
         showNotice() {
             this.changeNotice ++
         },
@@ -28,6 +55,6 @@ export const useUiStore = defineStore('ui', {
         }
     },
     persist: {
-        pick: ['accountShow','asideCollapsed','dark'],
+        pick: ['accountShow','asideCollapsed','theme','dark'],
     },
 })

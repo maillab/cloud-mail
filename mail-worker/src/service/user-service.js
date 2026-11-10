@@ -39,7 +39,18 @@ const userService = {
 		]);
 		if (account) {
 			account.signatureImageUrl = signatureService.imageUrl(c.req.url, account.signatureImageKey);
+			account.signatureText = account.signatureText || '';
+			account.signature = account.signature || '';
+			account.signatureEnabled = account.signatureEnabled ?? 1;
+			account.signatureReplyEnabled = account.signatureReplyEnabled ?? 1;
 			delete account.signatureImageKey;
+		}
+
+		let signatureSettings = {};
+		try {
+			signatureSettings = userRow.signatureSettings ? JSON.parse(userRow.signatureSettings) : {};
+		} catch {
+			signatureSettings = {};
 		}
 
 		const user = {};
@@ -47,13 +58,18 @@ const userService = {
 		user.sendCount = userRow.sendCount;
 		user.email = userRow.email;
 		user.account = account;
-		user.name = account.name;
+		user.name = account?.name || '';
 		user.permKeys = permKeys;
 		user.role = roleRow;
 		user.type = userRow.type;
 		user.signature_image_url = signatureService.imageUrl(c.req.url, userRow.signatureImageKey);
 		user.signature_text = userRow.signatureText || '';
 		user.signature = userRow.signature || '';
+		user.signature_settings = {
+			enabled: signatureSettings.enabled !== false,
+			replyForward: signatureSettings.replyForward !== false,
+			defaultAccountId: signatureSettings.defaultAccountId || null
+		};
 
 		if (c.env.admin === userRow.email) {
 			user.role = constant.ADMIN_ROLE
@@ -87,6 +103,12 @@ const userService = {
 		const signature = params.signature === undefined
 			? userRow.signature || ''
 			: signatureService.normalizeHtml(params.signature);
+		let signatureSettingsStr = userRow.signatureSettings || '{}';
+		if (params.signatureSettings !== undefined) {
+			signatureSettingsStr = typeof params.signatureSettings === 'string'
+				? params.signatureSettings
+				: JSON.stringify(params.signatureSettings);
+		}
 		const previousKey = userRow.signatureImageKey;
 		let signatureImageKey = previousKey;
 		let uploadedKey = null;
@@ -99,7 +121,12 @@ const userService = {
 		}
 
 		try {
-			await orm(c).update(user).set({ signatureImageKey, signatureText, signature })
+			await orm(c).update(user).set({
+				signatureImageKey,
+				signatureText,
+				signature,
+				signatureSettings: signatureSettingsStr
+			})
 				.where(eq(user.userId, userId)).run();
 		} catch (error) {
 			if (uploadedKey) {

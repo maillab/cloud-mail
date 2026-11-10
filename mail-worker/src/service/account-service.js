@@ -147,10 +147,13 @@ const accountService = {
 			.orderBy(desc(account.sort), asc(account.accountId))
 			.limit(size)
 			.all();
-		return rows.map(({signatureImageKey, signatureText, ...row}) => ({
+		return rows.map(({signatureImageKey, signatureText, signature, signatureEnabled, signatureReplyEnabled, ...row}) => ({
 			...row,
 			signatureImageUrl: signatureService.imageUrl(c.req.url, signatureImageKey),
-			signatureText: signatureText || ''
+			signatureText: signatureText || '',
+			signature: signature || '',
+			signatureEnabled: signatureEnabled ?? 1,
+			signatureReplyEnabled: signatureReplyEnabled ?? 1
 		}));
 	},
 
@@ -167,6 +170,16 @@ const accountService = {
 		const signatureText = params.signatureText === undefined
 			? accountRow.signatureText || ''
 			: signatureService.normalizeText(params.signatureText);
+		const signature = params.signature === undefined
+			? accountRow.signature || ''
+			: signatureService.normalizeHtml(params.signature);
+		const signatureEnabled = params.signatureEnabled !== undefined
+			? (params.signatureEnabled ? 1 : 0)
+			: (accountRow.signatureEnabled ?? 1);
+		const signatureReplyEnabled = params.signatureReplyEnabled !== undefined
+			? (params.signatureReplyEnabled ? 1 : 0)
+			: (accountRow.signatureReplyEnabled ?? 1);
+
 		const previousKey = accountRow.signatureImageKey;
 		let signatureImageKey = previousKey;
 		let uploadedKey = null;
@@ -178,7 +191,13 @@ const accountService = {
 		}
 
 		try {
-			await orm(c).update(account).set({signatureImageKey, signatureText})
+			await orm(c).update(account).set({
+				signatureImageKey,
+				signatureText,
+				signature,
+				signatureEnabled,
+				signatureReplyEnabled
+			})
 				.where(and(eq(account.accountId, accountId), eq(account.userId, userId))).run();
 		} catch (error) {
 			if (uploadedKey) await signatureService.deleteImage(c, uploadedKey);
@@ -191,7 +210,10 @@ const accountService = {
 		return {
 			accountId,
 			signatureImageUrl: signatureService.imageUrl(c.req.url, signatureImageKey),
-			signatureText
+			signatureText,
+			signature,
+			signatureEnabled,
+			signatureReplyEnabled
 		};
 	},
 
