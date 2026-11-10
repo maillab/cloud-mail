@@ -3,7 +3,9 @@ const KvConst = {
 	SETTING: 'setting:',
 	SEND_DAY_COUNT: 'send_day_count:',
 	ANALYSIS_ECHARTS: 'analysis_echarts:',
-	PUBLIC_KEY: "public_key:"
+	PUBLIC_KEY: "public_key:",
+	FORWARD_VERIFY_TARGET: 'forward_verify_target:',
+	FORWARD_VERIFY_DAY: 'forward_verify_day:'
 }
 
 export default KvConst;
