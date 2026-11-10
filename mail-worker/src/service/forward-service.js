@@ -5,7 +5,7 @@ import accountForward from '../entity/account-forward';
 import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n';
 import KvConst from '../const/kv-const';
-import { settingConst } from '../const/entity-const';
+import { settingConst, emailConst, userConst } from '../const/entity-const';
 import emailUtils from '../utils/email-utils';
 import settingService from './setting-service';
 import accountService from './account-service';
@@ -23,7 +23,10 @@ import {
 	checkVerifyCode,
 	afterWrongCode,
 	pickChannel,
-	canUseForward
+	canUseForward,
+	isForwardedMail,
+	buildForwardParams,
+	afterSendFailure
 } from '../lib/forward-rules';
 
 const { verifyCode: _omit, ...listColumns } = getTableColumns(accountForward);
@@ -241,6 +244,87 @@ const forwardService = {
 	async remove(c, { forwardId }, userId) {
 		const { row } = await this.getOwnForward(c, forwardId, userId);
 		await orm(c).delete(accountForward).where(eq(accountForward.forwardId, row.forwardId)).run();
+	},
+
+	// 收件时自动转发，永不抛错
+	async forwardReceived(c, emailRow, message) {
+		try {
+			if (!emailRow || !emailRow.accountId || emailRow.status !== emailConst.status.RECEIVE) return;
+			if (isForwardedMail(message.rawHeaders)) return;
+
+			const setting = await settingService.query(c);
+			if (setting.userForward !== settingConst.userForward.OPEN) return;
+
+			const rows = await orm(c).select().from(accountForward)
+				.where(and(
+					eq(accountForward.accountId, emailRow.accountId),
+					eq(accountForward.status, FORWARD_STATUS.ACTIVE)
+				)).all();
+			if (rows.length === 0) return;
+
+			const accountRow = await accountService.selectById(c, emailRow.accountId);
+			if (!accountRow) return;
+			const userRow = await userService.selectByIdIncludeDel(c, accountRow.userId);
+			if (!userRow || userRow.isDel || userRow.status === userConst.status.BAN) return;
+
+			const isAdmin = userRow.email === c.env.admin;
+			if (!isAdmin) {
+				const permKeys = await permService.userPermKeys(c, userRow.userId);
+				const roleRow = await roleService.selectByUserId(c, userRow.userId);
+				if (!canUseForward({ isAdmin, permKeys, sendType: roleRow?.sendType })) return;
+			}
+
+			const channel = pickChannel({
+				hasCfEmail: !!c.env.email,
+				resendTokens: setting.resendTokens,
+				accountEmail: accountRow.email
+			});
+			if (!channel) {
+				await orm(c).update(accountForward).set({ lastError: 'no send provider' })
+					.where(and(
+						eq(accountForward.accountId, emailRow.accountId),
+						eq(accountForward.status, FORWARD_STATUS.ACTIVE)
+					)).run();
+				return;
+			}
+
+			const attachments = (message.attachments || []).map(a => ({
+				filename: a.filename,
+				mimeType: a.mimeType || a.contentType || a.type,
+				contentId: (a.contentId || '').replace(/^<|>$/g, '') || undefined,
+				content: a.content
+			}));
+
+			await Promise.all(rows.map(async row => {
+				try {
+					const params = buildForwardParams({
+						accountEmail: accountRow.email,
+						target: row.targetEmail,
+						subject: message.subject,
+						html: message.html,
+						text: message.text,
+						fromAddress: message.fromAddress,
+						fromName: message.fromName,
+						attachments
+					});
+					await this.deliver(c, channel, params);
+					if (row.failCount > 0) {
+						await orm(c).update(accountForward).set({ failCount: 0, lastError: '' })
+							.where(eq(accountForward.forwardId, row.forwardId)).run();
+					}
+				} catch (e) {
+					console.error('转发邮箱 ' + row.targetEmail + ' 失败：', e);
+					try {
+						await orm(c).update(accountForward).set(afterSendFailure(row, e.message))
+							.where(eq(accountForward.forwardId, row.forwardId)).run();
+					} catch (err) {
+						console.error(err);
+					}
+				}
+			}));
+		} catch (e) {
+			console.error('用户转发异常：', e);
+		}
 	},
 
 	async deliver(c, channel, params) {

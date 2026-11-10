@@ -1,0 +1,30 @@
+From: "GitHub, Inc." <noreply@github.test>
+To: admin@example.com
+Subject: Forward test
+Message-ID: <forward-sample-1@github.test>
+Date: Tue, 11 Nov 2026 10:00:00 +0000
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="mix"
+
+--mix
+Content-Type: multipart/related; boundary="rel"
+
+--rel
+Content-Type: text/html; charset=utf-8
+
+<html><body><p>Hello forward</p><img src="cid:logo1"></body></html>
+--rel
+Content-Type: image/png; name="logo.png"
+Content-Transfer-Encoding: base64
+Content-ID: <logo1>
+Content-Disposition: inline; filename="logo.png"
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+--rel--
+--mix
+Content-Type: text/plain; name="hello.txt"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="hello.txt"
+
+aGVsbG8gd29ybGQK
+--mix--

@@ -24,6 +24,7 @@ import account from "../entity/account";
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
 import webhookService from './webhook-service';
+import forwardService from './forward-service';
 import forwardMime from '../utils/forward-mime';
 import { buildSendHeaders, formatFromAddress } from '../lib/send-headers';
 
@@ -958,6 +959,19 @@ const emailService = {
 	async forwardOnSiteEmail(c, emailRowList, { sendParams }) {
 
 		const { tgBotStatus, tgChatId, forwardStatus, forwardEmail, webhookStatus, webhookUrl, webhookRetry, webhookSecret, ruleEmail, ruleType } = await settingService.query(c);
+
+		//用户自助转发，不受管理员转发规则影响
+		for (const emailRow of emailRowList) {
+			await forwardService.forwardReceived(c, emailRow, {
+				subject: sendParams.subject,
+				html: sendParams.html,
+				text: sendParams.text,
+				fromAddress: sendParams.accountEmail,
+				fromName: sendParams.name,
+				attachments: sendParams.attachments,
+				rawHeaders: []
+			});
+		}
 
 		if (ruleType === settingConst.ruleType.RULE) {
 			const emails = ruleEmail.split(',');
