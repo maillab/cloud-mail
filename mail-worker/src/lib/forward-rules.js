@@ -10,7 +10,8 @@ export const FORWARD_LIMITS = {
 	maxSendFails: 10,
 	targetCooldownSec: 60,
 	dailyVerifyLimit: 10,
-	lastErrorMaxLen: 500
+	lastErrorMaxLen: 500,
+	sendTimeoutMs: 15000
 };
 
 export function normalizeEmail(str) {
@@ -52,28 +53,26 @@ export function genVerifyCode() {
 	return String(buf[0] % 1000000).padStart(6, '0');
 }
 
-export function checkVerifyCode(row, input, nowMs) {
-	if (!row.verifyCode) return 'invalid';
-	if (row.verifyFailCount >= FORWARD_LIMITS.maxCodeFails) return 'invalid';
-	if (nowMs > Date.parse(row.verifyExpireTime)) return 'invalid';
-	return String(input ?? '').trim() === row.verifyCode ? 'ok' : 'wrong';
+// 只比较码本身；过期、作废、次数上限由 verify 的条件 UPDATE 原子判断
+export function matchVerifyCode(storedCode, input) {
+	if (!storedCode) return false;
+	return String(input ?? '').trim() === storedCode;
 }
 
-export function afterWrongCode(row) {
-	const verifyFailCount = row.verifyFailCount + 1;
-	return {
-		verifyFailCount,
-		verifyCode: verifyFailCount >= FORWARD_LIMITS.maxCodeFails ? '' : row.verifyCode
-	};
+export function isCodeExhausted(verifyFailCount) {
+	return verifyFailCount >= FORWARD_LIMITS.maxCodeFails;
 }
 
-export function afterSendFailure(row, message) {
-	const failCount = row.failCount + 1;
-	return {
-		failCount,
-		status: failCount >= FORWARD_LIMITS.maxSendFails ? FORWARD_STATUS.FAILED : row.status,
-		lastError: String(message ?? '').slice(0, FORWARD_LIMITS.lastErrorMaxLen)
-	};
+export function formatLastError(message) {
+	return String(message ?? '').slice(0, FORWARD_LIMITS.lastErrorMaxLen);
+}
+
+export function withTimeout(promise, ms) {
+	let timer;
+	const timeout = new Promise((_, reject) => {
+		timer = setTimeout(() => reject(new Error('timeout after ' + ms + 'ms')), ms);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 export function pickChannel({ hasCfEmail, resendTokens, accountEmail }) {
@@ -106,11 +105,15 @@ export function sanitizeDisplayName(name) {
 export function buildForwardParams({ accountEmail, target, subject, html, text, fromAddress, fromName, attachments }) {
 	const params = {
 		accountEmail,
-		name: sanitizeDisplayName(fromName) || fromAddress || emailUtils.getName(accountEmail),
+		// 显示名回退到原发件人地址的本地部分，不把完整地址放进显示名
+		name: sanitizeDisplayName(fromName)
+			|| sanitizeDisplayName(emailUtils.getName(fromAddress))
+			|| emailUtils.getName(accountEmail),
 		receiveEmail: [target],
 		subject: subject || '(no subject)',
 		html,
-		text,
+		// 发信渠道要求正文非空，空信补一个空格
+		text: !html && !text ? ' ' : text,
 		attachments,
 		headers: {
 			'X-CloudMail-Forwarded': '1',

@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
-	FORWARD_STATUS, validateTarget, genVerifyCode, checkVerifyCode, afterWrongCode,
-	afterSendFailure, pickChannel, canUseForward, isForwardedMail, sanitizeDisplayName, buildForwardParams
+	FORWARD_LIMITS, validateTarget, genVerifyCode, matchVerifyCode, isCodeExhausted,
+	formatLastError, withTimeout, pickChannel, canUseForward, isForwardedMail, sanitizeDisplayName, buildForwardParams
 } from '../../src/lib/forward-rules.js';
 
 const domainList = ['@example.com', '@example2.com'];
@@ -21,25 +21,43 @@ describe('validateTarget', () => {
 });
 
 describe('verify code', () => {
-	const now = Date.parse('2026-11-11T00:00:00Z');
-	const row = { verifyCode: '123456', verifyExpireTime: '2026-11-11T00:30:00.000Z', verifyFailCount: 0 };
 	it('生成 6 位数字', () => { for (let i = 0; i < 100; i++) expect(genVerifyCode()).toMatch(/^\d{6}$/); });
-	it('正确码（含空格）', () => expect(checkVerifyCode(row, ' 123456 ', now)).toBe('ok'));
-	it('错误码', () => expect(checkVerifyCode(row, '654321', now)).toBe('wrong'));
-	it('过期', () => expect(checkVerifyCode(row, '123456', Date.parse('2026-11-11T00:30:00.001Z'))).toBe('invalid'));
-	it('已清空', () => expect(checkVerifyCode({ ...row, verifyCode: '' }, '', now)).toBe('invalid'));
-	it('已锁定', () => expect(checkVerifyCode({ ...row, verifyFailCount: 5 }, '123456', now)).toBe('invalid'));
-	it('第 4 次错只计数', () => expect(afterWrongCode({ verifyFailCount: 3, verifyCode: '123456' })).toEqual({ verifyFailCount: 4, verifyCode: '123456' }));
-	it('第 5 次错作废', () => expect(afterWrongCode({ verifyFailCount: 4, verifyCode: '123456' })).toEqual({ verifyFailCount: 5, verifyCode: '' }));
+	it('正确码（含空格）', () => expect(matchVerifyCode('123456', ' 123456 ')).toBe(true));
+	it('错误码', () => expect(matchVerifyCode('123456', '654321')).toBe(false));
+	it('已清空的码永不匹配', () => {
+		expect(matchVerifyCode('', '')).toBe(false);
+		expect(matchVerifyCode('', undefined)).toBe(false);
+	});
+	it('第 4 次错只计数', () => expect(isCodeExhausted(4)).toBe(false));
+	it('第 5 次错作废', () => expect(isCodeExhausted(5)).toBe(true));
 });
 
-describe('afterSendFailure', () => {
-	it('未到上限保持状态', () =>
-		expect(afterSendFailure({ failCount: 8, status: FORWARD_STATUS.ACTIVE }, 'boom')).toEqual({ failCount: 9, status: FORWARD_STATUS.ACTIVE, lastError: 'boom' }));
-	it('第 10 次自动停用', () =>
-		expect(afterSendFailure({ failCount: 9, status: FORWARD_STATUS.ACTIVE }, 'boom').status).toBe(FORWARD_STATUS.FAILED));
-	it('错误信息截断', () =>
-		expect(afterSendFailure({ failCount: 0, status: 1 }, 'x'.repeat(600)).lastError).toHaveLength(500));
+describe('formatLastError', () => {
+	it('原样保留短信息', () => expect(formatLastError('boom')).toBe('boom'));
+	it('空信息', () => expect(formatLastError(undefined)).toBe(''));
+	it('错误信息截断', () => expect(formatLastError('x'.repeat(600))).toHaveLength(500));
+});
+
+describe('withTimeout', () => {
+	afterEach(() => vi.useRealTimers());
+	it('按时完成返回结果', async () => {
+		await expect(withTimeout(Promise.resolve('ok'), 15000)).resolves.toBe('ok');
+	});
+	it('原错误照常抛出', async () => {
+		await expect(withTimeout(Promise.reject(new Error('boom')), 15000)).rejects.toThrow('boom');
+	});
+	it('超时报错', async () => {
+		vi.useFakeTimers();
+		const p = withTimeout(new Promise(() => {}), FORWARD_LIMITS.sendTimeoutMs);
+		const check = expect(p).rejects.toThrow('timeout after 15000ms');
+		await vi.advanceTimersByTimeAsync(15000);
+		await check;
+	});
+	it('完成后清理定时器', async () => {
+		vi.useFakeTimers();
+		await withTimeout(Promise.resolve(1), 15000);
+		expect(vi.getTimerCount()).toBe(0);
+	});
 });
 
 describe('pickChannel', () => {
@@ -87,5 +105,35 @@ describe('display name and params', () => {
 		expect(p.name).toBe('GitHub Inc.');
 		expect(p.replyTo).toBe('noreply@github.com');
 		expect(p.subject).toBe('Hello');
+	});
+	it('无显示名时用发件人地址的本地部分，不泄露完整地址', () => {
+		const p = buildForwardParams({
+			accountEmail: 'alice@example.com', target: 'me@gmail.com', subject: 'Hello', html: '', text: 'hi',
+			fromAddress: 'noreply@github.com', fromName: '', attachments: []
+		});
+		expect(p.name).toBe('noreply');
+		expect(p.replyTo).toBe('noreply@github.com');
+	});
+	it('显示名清洗后为空时同样回退到本地部分', () => {
+		const p = buildForwardParams({
+			accountEmail: 'alice@example.com', target: 'me@gmail.com', subject: 'Hello', html: '', text: 'hi',
+			fromAddress: 'noreply@github.com', fromName: '"<>"', attachments: []
+		});
+		expect(p.name).toBe('noreply');
+	});
+	it('没有正文时补一个空格', () => {
+		const empty = { accountEmail: 'alice@example.com', target: 'me@gmail.com', subject: 'Hello',
+			fromAddress: 'bob@x.com', fromName: 'Bob', attachments: [] };
+		expect(buildForwardParams({ ...empty, html: '', text: '' }).text).toBe(' ');
+		expect(buildForwardParams({ ...empty, html: undefined, text: undefined }).text).toBe(' ');
+		expect(buildForwardParams({ ...empty, html: null, text: null }).text).toBe(' ');
+	});
+	it('有正文时不改动', () => {
+		const base2 = { accountEmail: 'alice@example.com', target: 'me@gmail.com', subject: 'Hello',
+			fromAddress: 'bob@x.com', fromName: 'Bob', attachments: [] };
+		const p = buildForwardParams({ ...base2, html: '<p>hi</p>', text: '' });
+		expect(p.html).toBe('<p>hi</p>');
+		expect(p.text).toBe('');
+		expect(buildForwardParams({ ...base2, html: '', text: 'hi' }).text).toBe('hi');
 	});
 });
