@@ -128,15 +128,35 @@ const loginService = {
 
 		const { salt, hash } = await saltHashUtils.hashPassword(password);
 
-		const userId = await userService.insert(c, { email, regKeyId,password: hash, salt, type: type || defType });
+		let consumedCode = null
+		const usingRegKey = regKey !== settingConst.regKey.CLOSE && type
 
-		await accountService.insert(c, { userId: userId, email, name: emailUtils.getName(email) });
+		if (usingRegKey && !await regKeyService.consumeCount(c, code)) {
+			if (regKey === settingConst.regKey.OPEN) {
+				throw new BizError(t('noRegKeyCount'))
+			}
+			type = null
+			regKeyId = 0
+			defType = await this.useDefaultRole(c, email)
+		}
+
+		if (usingRegKey && type) {
+			consumedCode = code
+		}
+
+		let userId
+
+		try {
+			userId = await userService.insert(c, { email, regKeyId, password: hash, salt, type: type || defType });
+			await accountService.insert(c, { userId: userId, email, name: emailUtils.getName(email) });
+		} catch (error) {
+			if (consumedCode) {
+				await regKeyService.restoreCount(c, consumedCode)
+			}
+			throw error
+		}
 
 		await userService.updateUserInfo(c, userId, true);
-
-		if (regKey !== settingConst.regKey.CLOSE && type) {
-			await regKeyService.reduceCount(c, code, 1);
-		}
 
 		if (registerVerify === settingConst.registerVerify.COUNT && !regVerifyOpen) {
 			const row = await verifyRecordService.increaseRegCount(c);
@@ -167,14 +187,19 @@ const loginService = {
 			throw new BizError(t('noRegKeyCount'));
 		}
 
-		const today = toUtc().tz('Asia/Shanghai').startOf('day')
-		const expireTime = toUtc(regKeyRow.expireTime).tz('Asia/Shanghai').startOf('day');
-
-		if (expireTime.isBefore(today)) {
+		if (!toUtc(regKeyRow.expireTime).isAfter(toUtc())) {
 			throw new BizError(t('regKeyExpire'));
 		}
 
 		return { type: regKeyRow.roleId, regKeyId: regKeyRow.regKeyId };
+	},
+
+	async useDefaultRole(c, email) {
+		const defaultRole = await roleService.selectDefaultRole(c)
+		if (!roleService.hasAvailDomainPerm(defaultRole.availDomain, email)) {
+			throw new BizError(t('noDomainPermReg'), 403)
+		}
+		return defaultRole.roleId
 	},
 
 	async handleOpenOptional(c, regKey, code) {
@@ -189,10 +214,7 @@ const loginService = {
 			return null
 		}
 
-		const today = toUtc().tz('Asia/Shanghai').startOf('day')
-		const expireTime = toUtc(regKeyRow.expireTime).tz('Asia/Shanghai').startOf('day');
-
-		if (regKeyRow.count <= 0 || expireTime.isBefore(today)) {
+		if (regKeyRow.count <= 0 || !toUtc(regKeyRow.expireTime).isAfter(toUtc())) {
 			return null
 		}
 
@@ -257,11 +279,11 @@ const loginService = {
 	},
 
 	async logout(c, userId) {
-		const token =userContext.getToken(c);
+		const token = await userContext.getToken(c);
 		const authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userId, { type: 'json' });
 		const index = authInfo.tokens.findIndex(item => item === token);
 		authInfo.tokens.splice(index, 1);
-		await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo));
+		await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
 	}
 
 };

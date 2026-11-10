@@ -4,3 +4,7 @@
   Cache-Control: public, max-age=604800, immutable
 /image/*
   Cache-Control: public, max-age=604800, immutable
+/fonts/*
+  Cache-Control: public, max-age=604800, immutable
+/mail.png
+  Cache-Control: public, max-age=604800

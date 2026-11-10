@@ -20,6 +20,9 @@ id = "9be10cd058e04c55b526f8c0c116f50c"					#kv数据库id
 #binding = "r2"			#r2对象存储绑定名默认不可修改
 #bucket_name = "test-email"		#r2对象存储桶的名字
 
+[[send_email]]
+name = "forward"		#站内转发到已验证的其他邮箱，不限制单个地址
+
 [ai]
 binding = "ai"
 
