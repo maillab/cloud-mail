@@ -12,6 +12,7 @@ import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
 import aiService from '../service/ai-service';
 import webhookService from '../service/webhook-service';
+import forwardService from '../service/forward-service';
 
 export async function email(message, env, ctx) {
 
@@ -160,6 +161,16 @@ export async function email(message, env, ctx) {
 
 		emailRow = await emailService.completeReceive({ env }, account ? emailConst.status.RECEIVE : emailConst.status.NOONE, emailRow.emailId);
 
+		//用户自助转发，不受管理员转发规则影响
+		await forwardService.forwardReceived({ env }, emailRow, {
+			subject: email.subject,
+			html: email.html,
+			text: email.text,
+			fromAddress: email.from?.address || '',
+			fromName: email.from?.name || '',
+			attachments: email.attachments,
+			rawHeaders: email.headers
+		});
 
 		if (ruleType === settingConst.ruleType.RULE) {
 

@@ -196,6 +196,8 @@ const en = {
     disable: 'Disable',
     disabled: 'Disabled',
     otherEmail: 'Forwarding to external email',
+    userForward: 'User forwarding',
+    userForwardDesc: 'Let users auto-forward their mailboxes to external addresses. Forwarding uses your sending quota.',
     webhook: 'Webhook',
     webhookDesc: 'POST received emails as JSON to this URL',
     webhookUrl: 'Request URL',
@@ -385,6 +387,18 @@ const en = {
     clientId: 'Client ID',
     clientSecret: 'Client Secret',
     notOwner: 'Base email does not belong to you',
+    forwardSetting: 'Forwarding',
+    forwardDesc: 'Incoming mail is forwarded to the verified addresses below',
+    forwardInputDesc: 'Enter an address to forward to',
+    forwardLimitTip: 'Up to 3 addresses. Addresses on this site cannot be used.',
+    forwardPending: 'Pending',
+    forwardActive: 'Verified',
+    forwardFailed: 'Disabled after {count} failures',
+    forwardEnterCode: 'Enter code',
+    forwardResend: 'Resend',
+    forwardReEnable: 'Re-enable',
+    forwardCodeSent: 'Code sent to {email}',
+    forwardDelConfirm: 'Delete this forwarding address?',
 }
 
 export default en
