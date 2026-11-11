@@ -1309,7 +1309,7 @@ function saveUiTheme() {
     settingStore.settings.uiTheme = uiTheme
     applyUiTheme(uiTheme)
     uiThemeShow.value = false
-  }).finally(() => {
+  }).catch(() => {}).finally(() => {
     settingLoading.value = false
   })
 }
@@ -1774,7 +1774,6 @@ function editSetting(settingForm, refreshStatus = true) {
     aiCodeFilterShow.value = false
     autoCleanShow.value = false
     oauthSettingShow.value = false
-    uiThemeShow.value = false
   }).catch((e) => {
     loginOpacity.value = setting.value.loginOpacity
     setting.value = {...setting.value, ...JSON.parse(backup)}
