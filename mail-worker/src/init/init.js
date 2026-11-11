@@ -40,9 +40,8 @@ const dbInit = {
 
 	async v3_5DB(c) {
 		const sqlList = [
-			`CREATE TABLE IF NOT EXISTS account_forward (
+			`CREATE TABLE IF NOT EXISTS user_forward (
 				forward_id INTEGER PRIMARY KEY AUTOINCREMENT,
-				account_id INTEGER NOT NULL,
 				user_id INTEGER NOT NULL,
 				target_email TEXT NOT NULL,
 				status INTEGER NOT NULL DEFAULT 0,
@@ -54,8 +53,8 @@ const dbInit = {
 				last_error TEXT NOT NULL DEFAULT '',
 				create_time TEXT DEFAULT CURRENT_TIMESTAMP
 			)`,
-			`CREATE INDEX IF NOT EXISTS idx_account_forward_account ON account_forward(account_id, status)`,
-			`CREATE UNIQUE INDEX IF NOT EXISTS idx_account_forward_unique ON account_forward(account_id, target_email COLLATE NOCASE)`,
+			`CREATE INDEX IF NOT EXISTS idx_user_forward_user ON user_forward(user_id, status)`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_user_forward_unique ON user_forward(user_id, target_email COLLATE NOCASE)`,
 			`CREATE TABLE IF NOT EXISTS forward_verify_quota (
 				quota_key TEXT PRIMARY KEY,
 				count INTEGER NOT NULL DEFAULT 0,

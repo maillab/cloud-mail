@@ -5,7 +5,7 @@ import userService from './user-service';
 import emailService from './email-service';
 import orm from '../entity/orm';
 import account from '../entity/account';
-import accountForward from '../entity/account-forward';
+import userForward from '../entity/user-forward';
 import { and, asc, eq, gt, inArray, count, sql, ne, or, lt, desc } from 'drizzle-orm';
 import {accountConst, isDel, settingConst} from '../const/entity-const';
 import settingService from './setting-service';
@@ -193,7 +193,7 @@ const accountService = {
 
 	async physicsDeleteByUserIds(c, userIds) {
 		await emailService.physicsDeleteUserIds(c, userIds);
-		await orm(c).delete(accountForward).where(inArray(accountForward.userId, userIds)).run();
+		await orm(c).delete(userForward).where(inArray(userForward.userId, userIds)).run();
 		await orm(c).delete(account).where(inArray(account.userId,userIds)).run();
 	},
 
@@ -259,7 +259,6 @@ const accountService = {
 	async physicsDelete(c, params) {
 		const { accountId } = params
 		await emailService.physicsDeleteByAccountId(c, accountId)
-		await orm(c).delete(accountForward).where(eq(accountForward.accountId, accountId)).run();
 		await orm(c).delete(account).where(eq(account.accountId, accountId)).run();
 	},
 

@@ -6,12 +6,13 @@ import userContext from '../security/user-context';
 const getLang = (c) => c.req.header('accept-language')?.split('-')[0] === 'en' ? 'en' : 'zh';
 
 app.get('/forward/list', async (c) => {
-	const list = await forwardService.list(c, c.req.query(), userContext.getUserId(c));
+	const list = await forwardService.list(c, userContext.getUserId(c));
 	return c.json(result.ok(list));
 });
 
 app.post('/forward/add', async (c) => {
-	const row = await forwardService.add(c, await c.req.json(), userContext.getUserId(c), getLang(c));
+	const { targetEmail } = await c.req.json();
+	const row = await forwardService.add(c, { targetEmail }, userContext.getUserId(c), getLang(c));
 	return c.json(result.ok(row));
 });
 
