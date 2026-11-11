@@ -121,11 +121,12 @@
 <script setup>
 import {Icon} from "@iconify/vue";
 import {useTransition} from "@vueuse/core";
-import {defineOptions, onActivated, onDeactivated, onMounted, reactive, ref, watch, computed} from "vue";
+import {defineOptions, nextTick, onActivated, onDeactivated, onMounted, reactive, ref, watch, computed} from "vue";
 import echarts from "@/echarts/index.js";
 import dayjs from "dayjs";
 import {analysisEcharts} from "@/request/analysis.js";
 import {useUiStore} from "@/store/ui.js";
+import {useSettingStore} from "@/store/setting.js";
 import {debounce} from "lodash-es";
 import loading from "@/components/loading/index.vue";
 import {useRoute} from "vue-router";
@@ -138,6 +139,7 @@ defineOptions({
 const {t} = useI18n();
 const route = useRoute();
 const uiStore = useUiStore()
+const settingStore = useSettingStore()
 const checkedSourceType = ref('sender')
 const receiveTotal = ref(0)
 const sendTotal = ref(0)
@@ -185,17 +187,28 @@ const emailColumnData = {
   daysData: []
 }
 
-const topic = computed(() => ({
-  color: uiStore.dark ? '#E5EAF3' : '#303133',
-  background: uiStore.dark ? '#141414' : '#FFFFFF',
-  borderColor: uiStore.dark ? '#141414' : '#FFFFFF',
-  scaleLineColor: uiStore.dark ? '#636466' : '#CDD0D6',
-  crossColor: uiStore.dark ? '#8D9095' : '#A8ABB2',
-  axisColor: uiStore.dark ? '#A3A6AD' : '#909399',
-  splitLineColor: uiStore.dark ? '#58585B' : '#D4D7DE',
-  gaugeSplitLine: uiStore.dark ? '#CFD3DC' : '#606266',
-  containerBackground: uiStore.dark ? '#6C6E72' : '#E6EBF8'
-}))
+function readToken(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
+function readTopic() {
+  return {
+    color: readToken('--el-text-color-primary'),
+    background: readToken('--el-bg-color'),
+    borderColor: readToken('--el-bg-color'),
+    scaleLineColor: readToken('--dark-border'),
+    crossColor: readToken('--scrollbar-track-color'),
+    axisColor: readToken('--secondary-text-color'),
+    splitLineColor: readToken('--base-border-color'),
+    gaugeSplitLine: readToken('--regular-text-color'),
+    containerBackground: readToken('--surface-3'),
+    series: [1, 2, 3, 4, 5, 6].map(i => readToken('--chart-' + i)),
+    areaFrom: readToken('--chart-area-from'),
+    areaTo: readToken('--chart-area-to')
+  }
+}
+
+const topic = ref(readTopic())
 let daySendTotal = 0
 let leaveWidth = 0
 let senderPie = null
@@ -206,6 +219,7 @@ let first = true
 let boxKey = ref(0)
 let senderPieLeft = window.innerWidth < 500 ? `${window.innerWidth - 110}` : '72%'
 let analysisDark = uiStore.dark
+let analysisTheme = settingStore.settings.uiTheme
 
 onMounted(() => {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -262,9 +276,10 @@ onActivated(() => {
     widthChange()
   } else if (!senderPie) {
     widthChange()
-  } else if (analysisDark !== uiStore.dark) {
-    initPicture()
+  } else if (analysisDark !== uiStore.dark || analysisTheme !== settingStore.settings.uiTheme) {
     analysisDark = uiStore.dark
+    analysisTheme = settingStore.settings.uiTheme
+    nextTick(initPicture)
   }
 })
 
@@ -280,7 +295,13 @@ window.onresize = () => {
 watch(() => uiStore.dark, () => {
   if (route.name !== 'analysis') return
   analysisDark = uiStore.dark
-  initPicture()
+  nextTick(initPicture)
+})
+
+watch(() => settingStore.settings.uiTheme, () => {
+  if (route.name !== 'analysis') return
+  analysisTheme = settingStore.settings.uiTheme
+  nextTick(initPicture)
 })
 
 function initPicture() {
@@ -318,6 +339,7 @@ function truncateTextByWidth(text, maxWidth = 140) {
 }
 
 function createSenderPie() {
+  topic.value = readTopic()
 
   if (senderPie) {
     senderPie.dispose()
@@ -363,7 +385,7 @@ function createSenderPie() {
           show: false,
           position: 'outside', // 标签显示在外部
           formatter: '{d}%',  // 显示名称和占比
-          color: '#333',
+          color: topic.value.color,
           fontSize: 14  // 设置字体大小
         },
         emphasis: {
@@ -376,7 +398,7 @@ function createSenderPie() {
         labelLine: {
           show: true
         },
-        color: ['#3CB2FF', '#13DEB9', '#FBBF24', '#FF7F50', '#BAE6FD', '#C084FC'] // 添加符合主题的配色
+        color: topic.value.series
       }
     ]
   }
@@ -384,6 +406,7 @@ function createSenderPie() {
 }
 
 function createIncreaseLine() {
+  topic.value = readTopic()
 
   if (increaseLine) {
     increaseLine.dispose()
@@ -503,22 +526,22 @@ function createIncreaseLine() {
         smooth: 0.1,
         symbol: 'none',
         lineStyle: {
-          color: '#1D84FF',
+          color: topic.value.series[0],
           width: 2.5
         },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             {
               offset: 0,
-              color: 'rgba(29, 132, 255, 0.3)'
+              color: topic.value.areaFrom
             },
             {
               offset: 1,
-              color: 'rgba(29, 132, 255, 0.03)'
+              color: topic.value.areaTo
             }
           ])
         },
-        color: ['#1D84FF'],
+        color: [topic.value.series[0]],
       }
     ]
   };
@@ -541,6 +564,7 @@ function createIncreaseLine() {
 }
 
 function createEmailColumnChart() {
+  topic.value = readTopic()
 
   if (emailColumn) {
     emailColumn.dispose()
@@ -626,7 +650,7 @@ function createEmailColumnChart() {
         },
         data: emailColumnData.receiveData,
         itemStyle: {
-          color: '#3CB2FF',
+          color: topic.value.series[0],
         }
       },
       {
@@ -641,7 +665,7 @@ function createEmailColumnChart() {
         },
         data: emailColumnData.sendData,
         itemStyle: {
-          color: '#13deb9',
+          color: topic.value.series[1],
         }
       }
     ]
@@ -651,6 +675,7 @@ function createEmailColumnChart() {
 }
 
 function createSendGauge() {
+  topic.value = readTopic()
   if (sendGauge) {
     sendGauge.dispose()
   }
@@ -671,13 +696,13 @@ function createSendGauge() {
         show: true,
         roundCap: true,
         itemStyle: {
-          color: '#3CB2FF'
+          color: topic.value.series[0]
         }
       },
       // 指针颜色（新增）
       pointer: {
         itemStyle: {
-          color: '#3CB2FF'
+          color: topic.value.series[0]
         }
       },
       axisLabel: {
@@ -716,7 +741,7 @@ function createSendGauge() {
         }
       }]
     }],
-    color: ['#3CB2FF']
+    color: [topic.value.series[0]]
   };
   sendGauge.setOption(option);
 }
@@ -758,6 +783,7 @@ function createSendGauge() {
   }
 
   .title {
+    font-family: var(--font-heading);
     margin-top: 10px;
     margin-left: 15px;
     font-size: 18px;

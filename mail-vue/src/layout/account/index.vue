@@ -9,7 +9,7 @@
         <el-card class="item" :class="itemBg(item.accountId)" v-for="(item, index) in accounts" :key="item.accountId"
                  @click="changeAccount(item)">
           <div class="account">
-            {{ item.email }}
+            <span class="mailbox-dot" :class="'mailbox-' + mailboxColorIndex(item.email)"></span>{{ item.email }}
           </div>
           <div class="opt">
             <div class="send-email" @click.stop>
@@ -18,10 +18,10 @@
             </div>
             <div class="settings" @click.stop>
               <Icon icon="fluent-color:clipboard-24" width="22" height="22" @click.stop="copyAccount(item.email)"/>
-              <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"
+              <Icon icon="fluent:settings-24-filled" width="21" height="21" color="var(--secondary-text-color)"
                     v-if="showNullSetting(item)"/>
               <el-dropdown v-else>
-                <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"/>
+                <Icon icon="fluent:settings-24-filled" width="21" height="21" color="var(--secondary-text-color)"/>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item v-if="hasPerm('email:send')" @click="openSetName(item)">{{ $t('rename') }}</el-dropdown-item>
@@ -113,7 +113,7 @@
           data-callback="onTurnstileSuccess"
           data-error-callback="onTurnstileError"
       >
-        <span style="font-size: 12px;color: #F56C6C" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('add')}) }}</span>
+        <span style="font-size: 12px;color: var(--el-color-danger)" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('add')}) }}</span>
       </div>
     </el-dialog>
     <el-dialog v-model="setNameShow" :title="$t('changeUserName')">
@@ -148,6 +148,7 @@ import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
 import {AccountAllReceiveEnum} from "@/enums/account-enum.js";
 import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
+import {mailboxColorIndex} from "@/utils/mailbox-color.js";
 
 const {t} = useI18n();
 const userStore = useUserStore();
@@ -613,7 +614,7 @@ path[fill="#ffdda1"] {
 
   .item {
     background-color: var(--el-bg-color);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 10px;
     margin-bottom: 11px;
     margin-left: 10px;
@@ -629,11 +630,21 @@ path[fill="#ffdda1"] {
       text-overflow: ellipsis;
     }
 
+    .mailbox-dot {
+      display: none;
+      width: 9px;
+      height: 9px;
+      border-radius: 3px;
+      margin-right: 8px;
+      background: var(--mailbox-color);
+      vertical-align: middle;
+    }
+
     .opt {
       display: flex;
       justify-content: space-between;
       font-size: 12px;
-      color: #888;
+      color: var(--secondary-text-color);
 
       .settings {
         display: flex;

@@ -362,6 +362,7 @@ const handleDelete = () => {
   }
 
   .email-title {
+    font-family: var(--font-heading);
     font-size: 20px;
     font-weight: bold;
     margin-bottom: 10px;

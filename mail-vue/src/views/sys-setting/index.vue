@@ -100,6 +100,20 @@
                 </div>
               </div>
               <div class="setting-item">
+                <div>
+                  <span>{{ $t('uiTheme') }}</span>
+                  <el-tooltip effect="dark" :content="$t('uiThemeDesc')">
+                    <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+                  </el-tooltip>
+                </div>
+                <div class="forward">
+                  <span>{{ $t(uiThemeLabel(setting.uiTheme)) }}</span>
+                  <el-button class="opt-button" size="small" type="primary" @click="openUiTheme">
+                    <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
+                  </el-button>
+                </div>
+              </div>
+              <div class="setting-item">
                 <div class="title-item"><span>{{ $t('loginBoxOpacity') }}</span></div>
                 <div>
                   <el-input-number size="small" v-model="loginOpacity" @change="opacityChange" :precision="2"
@@ -448,7 +462,7 @@
                   <el-button @click="jump('https://github.com/maillab/cloud-mail/releases')">
                     {{ currentVersion }}
                     <template #icon>
-                      <Icon icon="qlementine-icons:version-control-16" style="font-size: 20px" color="#1890FF"/>
+                      <Icon icon="qlementine-icons:version-control-16" style="font-size: 20px" color="var(--el-color-primary)"/>
                     </template>
                   </el-button>
                 </el-badge>
@@ -864,6 +878,18 @@ Authorization: &lt;secret&gt;</pre>
         </div>
         <el-button type="primary" style="width: 100%;" :loading="settingLoading" @click="saveEmailPrefix">{{ $t('save') }}</el-button>
       </el-dialog>
+      <el-dialog v-model="uiThemeShow" class="forward-dialog">
+        <template #header>
+          <div class="forward-head">
+            <span class="forward-set-title">{{ $t('uiTheme') }}</span>
+            <el-tooltip effect="dark" :content="$t('uiThemeDesc')">
+              <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+            </el-tooltip>
+          </div>
+        </template>
+        <ui-theme-picker class="ui-theme-picker" v-model="uiThemeDraft"/>
+        <el-button type="primary" style="width: 100%;" :loading="settingLoading" @click="saveUiTheme">{{ $t('save') }}</el-button>
+      </el-dialog>
       <el-dialog v-model="blackFormShow" class="forward-dialog" @closed="resetBlackList">
         <template #header>
           <div class="forward-head">
@@ -935,6 +961,8 @@ import {storeToRefs} from "pinia";
 import {debounce} from 'lodash-es'
 import {isDomain, isEmail, isIpUrl} from "@/utils/verify-utils.js";
 import loading from "@/components/loading/index.vue";
+import uiThemePicker from "@/components/ui-theme-picker/index.vue";
+import {applyUiTheme, normalizeUiTheme} from "@/utils/theme.js";
 import {getTextWidth} from "@/utils/text.js";
 import {fileToBase64} from "@/utils/file-utils.js"
 import {useI18n} from 'vue-i18n';
@@ -966,6 +994,8 @@ const thirdEmailShow = ref(false)
 const webhookShow = ref(false)
 const forwardRulesShow = ref(false)
 const emailPrefixShow = ref(false)
+const uiThemeShow = ref(false)
+const uiThemeDraft = ref('workspace')
 const showResendList = ref(false)
 const settingStore = useSettingStore();
 const uiStore = useUiStore();
@@ -1265,6 +1295,35 @@ function openWebhookSetting() {
   webhookRetry.value = setting.value.webhookRetry ?? 0
   webhookSecret.value = setting.value.webhookSecret || ''
   webhookShow.value = true
+}
+
+function uiThemeLabel(value) {
+  const theme = normalizeUiTheme(value)
+  return 'theme' + theme.charAt(0).toUpperCase() + theme.slice(1)
+}
+
+function openUiTheme() {
+  uiThemeDraft.value = normalizeUiTheme(setting.value.uiTheme)
+  uiThemeShow.value = true
+}
+
+function saveUiTheme() {
+  if (settingLoading.value) return
+  const uiTheme = uiThemeDraft.value
+  settingLoading.value = true
+  settingSet({uiTheme}).then(() => {
+    ElMessage({
+      message: t('saveSuccessMsg'),
+      type: "success",
+      plain: true
+    })
+    setting.value.uiTheme = uiTheme
+    settingStore.settings.uiTheme = uiTheme
+    applyUiTheme(uiTheme)
+    uiThemeShow.value = false
+  }).catch(() => {}).finally(() => {
+    settingLoading.value = false
+  })
 }
 
 function openEmailPrefix() {
@@ -1819,7 +1878,7 @@ function editSetting(settingForm, refreshStatus = true) {
 
 .settings-card {
   background-color: var(--el-bg-color);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--el-border-color);
   transition: all 300ms;
   overflow: hidden;
@@ -1829,6 +1888,7 @@ function editSetting(settingForm, refreshStatus = true) {
 
 
 .card-title {
+  font-family: var(--font-heading);
   font-size: 15px;
   font-weight: bold;
   padding: 15px 20px 12px;
@@ -1885,7 +1945,7 @@ function editSetting(settingForm, refreshStatus = true) {
 
 .cropper {
   border-radius: 4px;
-  border: 1px solid #D4D7DE;
+  border: 1px solid var(--el-border-color);
   height: 397px;
   width: 705px;
   @media (max-width: 767px) {
@@ -2056,6 +2116,10 @@ function editSetting(settingForm, refreshStatus = true) {
     width: 48px;
     margin: 0 0 0 10px;
   }
+}
+
+.ui-theme-picker {
+  margin-bottom: 15px;
 }
 
 .forward-set-body {

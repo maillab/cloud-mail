@@ -259,6 +259,7 @@ function submitPwd() {
   }
 
   .title {
+    font-family: var(--font-heading);
     font-size: 18px;
     font-weight: bold;
   }
@@ -293,7 +294,7 @@ function submitPwd() {
       }
 
       .edit-name {
-        color: #4dabff;
+        color: var(--el-color-primary-light-3);
         padding-left: 10px;
         white-space: nowrap;
         cursor: pointer;
