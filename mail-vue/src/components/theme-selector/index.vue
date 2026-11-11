@@ -28,6 +28,7 @@
 import {useId} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useUiStore} from '@/store/ui.js'
+import {updateThemeColorMeta} from '@/utils/theme.js'
 
 const {t} = useI18n()
 const uiStore = useUiStore()
@@ -51,11 +52,7 @@ function changeDark(nextIsDark, origin) {
   const root = document.documentElement
   const applyTheme = () => {
     root.classList.toggle('dark', nextIsDark)
-    const isMobile = !window.matchMedia("(pointer: fine) and (hover: hover)").matches
-    document.getElementById('theme-color-meta')?.setAttribute(
-      'content',
-      nextIsDark ? (isMobile ? '#141414' : '#000000') : (isMobile ? '#191A23' : '#F1F1F1')
-    )
+    updateThemeColorMeta()
     uiStore.dark = nextIsDark
   }
 
@@ -112,7 +109,7 @@ function changeDark(nextIsDark, origin) {
   display: flex;
   aspect-ratio: 1.6;
   overflow: hidden;
-  border: 1px solid #dfe1e5;
+  border: 1px solid var(--el-border-color);
   border-radius: 4px;
   background: #ffffff;
 
@@ -120,7 +117,7 @@ function changeDark(nextIsDark, origin) {
     display: block;
     height: 6px;
     border-radius: 2px;
-    background: #e2e4e8;
+    background: var(--surface-3);
   }
 
   .preview-sidebar {
@@ -129,10 +126,10 @@ function changeDark(nextIsDark, origin) {
     gap: 8px;
     width: 28%;
     padding: 12px 6px;
-    background: #f0f1f3;
+    background: var(--sidebar-bg);
 
     i:first-child {
-      background: #91caff;
+      background: var(--el-color-primary);
     }
   }
 
@@ -160,7 +157,7 @@ function changeDark(nextIsDark, origin) {
       background: #303236;
 
       i:first-child {
-        background: #409eff;
+        background: var(--el-color-primary);
       }
     }
   }

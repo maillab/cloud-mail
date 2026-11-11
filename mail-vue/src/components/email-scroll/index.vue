@@ -38,7 +38,7 @@
                         :key="keyCount"
         >
           <template #default="{ data: item, index }" >
-            <div :class="['email-row', props.type, { 'right-checked': item.rightChecked }]"
+            <div :class="['email-row', props.type, 'mailbox-' + mailboxColorIndex(item.toEmail), { 'right-checked': item.rightChecked }]"
                  :data-checked="item.checked"
                  @click="jumpDetails(item)"
                  v-if="!item.expand"
@@ -54,6 +54,7 @@
                 <Icon v-else icon="solar:star-line-duotone" width="18" height="18"/>
               </div>
               <div v-if="!showStar"></div>
+              <div class="sender-avatar" :class="'avatar-' + mailboxColorIndex(item.sendEmail)" aria-hidden="true">{{ senderInitial(item.name, item.sendEmail) }}</div>
               <div class="title" :class="accountShow ? 'title-column' : 'title-column'">
 
                 <div class="email-sender" :style=" (showStatus ? 'gap: 10px;' : '') + ((item.unread === EmailUnreadEnum.UNREAD && showUnread)  ? 'font-weight: bold' : '')">
@@ -83,7 +84,7 @@
                   <div class="email-text">
                     <span class="email-subject" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread)  ? 'font-weight: bold' : ''">
                       <div class="unread" v-if="!isMobile && (item.unread === EmailUnreadEnum.UNREAD && showUnread) "/>
-                      <span v-if="item.code" class="code-tag" @click.stop="copyCode(item.code)">[{{ t('codeLabel') }}{{ item.code }}]</span>
+                      <span v-if="item.code" class="code-tag" @click.stop="copyCode(item.code)">{{ item.code }}</span>
                       <span class="subject-text">
                         <slot name="subject" :email="item" >
                           <span v-html="item.subjectHtml"></span>
@@ -245,6 +246,7 @@ import {sleep} from "@/utils/time-utils.js"
 import {fromNow} from "@/utils/day.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import {mailboxColorIndex, senderInitial} from "@/utils/mailbox-color.js";
 import { UseVirtualList } from '@vueuse/components'
 import { useScroll } from '@vueuse/core'
 
@@ -876,15 +878,15 @@ function handleList(list) {
     email.formatCreateTime = fromNow(email.createTime);
     email.test = t('received')
     const statusIconMap = {
-      0: { icon: 'ic:round-mark-email-read', color: '#51C76B', content: t('received') },
-      1: { icon: 'bi:send-arrow-up-fill',  color: '#51C76B', content: t('sent') },
-      2: { icon: 'bi:send-check-fill',     color: '#51C76B', content: t('delivered') },
-      3: { icon: 'bi:send-x-fill',         color: '#F56C6C', content: t('bounced') },
-      8: { icon: 'bi:send-x-fill',         color: '#F56C6C', content: t('bounced') },
-      4: { icon: 'bi:send-exclamation-fill', color: '#FBBD08', content: t('complained') },
-      5: { icon: 'bi:send-arrow-up-fill',  color: '#FBBD08', content: t('delayed') },
-      6: { icon: 'mdi:email-lock', color: '#909399', content: t('saving') },
-      7: { icon: 'ic:round-mark-email-read', color: '#FBBD08', content: t('noRecipient') },
+      0: { icon: 'ic:round-mark-email-read', color: 'var(--el-color-success)', content: t('received') },
+      1: { icon: 'bi:send-arrow-up-fill',  color: 'var(--el-color-success)', content: t('sent') },
+      2: { icon: 'bi:send-check-fill',     color: 'var(--el-color-success)', content: t('delivered') },
+      3: { icon: 'bi:send-x-fill',         color: 'var(--el-color-danger)', content: t('bounced') },
+      8: { icon: 'bi:send-x-fill',         color: 'var(--el-color-danger)', content: t('bounced') },
+      4: { icon: 'bi:send-exclamation-fill', color: 'var(--el-color-warning)', content: t('complained') },
+      5: { icon: 'bi:send-arrow-up-fill',  color: 'var(--el-color-warning)', content: t('delayed') },
+      6: { icon: 'mdi:email-lock', color: 'var(--el-color-info)', content: t('saving') },
+      7: { icon: 'ic:round-mark-email-read', color: 'var(--el-color-warning)', content: t('noRecipient') },
     };
 
     if (email.isDel) {
@@ -1089,6 +1091,25 @@ function renderHighlight(value) {
     }
   }
 
+  .sender-avatar {
+    display: none;
+    width: 28px;
+    height: 28px;
+    margin-right: 12px;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+    background: var(--avatar-bg);
+    color: var(--avatar-text);
+    @media (max-width: 1366px) {
+      align-self: flex-start;
+      margin-top: 8px;
+    }
+  }
+
   .checkbox {
     display: flex;
     padding-left: 15px;
@@ -1231,9 +1252,16 @@ function renderHighlight(value) {
         flex: 0 0 auto;
         max-width: 170px;
         height: 20px;
+        padding: 0 8px;
+        border-radius: var(--radius-sm);
+        background: var(--code-tag-bg);
+        border: 1px solid var(--code-tag-border);
+        color: var(--code-tag-text);
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        font-size: 13px;
         line-height: 20px;
-        font-size: 14px;
-        color: var(--el-text-color-primary);
+        box-sizing: border-box;
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
@@ -1289,10 +1317,6 @@ function renderHighlight(value) {
   &.right-checked:hover {
     background-color: var(--email-right-click-background);
   }
-
-  /*&[data-checked="true"] {
-    background-color: #c2dbff;
-  }*/
 }
 
 

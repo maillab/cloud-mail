@@ -33,7 +33,7 @@
                   :key="item"
                   :label="item"
                   :value="item"
-                  style="color: #999896;"
+                  style="color: var(--secondary-text-color);"
               />
             </el-select>
           </template>
@@ -90,7 +90,7 @@
         <el-table-column width="55" label="" >
           <template #default>
             <div style="display: flex;">
-              <Icon icon="mage:user" style="color: var(--el-text-color-primary)" width="22" height="22" color="#606266" />
+              <Icon icon="mage:user" style="color: var(--el-text-color-primary)" width="22" height="22" color="var(--regular-text-color)" />
             </div>
           </template>
         </el-table-column>
@@ -697,7 +697,7 @@ function close() {
       }
 
       .send-email {
-        color: #999896;
+        color: var(--secondary-text-color);
         margin-left: 5px;
         white-space: nowrap;
         text-overflow: ellipsis;
