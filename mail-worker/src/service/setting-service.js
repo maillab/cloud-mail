@@ -230,6 +230,7 @@ const settingService = {
 			googleSwitch: settingRow.googleSwitch,
 			minEmailPrefix: settingRow.minEmailPrefix,
 			projectLink: settingRow.projectLink,
+			userForward: settingRow.userForward,
 			uiTheme: settingRow.uiTheme
 		};
 	},

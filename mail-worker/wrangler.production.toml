@@ -1,0 +1,24 @@
+name = "cloud-mail"
+main = "src/index.js"
+account_id = "7699aa3f33ac723c5aadffbeb57879ae"
+compatibility_date = "2025-06-04"
+keep_vars = true
+workers_dev = true
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "db"
+database_name = "cloud-mail-zappo-db"
+database_id = "98de6026-70cb-4649-aa4d-dc77cee0150d"
+migrations_dir = "migrations/production"
+
+[assets]
+binding = "assets"
+directory = "./dist"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+[triggers]
+crons = ["0 * * * *"]

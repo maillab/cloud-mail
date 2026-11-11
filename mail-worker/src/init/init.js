@@ -33,9 +33,45 @@ const dbInit = {
 		await this.v3_2DB(c);
 		await this.v3_3DB(c);
 		await this.v3_4DB(c);
+		await this.v3_5DB(c);
 		await this.v3_6DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async v3_5DB(c) {
+		const sqlList = [
+			`CREATE TABLE IF NOT EXISTS account_forward (
+				forward_id INTEGER PRIMARY KEY AUTOINCREMENT,
+				account_id INTEGER NOT NULL,
+				user_id INTEGER NOT NULL,
+				target_email TEXT NOT NULL,
+				status INTEGER NOT NULL DEFAULT 0,
+				verify_code TEXT NOT NULL DEFAULT '',
+				verify_expire_time TEXT,
+				verify_send_time TEXT,
+				verify_fail_count INTEGER NOT NULL DEFAULT 0,
+				fail_count INTEGER NOT NULL DEFAULT 0,
+				last_error TEXT NOT NULL DEFAULT '',
+				create_time TEXT DEFAULT CURRENT_TIMESTAMP
+			)`,
+			`CREATE INDEX IF NOT EXISTS idx_account_forward_account ON account_forward(account_id, status)`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_account_forward_unique ON account_forward(account_id, target_email COLLATE NOCASE)`,
+			`CREATE TABLE IF NOT EXISTS forward_verify_quota (
+				quota_key TEXT PRIMARY KEY,
+				count INTEGER NOT NULL DEFAULT 0,
+				last_time INTEGER NOT NULL DEFAULT 0
+			)`,
+			`ALTER TABLE setting ADD COLUMN user_forward INTEGER NOT NULL DEFAULT 1`,
+			`INSERT INTO perm (perm_id, name, perm_key, pid, type, sort) VALUES (37, '邮箱转发', 'account:forward', 21, 2, 3)`
+		];
+		for (const sqlText of sqlList) {
+			try {
+				await c.env.db.prepare(sqlText).run();
+			} catch (e) {
+				console.warn(`跳过字段：${e.message}`);
+			}
+		}
 	},
 
 	async v3_6DB(c) {

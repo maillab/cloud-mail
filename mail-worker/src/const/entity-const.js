@@ -69,6 +69,10 @@ export const attConst = {
 }
 
 export const settingConst = {
+	userForward: {
+		OPEN: 0,
+		CLOSE: 1,
+	},
 	register: {
 		OPEN: 0,
 		CLOSE: 1,

@@ -58,7 +58,13 @@ const requirePerms = [
 	'/regKey/list',
 	'/regKey/delete',
 	'/regKey/clearNotUse',
-	'/regKey/history'
+	'/regKey/history',
+	'/forward/list',
+	'/forward/add',
+	'/forward/verify',
+	'/forward/resendCode',
+	'/forward/setStatus',
+	'/forward/delete'
 ];
 
 const premKey = {
@@ -87,6 +93,7 @@ const premKey = {
 	'reg-key:add': ['/regKey/add'],
 	'reg-key:query': ['/regKey/list','/regKey/history'],
 	'reg-key:delete': ['/regKey/delete','/regKey/clearNotUse'],
+	'account:forward': ['/forward/list', '/forward/add', '/forward/verify', '/forward/resendCode', '/forward/setStatus', '/forward/delete'],
 };
 
 app.use('*', async (c, next) => {
