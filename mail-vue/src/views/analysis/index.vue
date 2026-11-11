@@ -308,7 +308,6 @@ function initPicture() {
   if (route.name !== 'analysis') return
   boxKey.value++
   setTimeout(() => {
-    topic.value = readTopic()
     createSenderPie()
     createIncreaseLine()
     createEmailColumnChart();
@@ -340,6 +339,7 @@ function truncateTextByWidth(text, maxWidth = 140) {
 }
 
 function createSenderPie() {
+  topic.value = readTopic()
 
   if (senderPie) {
     senderPie.dispose()
@@ -406,6 +406,7 @@ function createSenderPie() {
 }
 
 function createIncreaseLine() {
+  topic.value = readTopic()
 
   if (increaseLine) {
     increaseLine.dispose()
@@ -563,6 +564,7 @@ function createIncreaseLine() {
 }
 
 function createEmailColumnChart() {
+  topic.value = readTopic()
 
   if (emailColumn) {
     emailColumn.dispose()
@@ -673,6 +675,7 @@ function createEmailColumnChart() {
 }
 
 function createSendGauge() {
+  topic.value = readTopic()
   if (sendGauge) {
     sendGauge.dispose()
   }
