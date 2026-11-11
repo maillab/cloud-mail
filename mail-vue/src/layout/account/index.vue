@@ -113,7 +113,7 @@
           data-callback="onTurnstileSuccess"
           data-error-callback="onTurnstileError"
       >
-        <span style="font-size: 12px;color: #F56C6C" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('add')}) }}</span>
+        <span style="font-size: 12px;color: var(--el-color-danger)" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('add')}) }}</span>
       </div>
     </el-dialog>
     <el-dialog v-model="setNameShow" :title="$t('changeUserName')">
@@ -613,7 +613,7 @@ path[fill="#ffdda1"] {
 
   .item {
     background-color: var(--el-bg-color);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 10px;
     margin-bottom: 11px;
     margin-left: 10px;
@@ -633,7 +633,7 @@ path[fill="#ffdda1"] {
       display: flex;
       justify-content: space-between;
       font-size: 12px;
-      color: #888;
+      color: var(--secondary-text-color);
 
       .settings {
         display: flex;

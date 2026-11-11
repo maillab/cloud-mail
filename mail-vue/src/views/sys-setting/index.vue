@@ -1807,7 +1807,7 @@ function editSetting(settingForm, refreshStatus = true) {
 
 .settings-card {
   background-color: var(--el-bg-color);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--el-border-color);
   transition: all 300ms;
   overflow: hidden;
@@ -1873,7 +1873,7 @@ function editSetting(settingForm, refreshStatus = true) {
 
 .cropper {
   border-radius: 4px;
-  border: 1px solid #D4D7DE;
+  border: 1px solid var(--el-border-color);
   height: 397px;
   width: 705px;
   @media (max-width: 767px) {
