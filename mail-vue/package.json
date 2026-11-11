@@ -8,7 +8,8 @@
     "remote": "vite --mode remote",
     "build": "vite build --mode release",
     "eo": "vite build --mode eo",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {
     "@iconify/vue": "^4.3.0",

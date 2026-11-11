@@ -105,36 +105,88 @@ button, input, select, textarea {
     max-height: 220px !important;
 }
 
+/* workspace 浅色（默认） */
 :root {
-    --el-color-primary: #1890ff;
-    --el-color-primary-dark-2: #1064c0;
-    --el-color-primary-light-3: #4dabff;
-    --el-color-primary-light-5: #69c0ff;
-    --el-color-primary-light-7: #91d5ff;
-    --el-color-primary-light-9: #e6f7ff;
+    --font-heading: inherit;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --surface-1: #FFFFFF;
+    --surface-2: #F7F9FA;
+    --surface-3: #EDF0F3;
+    --sidebar-bg: #F4F6F8;
+    --sidebar-text: #3B4754;
+    --sidebar-text-muted: #8A96A3;
+    --sidebar-border: #EDF0F3;
+    --sidebar-active-bg: #DCEFEC;
+    --sidebar-active-text: #0B5F59;
+    --sidebar-hover-bg: rgba(14,124,116,.08);
+    --compose-bg: #0E7C74;
+    --compose-text: #FFFFFF;
+    --compose-hover-bg: #0B6A63;
+    --stripe-a: transparent;
+    --stripe-b: transparent;
+    --unread-mark: #0E7C74;
+    --code-tag-bg: #EEF8F6;
+    --code-tag-border: #9FD3CD;
+    --code-tag-text: #0B5F59;
+    --chart-1: #0E7C74;
+    --chart-2: #13B5A3;
+    --chart-3: #F4A261;
+    --chart-4: #7C83DB;
+    --chart-5: #9FD3CD;
+    --chart-6: #E9C46A;
+    --chart-area-from: rgba(14,124,116,.3);
+    --chart-area-to: rgba(14,124,116,.03);
+    --login-gradient: linear-gradient(to bottom,#0E7C74,#9FD3CD,#fff);
+    --theme-color-meta: #F4F6F8;
 
-    --extra-light-fill: #FAFCFF;
-    --settings-page-background: #fafbfc;
-    --light-ill: #F5F7FA;
+    --el-color-primary: #0E7C74;
+    --el-color-primary-dark-2: #0B6A63;
+    --el-color-primary-light-3: #3F9C95;
+    --el-color-primary-light-5: #76BDB7;
+    --el-color-primary-light-7: #ADD8D4;
+    --el-color-primary-light-9: #EEF8F6;
+
+    --avatar-1-bg: #E4E7EB;
+    --avatar-1-text: #24292F;
+    --avatar-2-bg: #FDE7DF;
+    --avatar-2-text: #B5432A;
+    --avatar-3-bg: #E6E4FB;
+    --avatar-3-text: #4A3FB5;
+    --avatar-4-bg: #DFF1EA;
+    --avatar-4-text: #1F6E4F;
+    --avatar-5-bg: #F6EBD6;
+    --avatar-5-text: #8A5A12;
+    --avatar-6-bg: #DCEAF8;
+    --avatar-6-text: #1F5A8E;
+    --avatar-7-bg: #F8DDEB;
+    --avatar-7-text: #9A2A64;
+    --avatar-8-bg: #E3F1D9;
+    --avatar-8-text: #3A6B1E;
+
+    --extra-light-fill: var(--surface-2);
+    --settings-page-background: var(--surface-2);
+    --light-ill: var(--surface-3);
     --light-border: #E4E7ED;
     --header-actions-border: inset 0 -1px 0 0 var(--el-border-color-lighter);
-    --aside-backgound: #191A23;
-    --aside-menu-active-background: #27282D;
+    --aside-backgound: var(--sidebar-bg);
+    --aside-menu-active-background: var(--sidebar-active-bg);
     --loadding-background: rgba(255, 255, 255, 0.8);
     --dark-border: #CDD0D6;
-    --base-fill: #F0F2F5;
+    --base-fill: var(--surface-3);
     --regular-text-color: #585d69;
     --light-border-color: #e7e9ec;
-    --aside-right-border: 3px 0 5px rgba(0, 21, 41, .35);
-    --choose-account-background: var(--el-color-primary-light-8);
+    --aside-right-border: inset -1px 0 0 var(--sidebar-border);
+    --choose-account-background: var(--el-color-primary-light-9);
     --el-text-color-regular: var(--el-text-color-primary);
     --email-scroll-content-color: rgba(25, 41, 59, 0.4);
     --search-hit-background: #ffe58f;
-    --email-hover-background: #F2F6FC;
+    --email-hover-background: var(--surface-2);
     --email-right-click-background: #FDF6EC;
     --login-border: none;
     --form-desc-color: #71717a;
-    --login-switch-color: #006be6;
+    --login-switch-color: var(--el-color-primary);
     --scrollbar-track-color: #A8ABB2;
     --base-border-color: #DCDFE6;
     --secondary-text-color: #909399;
@@ -146,33 +198,277 @@ button, input, select, textarea {
     --vt-easing: ease-out;
 }
 
-.dark {
-    --extra-light-fill: #191919;
-    --settings-page-background: var(--extra-light-fill);
-    --light-ill: #262727;
+/* workspace 深色；用 :root.dark 压过 element-plus dark/css-vars.css 里后加载的 html.dark */
+:root.dark {
+    --font-heading: inherit;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --surface-1: #1B2126;
+    --surface-2: #20272D;
+    --surface-3: #262D33;
+    --sidebar-bg: #161B1F;
+    --sidebar-text: #A9B4BE;
+    --sidebar-text-muted: #6E7A85;
+    --sidebar-border: #262D33;
+    --sidebar-active-bg: rgba(47,165,151,.16);
+    --sidebar-active-text: #7FD6CB;
+    --sidebar-hover-bg: rgba(255,255,255,.05);
+    --compose-bg: #2FA597;
+    --compose-text: #08201D;
+    --compose-hover-bg: #3BB5A7;
+    --stripe-a: transparent;
+    --stripe-b: transparent;
+    --unread-mark: #2FA597;
+    --code-tag-bg: rgba(47,165,151,.12);
+    --code-tag-border: #2E6F68;
+    --code-tag-text: #86DDD2;
+    --chart-1: #2FA597;
+    --chart-2: #4BD0BF;
+    --chart-3: #F4A261;
+    --chart-4: #9BA2F0;
+    --chart-5: #7FD6CB;
+    --chart-6: #E9C46A;
+    --chart-area-from: rgba(47,165,151,.3);
+    --chart-area-to: rgba(47,165,151,.03);
+    --login-gradient: linear-gradient(to bottom,#0E3B37,#1B2126,#1B2126);
+    --theme-color-meta: #161B1F;
+
+    --el-color-primary: #2FA597;
+    --el-color-primary-dark-2: #238A7E;
+    --el-color-primary-light-3: #58B8AD;
+    --el-color-primary-light-5: #7FCBC2;
+    --el-color-primary-light-7: #A9DED8;
+    --el-color-primary-light-9: #1F3835;
+    --el-bg-color: var(--surface-1);
+
+    --avatar-1-bg: #2C3238;
+    --avatar-1-text: #D5DBE0;
+    --avatar-2-bg: #3A2A24;
+    --avatar-2-text: #F0A38C;
+    --avatar-3-bg: #2D2A44;
+    --avatar-3-text: #B5ACF5;
+    --avatar-4-bg: #21362E;
+    --avatar-4-text: #8BD3B4;
+    --avatar-5-bg: #3A3122;
+    --avatar-5-text: #E3BE7C;
+    --avatar-6-bg: #202F3F;
+    --avatar-6-text: #8FC1EC;
+    --avatar-7-bg: #3A2331;
+    --avatar-7-text: #EFA0C8;
+    --avatar-8-bg: #273421;
+    --avatar-8-text: #A9D88B;
+
+    --extra-light-fill: var(--surface-2);
+    --settings-page-background: var(--surface-2);
+    --light-ill: var(--surface-3);
     --light-border: #414243;
-    --aside-backgound: #141414;
-    --aside-menu-active-background: rgba(255, 255, 255, 0.08);
+    --aside-backgound: var(--sidebar-bg);
+    --aside-menu-active-background: var(--sidebar-active-bg);
     --header-actions-border: inset 0 -1px 0 0 var(--el-border-color-lighter);
     --loadding-background: rgba(0, 0, 0, 0.3);
     --dark-border: #636466;
-    --base-fill: #303030;
+    --base-fill: var(--surface-3);
     --regular-text-color: #bfbdbc;
     --light-border-color: #414243;
-    --aside-right-border: 3px 0 5px #0A0A0A;
-    --choose-account-background: #39393A;
+    --aside-right-border: inset -1px 0 0 var(--sidebar-border);
+    --choose-account-background: var(--el-color-primary-light-9);
     --email-scroll-content-color: rgba(255, 255, 255, 0.3);
     --search-hit-background: #8a6a12;
-    --email-hover-background: #1D1E1F;
+    --email-hover-background: var(--surface-2);
     --email-right-click-background: var(--email-hover-background);
     --login-border: none;
     --form-desc-color: #8D9095;
-    --login-switch-color: rgb(102, 177, 255);
+    --login-switch-color: var(--el-color-primary);
     --scrollbar-track-color: #8D9095;
     --base-border-color: #4C4D4F;
     --secondary-text-color: #A3A6AD;
     --message-block-color: rgba(30, 30, 30, 0.2);
     --el-border-color: #414243 !important;
+}
+
+/* postmark 浅色 */
+html[data-theme="postmark"] {
+    --font-heading: "Songti SC","Noto Serif SC","SimSun",serif;
+    --radius-sm: 3px;
+    --radius-md: 4px;
+    --radius-lg: 6px;
+    --surface-1: #FFFFFF;
+    --surface-2: #F7F8FA;
+    --surface-3: #EEF0F4;
+    --sidebar-bg: #16213A;
+    --sidebar-text: #B9C3D6;
+    --sidebar-text-muted: #7A8499;
+    --sidebar-border: #22304F;
+    --sidebar-active-bg: rgba(255,255,255,.08);
+    --sidebar-active-text: #FFFFFF;
+    --sidebar-hover-bg: rgba(255,255,255,.06);
+    --compose-bg: #FFFFFF;
+    --compose-text: #16213A;
+    --compose-hover-bg: #F1F3F7;
+    --stripe-a: #D7263D;
+    --stripe-b: #1D4ED8;
+    --unread-mark: #D7263D;
+    --code-tag-bg: #FDECEE;
+    --code-tag-border: #F2A7B1;
+    --code-tag-text: #9F1B2C;
+    --chart-1: #1D4ED8;
+    --chart-2: #D7263D;
+    --chart-3: #F59E0B;
+    --chart-4: #0EA5A4;
+    --chart-5: #7E9BEA;
+    --chart-6: #F2A7B1;
+    --chart-area-from: rgba(29,78,216,.3);
+    --chart-area-to: rgba(29,78,216,.03);
+    --login-gradient: linear-gradient(to bottom,#16213A,#7E9BEA,#fff);
+    --theme-color-meta: #16213A;
+
+    --el-color-primary: #1D4ED8;
+    --el-color-primary-dark-2: #1740B0;
+    --el-color-primary-light-3: #4F76E1;
+    --el-color-primary-light-5: #7E9BEA;
+    --el-color-primary-light-7: #AFC2F2;
+    --el-color-primary-light-9: #E8EEFB;
+}
+
+/* postmark 深色 */
+html[data-theme="postmark"].dark {
+    --font-heading: "Songti SC","Noto Serif SC","SimSun",serif;
+    --radius-sm: 3px;
+    --radius-md: 4px;
+    --radius-lg: 6px;
+    --surface-1: #141A2B;
+    --surface-2: #1A2235;
+    --surface-3: #222B42;
+    --sidebar-bg: #0F1628;
+    --sidebar-text: #B9C3D6;
+    --sidebar-text-muted: #6F7A92;
+    --sidebar-border: #1C2742;
+    --sidebar-active-bg: rgba(255,255,255,.1);
+    --sidebar-active-text: #FFFFFF;
+    --sidebar-hover-bg: rgba(255,255,255,.06);
+    --compose-bg: #1C2742;
+    --compose-text: #F3F5F9;
+    --compose-hover-bg: #243154;
+    --stripe-a: #FF5A6E;
+    --stripe-b: #5B8CFF;
+    --unread-mark: #FF5A6E;
+    --code-tag-bg: rgba(255,90,110,.14);
+    --code-tag-border: #7A2F3A;
+    --code-tag-text: #FF9AA7;
+    --chart-1: #5B8CFF;
+    --chart-2: #FF5A6E;
+    --chart-3: #FBBF24;
+    --chart-4: #2DD4BF;
+    --chart-5: #9DBAFF;
+    --chart-6: #FF9AA7;
+    --chart-area-from: rgba(91,140,255,.3);
+    --chart-area-to: rgba(91,140,255,.03);
+    --login-gradient: linear-gradient(to bottom,#0F1628,#141A2B,#141A2B);
+    --theme-color-meta: #0F1628;
+
+    --el-color-primary: #5B8CFF;
+    --el-color-primary-dark-2: #4474E6;
+    --el-color-primary-light-3: #7CA3FF;
+    --el-color-primary-light-5: #9DBAFF;
+    --el-color-primary-light-7: #BED1FF;
+    --el-color-primary-light-9: #1B2A4A;
+    --el-bg-color: var(--surface-1);
+}
+
+/* palette 浅色 */
+html[data-theme="palette"] {
+    --font-heading: inherit;
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --surface-1: #FFFFFF;
+    --surface-2: #FAFAFA;
+    --surface-3: #F4F4F5;
+    --sidebar-bg: #FFFFFF;
+    --sidebar-text: #3F3F46;
+    --sidebar-text-muted: #8E8E99;
+    --sidebar-border: #EFEFF1;
+    --sidebar-active-bg: #F4F4F5;
+    --sidebar-active-text: #18181B;
+    --sidebar-hover-bg: #FAFAFA;
+    --compose-bg: #18181B;
+    --compose-text: #FFFFFF;
+    --compose-hover-bg: #27272A;
+    --stripe-a: transparent;
+    --stripe-b: transparent;
+    --unread-mark: #18181B;
+    --code-tag-bg: #F4F4F5;
+    --code-tag-border: #D4D4D8;
+    --code-tag-text: #18181B;
+    --chart-1: #18181B;
+    --chart-2: #2563EB;
+    --chart-3: #C2410C;
+    --chart-4: #15803D;
+    --chart-5: #7C3AED;
+    --chart-6: #CA8A04;
+    --chart-area-from: rgba(24,24,27,.2);
+    --chart-area-to: rgba(24,24,27,.02);
+    --login-gradient: linear-gradient(to bottom,#3F3F46,#A1A1A8,#fff);
+    --theme-color-meta: #FFFFFF;
+
+    --el-color-primary: #18181B;
+    --el-color-primary-dark-2: #000000;
+    --el-color-primary-light-3: #46464B;
+    --el-color-primary-light-5: #74747A;
+    --el-color-primary-light-7: #A1A1A8;
+    --el-color-primary-light-9: #F4F4F5;
+}
+
+/* palette 深色 */
+html[data-theme="palette"].dark {
+    --font-heading: inherit;
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --surface-1: #121214;
+    --surface-2: #1C1C1F;
+    --surface-3: #27272A;
+    --sidebar-bg: #121214;
+    --sidebar-text: #C4C4CC;
+    --sidebar-text-muted: #77777F;
+    --sidebar-border: #27272A;
+    --sidebar-active-bg: #27272A;
+    --sidebar-active-text: #FAFAFA;
+    --sidebar-hover-bg: #1C1C1F;
+    --compose-bg: #FAFAFA;
+    --compose-text: #18181B;
+    --compose-hover-bg: #E4E4E7;
+    --stripe-a: transparent;
+    --stripe-b: transparent;
+    --unread-mark: #FAFAFA;
+    --code-tag-bg: #27272A;
+    --code-tag-border: #3F3F46;
+    --code-tag-text: #FAFAFA;
+    --chart-1: #E4E4E7;
+    --chart-2: #60A5FA;
+    --chart-3: #FB923C;
+    --chart-4: #4ADE80;
+    --chart-5: #A78BFA;
+    --chart-6: #FACC15;
+    --chart-area-from: rgba(228,228,231,.2);
+    --chart-area-to: rgba(228,228,231,.02);
+    --login-gradient: linear-gradient(to bottom,#27272A,#121214,#121214);
+    --theme-color-meta: #121214;
+
+    --el-color-primary: #D4D4D8;
+    --el-color-primary-dark-2: #FFFFFF;
+    --el-color-primary-light-3: #B4B4BA;
+    --el-color-primary-light-5: #8E8E95;
+    --el-color-primary-light-7: #5C5C63;
+    --el-color-primary-light-9: #27272A;
+    --el-bg-color: var(--surface-1);
+}
+
+/* palette 深色主色接近白，主按钮改用深色文字 */
+html[data-theme="palette"].dark .el-button--primary {
+    --el-button-text-color: #18181B;
+    --el-button-hover-text-color: #18181B;
 }
 
 .el-input {
