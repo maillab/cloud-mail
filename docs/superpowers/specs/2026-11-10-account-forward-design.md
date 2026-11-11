@@ -124,6 +124,8 @@ Cloud Mail 现在有三种"转发"：
 
 ## 6. 数据模型
 
+> 注意：本节中与邮箱账号相关的内容已被第 12 节（改为按用户）覆盖。
+
 ### 6.1 新表 `account_forward`
 
 | 字段 | 类型 | 说明 |
@@ -262,6 +264,8 @@ INSERT INTO perm (perm_id, name, perm_key, pid, type, sort) VALUES
 
 ## 8. 前端
 
+> 注意：本节中与邮箱账号相关的内容已被第 12 节（改为按用户）覆盖。
+
 - `mail-vue/src/request/forward.js`：六个接口的封装。
 - `mail-vue/src/layout/account/index.vue`：下拉菜单加"转发设置"项，点击打开对话框并传入账号。
 - `mail-vue/src/components/forward-dialog/index.vue`：5.2 的对话框，包含列表、添加输入框、验证码输入（可以用一个小的内嵌 `el-dialog` 或行内展开，交给实现者）。沿用项目里 `ElMessage` 提示、`t()` 文案、`plain: true` 的风格。
@@ -279,6 +283,8 @@ INSERT INTO perm (perm_id, name, perm_key, pid, type, sort) VALUES
 - 是否把转发结果写一条日志到 `email.message` 字段。不要求。
 
 ## 10. 验证方式
+
+> 注意：本节中与邮箱账号相关的内容已被第 12 节（改为按用户）覆盖。
 
 没有可用的自动化测试，用 `wrangler dev --config wrangler-dev.toml` 配合一个有 Resend token 的测试域名手工验证：
 

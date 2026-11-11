@@ -161,6 +161,11 @@ function remove(item) {
 }
 </script>
 <style scoped lang="scss">
+.forward-panel {
+  width: 100%;
+  max-width: 560px;
+}
+
 .desc, .tip {
   font-size: 12px;
   line-height: 1.5;
@@ -216,5 +221,9 @@ function remove(item) {
   display: flex;
   gap: 8px;
   margin-bottom: 6px;
+
+  .el-input {
+    flex: 1;
+  }
 }
 </style>

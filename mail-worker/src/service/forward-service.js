@@ -36,7 +36,7 @@ const forwardService = {
 	async getOwnUser(c, userId) {
 		const userRow = await userService.selectById(c, userId);
 		if (!userRow) {
-			throw new BizError(t('notExistUser'));
+			throw new BizError(t('authExpired'), 401);
 		}
 		return userRow;
 	},
@@ -342,11 +342,7 @@ const forwardService = {
 				accountEmail: accountRow.email
 			});
 			if (!channel) {
-				await orm(c).update(userForward).set({ lastError: 'no send provider' })
-					.where(and(
-						eq(userForward.userId, emailRow.userId),
-						eq(userForward.status, FORWARD_STATUS.ACTIVE)
-					)).run();
+				console.warn('转发跳过：' + accountRow.email + ' 所在域名没有发信渠道');
 				return;
 			}
 
