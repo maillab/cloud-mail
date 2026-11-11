@@ -109,7 +109,7 @@ function changeDark(nextIsDark, origin) {
   display: flex;
   aspect-ratio: 1.6;
   overflow: hidden;
-  border: 1px solid #dfe1e5;
+  border: 1px solid var(--el-border-color);
   border-radius: 4px;
   background: #ffffff;
 
@@ -117,7 +117,7 @@ function changeDark(nextIsDark, origin) {
     display: block;
     height: 6px;
     border-radius: 2px;
-    background: #e2e4e8;
+    background: var(--surface-3);
   }
 
   .preview-sidebar {
@@ -126,10 +126,10 @@ function changeDark(nextIsDark, origin) {
     gap: 8px;
     width: 28%;
     padding: 12px 6px;
-    background: #f0f1f3;
+    background: var(--sidebar-bg);
 
     i:first-child {
-      background: #91caff;
+      background: var(--el-color-primary);
     }
   }
 
@@ -157,7 +157,7 @@ function changeDark(nextIsDark, origin) {
       background: #303236;
 
       i:first-child {
-        background: #409eff;
+        background: var(--el-color-primary);
       }
     }
   }
