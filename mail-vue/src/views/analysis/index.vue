@@ -2,7 +2,7 @@
   <div v-if="analysisLoading" class="analysis-loading">
     <loading/>
   </div>
-  <el-scrollbar v-else style="height: 100%;">
+  <el-scrollbar v-else class="analysis-scroll" style="height: 100%;">
     <div class="analysis" :key="boxKey">
       <div class="number">
         <div class="number-item">
@@ -737,8 +737,13 @@ function createSendGauge() {
 }
 </style>
 <style scoped lang="scss">
-.analysis-loading {
+.analysis-loading,
+.analysis-scroll {
   height: 100%;
+  background: var(--settings-page-background);
+}
+
+.analysis-loading {
   width: 100%;
   display: flex;
   align-items: center;
@@ -749,7 +754,7 @@ function createSendGauge() {
   height: 100%;
   padding: 20px 20px 30px;
   gap: 20px;
-  background: var(--extra-light-fill);
+  background: var(--settings-page-background);
   display: grid;
   grid-auto-rows: min-content;
   @media (max-width: 1024px) {

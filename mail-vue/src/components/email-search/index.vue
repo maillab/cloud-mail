@@ -1,7 +1,7 @@
 <template>
   <div ref="searchRef" class="email-search">
     <div class="search-placeholder" @click="openSearch">
-      <Icon icon="akar-icons:search" width="20" height="20"/>
+      <Icon icon="bytesize:search" width="20" height="20"/>
       <span class="search-placeholder-text" :class="{ 'has-search-text': savedSearchSummary }" :title="savedSearchSummary">
         {{ savedSearchSummary || t('searchMail') }}
       </span>
@@ -14,7 +14,7 @@
       @click="openSearch"
     >
       <el-icon :size="20">
-        <Icon icon="akar-icons:search"/>
+        <Icon icon="bytesize:search"/>
       </el-icon>
     </el-button>
     <Transition name="search-panel-fade" @after-enter="focusInputOnDesktop">

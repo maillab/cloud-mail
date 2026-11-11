@@ -189,9 +189,6 @@ addCollection({
     "icons": {
         "dot-grid-fill": {
             "body": "<path fill=\"currentColor\" fill-rule=\"evenodd\" d=\"M4 2a2 2 0 1 1 0 4a2 2 0 0 1 0-4m8 0a2 2 0 1 1 0 4a2 2 0 0 1 0-4m10 2a2 2 0 1 0-4 0a2 2 0 0 0 4 0M4 10a2 2 0 1 1 0 4a2 2 0 0 1 0-4m10 2a2 2 0 1 0-4 0a2 2 0 0 0 4 0m6-2a2 2 0 1 1 0 4a2 2 0 0 1 0-4M6 20a2 2 0 1 0-4 0a2 2 0 0 0 4 0m6-2a2 2 0 1 1 0 4a2 2 0 0 1 0-4m10 2a2 2 0 1 0-4 0a2 2 0 0 0 4 0\" clip-rule=\"evenodd\"/>"
-        },
-        "search": {
-            "body": "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"2\" d=\"m21 21l-4.486-4.494M19 10.5a8.5 8.5 0 1 1-17 0a8.5 8.5 0 0 1 17 0Z\"/>"
         }
     }
 })
@@ -415,9 +412,6 @@ addCollection({
         },
         "delete-outline-rounded": {
             "body": "<path fill=\"currentColor\" d=\"M7 21q-.825 0-1.412-.587T5 19V6q-.425 0-.712-.288T4 5t.288-.712T5 4h4q0-.425.288-.712T10 3h4q.425 0 .713.288T15 4h4q.425 0 .713.288T20 5t-.288.713T19 6v13q0 .825-.587 1.413T17 21zM17 6H7v13h10zm-7 11q.425 0 .713-.288T11 16V9q0-.425-.288-.712T10 8t-.712.288T9 9v7q0 .425.288.713T10 17m4 0q.425 0 .713-.288T15 16V9q0-.425-.288-.712T14 8t-.712.288T13 9v7q0 .425.288.713T14 17M7 6v13z\"/>"
-        },
-        "edit-outline-sharp": {
-            "body": "<path fill=\"currentColor\" d=\"M5 19h1.425L16.2 9.225L14.775 7.8L5 17.575zm-2 2v-4.25L17.625 2.175L21.8 6.45L7.25 21zM19 6.4L17.6 5zm-3.525 2.125l-.7-.725L16.2 9.225z\"/>"
         }
     }
 })
@@ -684,6 +678,18 @@ addCollection({
     "icons": {
         "view": {
             "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M21.544 11.045c.304.426.456.64.456.955c0 .316-.152.529-.456.955C20.178 14.871 16.689 19 12 19c-4.69 0-8.178-4.13-9.544-6.045C2.152 12.529 2 12.315 2 12c0-.316.152-.529.456-.955C3.822 9.129 7.311 5 12 5c4.69 0 8.178 4.13 9.544 6.045Z\"/><path d=\"M15 12a3 3 0 1 0-6 0a3 3 0 0 0 6 0Z\"/></g>"
+        }
+    }
+})
+addCollection({
+    "prefix": "bytesize",
+    "lastModified": 1722793032,
+    "aliases": {},
+    "width": 32,
+    "height": 32,
+    "icons": {
+        "search": {
+            "body": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><circle cx=\"14\" cy=\"14\" r=\"12\"/><path d=\"m23 23l7 7\"/></g>"
         }
     }
 })
