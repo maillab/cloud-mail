@@ -146,6 +146,7 @@ button, input, select, textarea {
     --el-color-primary-light-3: #3F9C95;
     --el-color-primary-light-5: #76BDB7;
     --el-color-primary-light-7: #ADD8D4;
+    --el-color-primary-light-8: #D6E9E7;
     --el-color-primary-light-9: #EEF8F6;
 
     --avatar-1-bg: #E4E7EB;
@@ -239,6 +240,7 @@ button, input, select, textarea {
     --el-color-primary-light-3: #58B8AD;
     --el-color-primary-light-5: #7FCBC2;
     --el-color-primary-light-7: #A9DED8;
+    --el-color-primary-light-8: #1A4F49;
     --el-color-primary-light-9: #1F3835;
     --el-bg-color: var(--surface-1);
 
@@ -328,6 +330,7 @@ html[data-theme="postmark"] {
     --el-color-primary-light-3: #4F76E1;
     --el-color-primary-light-5: #7E9BEA;
     --el-color-primary-light-7: #AFC2F2;
+    --el-color-primary-light-8: #C9D6F7;
     --el-color-primary-light-9: #E8EEFB;
 }
 
@@ -372,6 +375,7 @@ html[data-theme="postmark"].dark {
     --el-color-primary-light-3: #7CA3FF;
     --el-color-primary-light-5: #9DBAFF;
     --el-color-primary-light-7: #BED1FF;
+    --el-color-primary-light-8: #1B3560;
     --el-color-primary-light-9: #1B2A4A;
     --el-bg-color: var(--surface-1);
 }
@@ -417,6 +421,7 @@ html[data-theme="palette"] {
     --el-color-primary-light-3: #46464B;
     --el-color-primary-light-5: #74747A;
     --el-color-primary-light-7: #A1A1A8;
+    --el-color-primary-light-8: #CFCFD3;
     --el-color-primary-light-9: #F4F4F5;
 }
 
@@ -461,6 +466,7 @@ html[data-theme="palette"].dark {
     --el-color-primary-light-3: #B4B4BA;
     --el-color-primary-light-5: #8E8E95;
     --el-color-primary-light-7: #5C5C63;
+    --el-color-primary-light-8: #3F3F46;
     --el-color-primary-light-9: #27272A;
     --el-bg-color: var(--surface-1);
 }
@@ -548,7 +554,8 @@ html[data-theme="workspace"] .email-row .sender-avatar { display: flex; }
 
 /* palette：侧栏邮箱色点 + 邮件左侧色条（按每行 toEmail 取色） */
 html[data-theme="palette"] .account-box .item .account .mailbox-dot { display: inline-block; }
-html[data-theme="palette"] .email-row::before {
+html[data-theme="palette"] .email-row[class*="mailbox-"]::before {
+    pointer-events: none;
     content: "";
     position: absolute;
     left: 0;

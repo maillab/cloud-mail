@@ -19,9 +19,13 @@
     }
     const uiTheme = localStorage.getItem('ui-theme')
     root.dataset.theme = ['postmark', 'workspace', 'palette'].includes(uiTheme) ? uiTheme : 'workspace'
+    const metaColors = {
+      workspace: ['#F4F6F8', '#161B1F'],
+      postmark: ['#16213A', '#0F1628'],
+      palette: ['#FFFFFF', '#121214']
+    }
     const metaTag = document.getElementById('theme-color-meta');
-    const isMobile =  !window.matchMedia("(pointer: fine) and (hover: hover)").matches;
-    metaTag.setAttribute('content', isDark ? (isMobile ? '#141414' : '#000000') : (isMobile ? '#191A23' : '#F1F1F1'));
+    metaTag.setAttribute('content', metaColors[root.dataset.theme][isDark ? 1 : 0]);
   </script>
 </head>
 <style>
