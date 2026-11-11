@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="show" :title="$t('forwardSetting') + ' - ' + (account?.email || '')" class="forward-dialog">
+  <div class="forward-panel">
     <div class="desc">{{ $t('forwardDesc') }}</div>
     <div class="list" v-loading="listLoading">
       <div class="row" v-for="item in list" :key="item.forwardId">
@@ -34,10 +34,10 @@
       <el-button type="primary" :disabled="list.length >= 3" :loading="addLoading" @click="add">{{ $t('add') }}</el-button>
     </div>
     <div class="tip">{{ $t('forwardLimitTip') }}</div>
-  </el-dialog>
+  </div>
 </template>
 <script setup>
-import {ref} from "vue";
+import {onMounted, ref} from "vue";
 import {useI18n} from "vue-i18n";
 import {isEmail} from "@/utils/verify-utils.js";
 import {
@@ -50,8 +50,6 @@ import {
 } from "@/request/forward.js";
 
 const {t} = useI18n();
-const show = ref(false)
-const account = ref(null)
 const list = ref([])
 const listLoading = ref(false)
 const targetEmail = ref('')
@@ -60,26 +58,18 @@ const codeId = ref(null)
 const code = ref('')
 const codeLoading = ref(false)
 
-function open(accountItem) {
-  account.value = accountItem
-  list.value = []
-  targetEmail.value = ''
-  codeId.value = null
-  code.value = ''
-  show.value = true
-  load()
-}
-
 function load() {
-  const accountId = account.value.accountId
   listLoading.value = true
-  return forwardList(accountId).then(rows => {
-    if (account.value?.accountId !== accountId) return
+  return forwardList().then(rows => {
     list.value = rows.map(row => ({...row, busy: false}))
   }).finally(() => {
     listLoading.value = false
   })
 }
+
+onMounted(() => {
+  load()
+})
 
 function msg(message, type = 'success') {
   ElMessage({message, type, plain: true})
@@ -93,7 +83,7 @@ function add() {
     return
   }
   addLoading.value = true
-  forwardAdd(account.value.accountId, email).then(row => {
+  forwardAdd(email).then(row => {
     targetEmail.value = ''
     list.value.push({...row, busy: false})
     msg(t('forwardCodeSent', {email: row.targetEmail}))
@@ -169,12 +159,11 @@ function remove(item) {
     })
   }).catch(() => {})
 }
-
-defineExpose({open})
 </script>
 <style scoped lang="scss">
 .desc, .tip {
   font-size: 12px;
+  line-height: 1.5;
   color: var(--secondary-text-color);
 }
 

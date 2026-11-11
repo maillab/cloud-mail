@@ -1,11 +1,11 @@
 import http from '@/axios/index.js'
 
-export function forwardList(accountId) {
-    return http.get('/forward/list', {params: {accountId}});
+export function forwardList() {
+    return http.get('/forward/list');
 }
 
-export function forwardAdd(accountId, targetEmail) {
-    return http.post('/forward/add', {accountId, targetEmail})
+export function forwardAdd(targetEmail) {
+    return http.post('/forward/add', {targetEmail})
 }
 
 export function forwardVerify(forwardId, code) {

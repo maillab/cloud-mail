@@ -15,7 +15,7 @@ const en = {
 	forwardNoPerm: 'Your role is not allowed to forward mail',
 	forwardTargetInternal: 'Cannot forward to an address on this site',
 	forwardTargetSelf: 'Cannot forward to the mailbox itself',
-	forwardTargetLimit: 'Up to 3 forwarding addresses per mailbox',
+	forwardTargetLimit: 'Up to 3 forwarding addresses per user',
 	forwardTargetExists: 'This forwarding address already exists',
 	forwardNoProvider: 'No sending provider is configured for this domain',
 	forwardVerifyTooFrequent: 'Please try again later',
