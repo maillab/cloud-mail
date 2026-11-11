@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { and, asc, eq, gte, inArray, lt, ne, sql, getTableColumns } from 'drizzle-orm';
 import orm from '../entity/orm';
-import accountForward from '../entity/account-forward';
+import userForward from '../entity/user-forward';
 import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n';
 import { settingConst, emailConst, userConst } from '../const/entity-const';
@@ -29,36 +29,31 @@ import {
 	withTimeout
 } from '../lib/forward-rules';
 
-const { verifyCode: _omit, ...listColumns } = getTableColumns(accountForward);
+const { verifyCode: _omit, ...listColumns } = getTableColumns(userForward);
 
 const forwardService = {
 
-	async getOwnAccount(c, accountId, userId) {
-		const accountRow = await accountService.selectById(c, accountId);
-		if (!accountRow || accountRow.userId !== userId) {
-			throw new BizError(t('noUserAccount'));
+	async getOwnUser(c, userId) {
+		const userRow = await userService.selectById(c, userId);
+		if (!userRow) {
+			throw new BizError(t('notExistUser'));
 		}
-		return accountRow;
+		return userRow;
 	},
 
 	async getOwnForward(c, forwardId, userId) {
-		const row = await orm(c).select().from(accountForward)
-			.where(eq(accountForward.forwardId, Number(forwardId))).get();
+		const row = await orm(c).select().from(userForward)
+			.where(eq(userForward.forwardId, Number(forwardId))).get();
 		if (!row || row.userId !== userId) {
 			throw new BizError(t('forwardNotExist'));
 		}
-		const accountRow = await accountService.selectById(c, row.accountId);
-		if (!accountRow || accountRow.userId !== userId) {
-			throw new BizError(t('noUserAccount'));
-		}
-		return { row, accountRow };
+		return { row };
 	},
 
-	async list(c, { accountId }, userId) {
-		await this.getOwnAccount(c, Number(accountId), userId);
-		return orm(c).select(listColumns).from(accountForward)
-			.where(eq(accountForward.accountId, Number(accountId)))
-			.orderBy(asc(accountForward.forwardId)).all();
+	async list(c, userId) {
+		return orm(c).select(listColumns).from(userForward)
+			.where(eq(userForward.userId, userId))
+			.orderBy(asc(userForward.forwardId)).all();
 	},
 
 	async assertCanForward(c, userId) {
@@ -82,16 +77,16 @@ const forwardService = {
 		return setting;
 	},
 
-	async add(c, { accountId, targetEmail }, userId, lang) {
-		const accountRow = await this.getOwnAccount(c, Number(accountId), userId);
+	async add(c, { targetEmail }, userId, lang) {
+		const userRow = await this.getOwnUser(c, userId);
 		const setting = await this.assertCanForward(c, userId);
 
-		const existing = await orm(c).select({ targetEmail: accountForward.targetEmail }).from(accountForward)
-			.where(eq(accountForward.accountId, accountRow.accountId)).all();
+		const existing = await orm(c).select({ targetEmail: userForward.targetEmail }).from(userForward)
+			.where(eq(userForward.userId, userId)).all();
 
 		const invalid = validateTarget({
 			target: targetEmail,
-			accountEmail: accountRow.email,
+			accountEmail: userRow.email,
 			domainList: setting.domainList,
 			existingTargets: existing.map(item => item.targetEmail)
 		});
@@ -104,7 +99,7 @@ const forwardService = {
 		const channel = pickChannel({
 			hasCfEmail: !!c.env.email,
 			resendTokens: setting.resendTokens,
-			accountEmail: accountRow.email
+			accountEmail: userRow.email
 		});
 		if (!channel) {
 			throw new BizError(t('forwardNoProvider'));
@@ -115,7 +110,6 @@ const forwardService = {
 		const code = genVerifyCode();
 		const now = Date.now();
 		const forwardId = await this.insertWithinLimit(c, {
-			accountId: accountRow.accountId,
 			userId,
 			targetEmail: target,
 			verifyCode: code,
@@ -124,28 +118,28 @@ const forwardService = {
 		});
 
 		try {
-			await this.sendVerifyMail(c, channel, accountRow, target, code, lang);
+			await this.sendVerifyMail(c, channel, userRow, target, code, lang);
 		} catch (e) {
-			await orm(c).delete(accountForward).where(eq(accountForward.forwardId, forwardId)).run();
+			await orm(c).delete(userForward).where(eq(userForward.forwardId, forwardId)).run();
 			throw e;
 		}
 
-		return orm(c).select(listColumns).from(accountForward)
-			.where(eq(accountForward.forwardId, forwardId)).get();
+		return orm(c).select(listColumns).from(userForward)
+			.where(eq(userForward.forwardId, forwardId)).get();
 	},
 
 	// 条件插入：数量上限在 SQL 里判断，并发添加也不会超过 3 条；重复地址由唯一索引拦截
-	async insertWithinLimit(c, { accountId, userId, targetEmail, verifyCode, verifyExpireTime, verifySendTime }) {
+	async insertWithinLimit(c, { userId, targetEmail, verifyCode, verifyExpireTime, verifySendTime }) {
 		let inserted;
 		try {
 			inserted = await c.env.db.prepare(`
-				INSERT INTO account_forward (account_id, user_id, target_email, status, verify_code, verify_expire_time, verify_send_time)
-				SELECT ?, ?, ?, ?, ?, ?, ?
-				WHERE (SELECT COUNT(*) FROM account_forward WHERE account_id = ?) < ?
+				INSERT INTO user_forward (user_id, target_email, status, verify_code, verify_expire_time, verify_send_time)
+				SELECT ?, ?, ?, ?, ?, ?
+				WHERE (SELECT COUNT(*) FROM user_forward WHERE user_id = ?) < ?
 				RETURNING forward_id AS forwardId
 			`).bind(
-				accountId, userId, targetEmail, FORWARD_STATUS.PENDING, verifyCode, verifyExpireTime, verifySendTime,
-				accountId, FORWARD_LIMITS.maxTargets
+				userId, targetEmail, FORWARD_STATUS.PENDING, verifyCode, verifyExpireTime, verifySendTime,
+				userId, FORWARD_LIMITS.maxTargets
 			).first();
 		} catch (e) {
 			if (String(e?.message).includes('UNIQUE constraint failed')) {
@@ -191,11 +185,13 @@ const forwardService = {
 			.bind(Date.now() - 2 * 86400 * 1000).run();
 	},
 
-	async sendVerifyMail(c, channel, accountRow, target, code, lang) {
-		const { subject, text, html } = forwardVerifyTemplate({ accountEmail: accountRow.email, code, lang });
+	// 验证邮件从用户主邮箱发出，显示名取主邮箱账号的名称
+	async sendVerifyMail(c, channel, userRow, target, code, lang) {
+		const mainAccount = await accountService.selectByEmailIncludeDel(c, userRow.email);
+		const { subject, text, html } = forwardVerifyTemplate({ accountEmail: userRow.email, code, lang });
 		await this.deliver(c, channel, {
-			accountEmail: accountRow.email,
-			name: accountRow.name || emailUtils.getName(accountRow.email),
+			accountEmail: userRow.email,
+			name: mainAccount?.name || emailUtils.getName(userRow.email),
 			receiveEmail: [target],
 			subject,
 			text,
@@ -204,14 +200,15 @@ const forwardService = {
 	},
 
 	async resendCode(c, { forwardId }, userId, lang) {
-		const { row, accountRow } = await this.getOwnForward(c, forwardId, userId);
+		const { row } = await this.getOwnForward(c, forwardId, userId);
 		if (row.status !== FORWARD_STATUS.PENDING) return;
 
+		const userRow = await this.getOwnUser(c, userId);
 		const setting = await this.assertCanForward(c, userId);
 		const channel = pickChannel({
 			hasCfEmail: !!c.env.email,
 			resendTokens: setting.resendTokens,
-			accountEmail: accountRow.email
+			accountEmail: userRow.email
 		});
 		if (!channel) {
 			throw new BizError(t('forwardNoProvider'));
@@ -221,14 +218,14 @@ const forwardService = {
 
 		const code = genVerifyCode();
 		const now = Date.now();
-		await orm(c).update(accountForward).set({
+		await orm(c).update(userForward).set({
 			verifyCode: code,
 			verifyExpireTime: new Date(now + FORWARD_LIMITS.codeTtlMs).toISOString(),
 			verifySendTime: new Date(now).toISOString(),
 			verifyFailCount: 0
-		}).where(eq(accountForward.forwardId, row.forwardId)).run();
+		}).where(eq(userForward.forwardId, row.forwardId)).run();
 
-		await this.sendVerifyMail(c, channel, accountRow, row.targetEmail, code, lang);
+		await this.sendVerifyMail(c, channel, userRow, row.targetEmail, code, lang);
 	},
 
 	async verify(c, { forwardId, code }, userId) {
@@ -236,16 +233,16 @@ const forwardService = {
 		if (row.status !== FORWARD_STATUS.PENDING) return;
 
 		// 先原子地消耗一次尝试机会再比较；码已作废、已过期或次数用尽时拿不到行
-		const attempt = await orm(c).update(accountForward)
-			.set({ verifyFailCount: sql`${accountForward.verifyFailCount} + 1` })
+		const attempt = await orm(c).update(userForward)
+			.set({ verifyFailCount: sql`${userForward.verifyFailCount} + 1` })
 			.where(and(
-				eq(accountForward.forwardId, row.forwardId),
-				eq(accountForward.status, FORWARD_STATUS.PENDING),
-				ne(accountForward.verifyCode, ''),
-				lt(accountForward.verifyFailCount, FORWARD_LIMITS.maxCodeFails),
-				gte(accountForward.verifyExpireTime, new Date().toISOString())
+				eq(userForward.forwardId, row.forwardId),
+				eq(userForward.status, FORWARD_STATUS.PENDING),
+				ne(userForward.verifyCode, ''),
+				lt(userForward.verifyFailCount, FORWARD_LIMITS.maxCodeFails),
+				gte(userForward.verifyExpireTime, new Date().toISOString())
 			))
-			.returning({ verifyCode: accountForward.verifyCode, verifyFailCount: accountForward.verifyFailCount })
+			.returning({ verifyCode: userForward.verifyCode, verifyFailCount: userForward.verifyFailCount })
 			.get();
 
 		if (!attempt) {
@@ -253,15 +250,15 @@ const forwardService = {
 		}
 
 		if (matchVerifyCode(attempt.verifyCode, code)) {
-			const activated = await orm(c).update(accountForward).set({
+			const activated = await orm(c).update(userForward).set({
 				status: FORWARD_STATUS.ACTIVE,
 				verifyCode: '',
 				verifyFailCount: 0
 			}).where(and(
-				eq(accountForward.forwardId, row.forwardId),
-				eq(accountForward.status, FORWARD_STATUS.PENDING),
-				eq(accountForward.verifyCode, attempt.verifyCode)
-			)).returning({ forwardId: accountForward.forwardId }).get();
+				eq(userForward.forwardId, row.forwardId),
+				eq(userForward.status, FORWARD_STATUS.PENDING),
+				eq(userForward.verifyCode, attempt.verifyCode)
+			)).returning({ forwardId: userForward.forwardId }).get();
 			if (!activated) {
 				throw new BizError(t('forwardCodeInvalid'));
 			}
@@ -269,12 +266,12 @@ const forwardService = {
 		}
 
 		if (isCodeExhausted(attempt.verifyFailCount)) {
-			await orm(c).update(accountForward).set({ verifyCode: '' })
+			await orm(c).update(userForward).set({ verifyCode: '' })
 				.where(and(
-					eq(accountForward.forwardId, row.forwardId),
-					eq(accountForward.status, FORWARD_STATUS.PENDING),
-					eq(accountForward.verifyCode, attempt.verifyCode),
-					gte(accountForward.verifyFailCount, FORWARD_LIMITS.maxCodeFails)
+					eq(userForward.forwardId, row.forwardId),
+					eq(userForward.status, FORWARD_STATUS.PENDING),
+					eq(userForward.verifyCode, attempt.verifyCode),
+					gte(userForward.verifyFailCount, FORWARD_LIMITS.maxCodeFails)
 				)).run();
 		}
 
@@ -298,16 +295,16 @@ const forwardService = {
 			set.failCount = 0;
 			set.lastError = '';
 		}
-		await orm(c).update(accountForward).set(set)
+		await orm(c).update(userForward).set(set)
 			.where(and(
-				eq(accountForward.forwardId, row.forwardId),
-				inArray(accountForward.status, [FORWARD_STATUS.ACTIVE, FORWARD_STATUS.DISABLED, FORWARD_STATUS.FAILED])
+				eq(userForward.forwardId, row.forwardId),
+				inArray(userForward.status, [FORWARD_STATUS.ACTIVE, FORWARD_STATUS.DISABLED, FORWARD_STATUS.FAILED])
 			)).run();
 	},
 
 	async remove(c, { forwardId }, userId) {
 		const { row } = await this.getOwnForward(c, forwardId, userId);
-		await orm(c).delete(accountForward).where(eq(accountForward.forwardId, row.forwardId)).run();
+		await orm(c).delete(userForward).where(eq(userForward.forwardId, row.forwardId)).run();
 	},
 
 	// 收件时自动转发，永不抛错
@@ -319,10 +316,11 @@ const forwardService = {
 			const setting = await settingService.query(c);
 			if (setting.userForward !== settingConst.userForward.OPEN) return;
 
-			const rows = await orm(c).select().from(accountForward)
+			// 目标属于用户：用户名下任一邮箱收到的信都转发
+			const rows = await orm(c).select().from(userForward)
 				.where(and(
-					eq(accountForward.accountId, emailRow.accountId),
-					eq(accountForward.status, FORWARD_STATUS.ACTIVE)
+					eq(userForward.userId, emailRow.userId),
+					eq(userForward.status, FORWARD_STATUS.ACTIVE)
 				)).all();
 			if (rows.length === 0) return;
 
@@ -344,10 +342,10 @@ const forwardService = {
 				accountEmail: accountRow.email
 			});
 			if (!channel) {
-				await orm(c).update(accountForward).set({ lastError: 'no send provider' })
+				await orm(c).update(userForward).set({ lastError: 'no send provider' })
 					.where(and(
-						eq(accountForward.accountId, emailRow.accountId),
-						eq(accountForward.status, FORWARD_STATUS.ACTIVE)
+						eq(userForward.userId, emailRow.userId),
+						eq(userForward.status, FORWARD_STATUS.ACTIVE)
 					)).run();
 				return;
 			}
@@ -373,8 +371,8 @@ const forwardService = {
 					});
 					await withTimeout(this.deliver(c, channel, params), FORWARD_LIMITS.sendTimeoutMs);
 					if (row.failCount > 0) {
-						await orm(c).update(accountForward).set({ failCount: 0, lastError: '' })
-							.where(eq(accountForward.forwardId, row.forwardId)).run();
+						await orm(c).update(userForward).set({ failCount: 0, lastError: '' })
+							.where(eq(userForward.forwardId, row.forwardId)).run();
 					}
 				} catch (e) {
 					console.error('转发邮箱 ' + row.targetEmail + ' 失败：', e);
@@ -392,13 +390,13 @@ const forwardService = {
 
 	// 计数在 SQL 里自增；只更新仍处于启用状态的记录，不会把用户刚停用的目标改回来
 	async recordSendFailure(c, forwardId, message) {
-		await orm(c).update(accountForward).set({
-			failCount: sql`${accountForward.failCount} + 1`,
+		await orm(c).update(userForward).set({
+			failCount: sql`${userForward.failCount} + 1`,
 			lastError: formatLastError(message),
-			status: sql`CASE WHEN ${accountForward.failCount} + 1 >= ${FORWARD_LIMITS.maxSendFails} THEN ${FORWARD_STATUS.FAILED} ELSE ${accountForward.status} END`
+			status: sql`CASE WHEN ${userForward.failCount} + 1 >= ${FORWARD_LIMITS.maxSendFails} THEN ${FORWARD_STATUS.FAILED} ELSE ${userForward.status} END`
 		}).where(and(
-			eq(accountForward.forwardId, forwardId),
-			eq(accountForward.status, FORWARD_STATUS.ACTIVE)
+			eq(userForward.forwardId, forwardId),
+			eq(userForward.status, FORWARD_STATUS.ACTIVE)
 		)).run();
 	},
 
