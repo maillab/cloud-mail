@@ -143,6 +143,11 @@ export const settingConst = {
 	authRefresh: {
 		OPEN: 1,
 		CLOSE: 0
+	},
+	uiTheme: {
+		POSTMARK: 'postmark',
+		WORKSPACE: 'workspace',
+		PALETTE: 'palette'
 	}
 }
 
