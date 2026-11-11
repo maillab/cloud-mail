@@ -1,3 +1,4 @@
+import { withStorage } from './adapter/d1-kv';
 import app from './hono/webs';
 import { email } from './email/email';
 import userService from './service/user-service';
@@ -9,6 +10,7 @@ import analysisService from './service/analysis-service';
 import forwardService from './service/forward-service';
 export default {
 	 async fetch(req, env, ctx) {
+		env = withStorage(env);
 
 		const url = new URL(req.url)
 
@@ -31,8 +33,11 @@ export default {
 
 		return env.assets.fetch(req);
 	},
-	email: email,
+	email(message, env, ctx) {
+		return email(message, withStorage(env), ctx);
+	},
 	async scheduled(c, env, ctx) {
+		env = withStorage(env);
 		if (c.cron === '*/30 * * * *') {
 			await analysisService.refreshEchartsCache({ env })
 			return;
