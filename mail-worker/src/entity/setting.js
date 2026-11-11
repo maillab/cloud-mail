@@ -68,6 +68,7 @@ export const setting = sqliteTable('setting', {
 	webhookStatus: integer('webhook_status').default(1).notNull(),
 	webhookRetry: integer('webhook_retry').default(0).notNull(),
 	webhookSecret: text('webhook_secret').default('').notNull(),
-	userForward: integer('user_forward').default(1).notNull()
+	userForward: integer('user_forward').default(1).notNull(),
+	uiTheme: text('ui_theme').default('workspace').notNull()
 });
 export default setting

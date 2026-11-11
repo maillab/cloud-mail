@@ -10,6 +10,7 @@ import {t} from '../i18n/i18n'
 import verifyRecordService from './verify-record-service';
 import userContext from '../security/user-context';
 import domainUtils from '../utils/domain-uitls';
+import { isUiTheme } from '../lib/ui-theme';
 
 const settingService = {
 
@@ -112,6 +113,7 @@ const settingService = {
 	},
 
 	async set(c, params) {
+		if (params.uiTheme !== undefined && !isUiTheme(params.uiTheme)) throw new BizError(t('invalidUiTheme'));
 		const settingData = await this.query(c);
 		let resendTokens = { ...settingData.resendTokens, ...params.resendTokens };
 		Object.keys(resendTokens).forEach(domain => {
@@ -228,7 +230,8 @@ const settingService = {
 			googleSwitch: settingRow.googleSwitch,
 			minEmailPrefix: settingRow.minEmailPrefix,
 			projectLink: settingRow.projectLink,
-			userForward: settingRow.userForward
+			userForward: settingRow.userForward,
+			uiTheme: settingRow.uiTheme
 		};
 	},
 

@@ -459,6 +459,7 @@ onBeforeUnmount(() => {
 }
 
 .breadcrumb-item {
+  font-family: var(--font-heading);
   font-weight: bold;
   font-size: 14px;
   color: var(--el-text-color-primary);
