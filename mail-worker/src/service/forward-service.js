@@ -4,7 +4,6 @@ import orm from '../entity/orm';
 import accountForward from '../entity/account-forward';
 import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n';
-import KvConst from '../const/kv-const';
 import { settingConst, emailConst, userConst } from '../const/entity-const';
 import emailUtils from '../utils/email-utils';
 import settingService from './setting-service';
@@ -160,25 +159,36 @@ const forwardService = {
 		return inserted.forwardId;
 	},
 
-	// 检查并立即占用验证邮件额度（发送前写入，失败不退还），把并发窗口缩到毫秒级
+	// 检查并占用验证邮件额度：冷却和每日次数各用一条条件 upsert，判断和计数在同一条 SQL 里完成，
+	// 并发请求只有满足条件的那一个能拿到返回行。发送前占用，发送失败不退还。
 	async reserveVerifySend(c, target, userId) {
-		const targetKey = KvConst.FORWARD_VERIFY_TARGET + target;
-		if (await c.env.kv.get(targetKey)) {
+		const now = Date.now();
+
+		const cooldown = await c.env.db.prepare(`
+			INSERT INTO forward_verify_quota (quota_key, count, last_time) VALUES (?, 1, ?)
+			ON CONFLICT(quota_key) DO UPDATE SET count = count + 1, last_time = excluded.last_time
+			WHERE forward_verify_quota.last_time <= ?
+			RETURNING quota_key
+		`).bind('target:' + target, now, now - FORWARD_LIMITS.targetCooldownSec * 1000).first();
+		if (!cooldown) {
 			throw new BizError(t('forwardVerifyTooFrequent'));
 		}
-		const dayKey = this.dayKey(userId);
-		const dayCount = Number(await c.env.kv.get(dayKey) || 0);
-		if (dayCount >= FORWARD_LIMITS.dailyVerifyLimit) {
+
+		const day = await c.env.db.prepare(`
+			INSERT INTO forward_verify_quota (quota_key, count, last_time) VALUES (?, 1, ?)
+			ON CONFLICT(quota_key) DO UPDATE SET count = count + 1, last_time = excluded.last_time
+			WHERE forward_verify_quota.count < ?
+			RETURNING count
+		`).bind('day:' + userId + ':' + dayjs().format('YYYY-MM-DD'), now, FORWARD_LIMITS.dailyVerifyLimit).first();
+		if (!day) {
 			throw new BizError(t('forwardVerifyDayLimit'));
 		}
-		await Promise.all([
-			c.env.kv.put(targetKey, '1', { expirationTtl: FORWARD_LIMITS.targetCooldownSec }),
-			c.env.kv.put(dayKey, String(dayCount + 1), { expirationTtl: 86400 })
-		]);
 	},
 
-	dayKey(userId) {
-		return KvConst.FORWARD_VERIFY_DAY + userId + ':' + dayjs().format('YYYY-MM-DD');
+	// 定时任务调用：清理两天前的冷却和每日计数记录
+	async clearVerifyQuota(c) {
+		await c.env.db.prepare(`DELETE FROM forward_verify_quota WHERE last_time < ?`)
+			.bind(Date.now() - 2 * 86400 * 1000).run();
 	},
 
 	async sendVerifyMail(c, channel, accountRow, target, code, lang) {

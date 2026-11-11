@@ -210,10 +210,11 @@ INSERT INTO perm (perm_id, name, perm_key, pid, type, sort) VALUES
 
 验证码：6 位数字，`crypto.getRandomValues` 生成，30 分钟过期，明文存库（它只保护一个"是否允许转发到我"的决定，泄露风险低，不值得引入哈希和盐）。
 
-验证邮件限频，`/forward/add` 和 `/forward/resendCode` 共用，用 KV 实现，防止拿验证邮件骚扰别人：
+验证邮件限频，`/forward/add` 和 `/forward/resendCode` 共用，防止拿验证邮件骚扰别人。存在 D1 表 `forward_verify_quota`（`quota_key` 主键、`count`、`last_time` 毫秒时间戳）里，每项用一条带条件的 `INSERT ... ON CONFLICT DO UPDATE ... WHERE ... RETURNING` 同时完成判断和占用，并发请求只有一个能通过。KV 读写不是原子的，并发重发会全部绕过限频，所以不用 KV。发送前占用，发送失败不退还。
 
-- 按目标地址：KV key `forward_verify_target:<小写地址>`，TTL 60 秒。存在则拒绝，提示"请稍后再试"。这同时覆盖了"删掉再加同一地址"的绕过。
-- 按用户：KV key `forward_verify_day:<userId>:<YYYY-MM-DD>`，计数，TTL 24 小时，每天最多 10 封验证邮件。超出提示"今日验证邮件次数已达上限"。
+- 按目标地址：key `target:<小写地址>`，距上次占用不足 60 秒则拒绝，提示"请稍后再试"。这同时覆盖了"删掉再加同一地址"的绕过。
+- 按用户：key `day:<userId>:<YYYY-MM-DD>`，每天最多 10 封验证邮件。超出提示"今日验证邮件次数已达上限"。
+- 每小时的定时任务删除两天前的记录。
 
 原先"单条记录 60 秒"的规则由按目标地址的限频取代，`verify_send_time` 字段仅用于界面显示上次发送时间，可以保留也可以去掉。
 

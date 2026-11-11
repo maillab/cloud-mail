@@ -56,6 +56,11 @@ const dbInit = {
 			)`,
 			`CREATE INDEX IF NOT EXISTS idx_account_forward_account ON account_forward(account_id, status)`,
 			`CREATE UNIQUE INDEX IF NOT EXISTS idx_account_forward_unique ON account_forward(account_id, target_email COLLATE NOCASE)`,
+			`CREATE TABLE IF NOT EXISTS forward_verify_quota (
+				quota_key TEXT PRIMARY KEY,
+				count INTEGER NOT NULL DEFAULT 0,
+				last_time INTEGER NOT NULL DEFAULT 0
+			)`,
 			`ALTER TABLE setting ADD COLUMN user_forward INTEGER NOT NULL DEFAULT 1`,
 			`INSERT INTO perm (perm_id, name, perm_key, pid, type, sort) VALUES (37, '邮箱转发', 'account:forward', 21, 2, 3)`
 		];

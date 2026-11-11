@@ -6,6 +6,7 @@ import emailService from './service/email-service';
 import r2Service from './service/r2-service';
 import oauthService from './service/oauth-service';
 import analysisService from './service/analysis-service';
+import forwardService from './service/forward-service';
 export default {
 	 async fetch(req, env, ctx) {
 
@@ -43,5 +44,10 @@ export default {
 		await emailService.autoClean({ env })
 		await analysisService.refreshEchartsCache({ env })
 		await oauthService.clearNoBindOathUser({ env })
+		try {
+			await forwardService.clearVerifyQuota({ env })
+		} catch (e) {
+			console.warn('清理转发验证额度失败：', e.message)
+		}
 	},
 };
