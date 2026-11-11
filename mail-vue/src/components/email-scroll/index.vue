@@ -876,15 +876,15 @@ function handleList(list) {
     email.formatCreateTime = fromNow(email.createTime);
     email.test = t('received')
     const statusIconMap = {
-      0: { icon: 'ic:round-mark-email-read', color: '#51C76B', content: t('received') },
-      1: { icon: 'bi:send-arrow-up-fill',  color: '#51C76B', content: t('sent') },
-      2: { icon: 'bi:send-check-fill',     color: '#51C76B', content: t('delivered') },
-      3: { icon: 'bi:send-x-fill',         color: '#F56C6C', content: t('bounced') },
-      8: { icon: 'bi:send-x-fill',         color: '#F56C6C', content: t('bounced') },
-      4: { icon: 'bi:send-exclamation-fill', color: '#FBBD08', content: t('complained') },
-      5: { icon: 'bi:send-arrow-up-fill',  color: '#FBBD08', content: t('delayed') },
-      6: { icon: 'mdi:email-lock', color: '#909399', content: t('saving') },
-      7: { icon: 'ic:round-mark-email-read', color: '#FBBD08', content: t('noRecipient') },
+      0: { icon: 'ic:round-mark-email-read', color: 'var(--el-color-success)', content: t('received') },
+      1: { icon: 'bi:send-arrow-up-fill',  color: 'var(--el-color-success)', content: t('sent') },
+      2: { icon: 'bi:send-check-fill',     color: 'var(--el-color-success)', content: t('delivered') },
+      3: { icon: 'bi:send-x-fill',         color: 'var(--el-color-danger)', content: t('bounced') },
+      8: { icon: 'bi:send-x-fill',         color: 'var(--el-color-danger)', content: t('bounced') },
+      4: { icon: 'bi:send-exclamation-fill', color: 'var(--el-color-warning)', content: t('complained') },
+      5: { icon: 'bi:send-arrow-up-fill',  color: 'var(--el-color-warning)', content: t('delayed') },
+      6: { icon: 'mdi:email-lock', color: 'var(--el-color-info)', content: t('saving') },
+      7: { icon: 'ic:round-mark-email-read', color: 'var(--el-color-warning)', content: t('noRecipient') },
     };
 
     if (email.isDel) {
@@ -1289,10 +1289,6 @@ function renderHighlight(value) {
   &.right-checked:hover {
     background-color: var(--email-right-click-background);
   }
-
-  /*&[data-checked="true"] {
-    background-color: #c2dbff;
-  }*/
 }
 
 

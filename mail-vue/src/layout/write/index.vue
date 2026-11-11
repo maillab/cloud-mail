@@ -33,7 +33,7 @@
                   :key="item"
                   :label="item"
                   :value="item"
-                  style="color: #999896;"
+                  style="color: var(--secondary-text-color);"
               />
             </el-select>
           </template>
@@ -697,7 +697,7 @@ function close() {
       }
 
       .send-email {
-        color: #999896;
+        color: var(--secondary-text-color);
         margin-left: 5px;
         white-space: nowrap;
         text-overflow: ellipsis;

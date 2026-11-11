@@ -9,7 +9,7 @@
         <Icon icon="material-symbols:edit-outline-sharp" width="22" height="22" />
         <span>{{ $t('compose') }}</span>
       </button>
-      <el-menu :collapse="false" text-color="#fff" active-text-color="#fff" style="margin-top: 6px">
+      <el-menu :collapse="false" style="margin-top: 6px">
         <el-menu-item @click="router.push({name: 'email'})" index="email"
                       :class="route.meta.name === 'email' ? 'choose-item' : ''">
           <Icon icon="hugeicons:mailbox-01" width="20" height="20" />
@@ -114,7 +114,7 @@ function openCompose() {
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
-  color: #ffffff;
+  color: var(--sidebar-active-text);
   transition: all 0.3s ease;
   max-width: 240px;
   padding: 0 10px;
@@ -137,7 +137,7 @@ function openCompose() {
     position: absolute;
     font-size: 12px;
     right: 8px;
-    color: #ffffff;
+    color: var(--sidebar-text);
   }
 
 }
@@ -159,16 +159,16 @@ function openCompose() {
   margin-left: 12px;
   margin-bottom: 15px;
   border: 0;
-  border-radius: 8px;
-  background: #1890ff;
-  color: #ffffff;
+  border-radius: var(--radius-md);
+  background: var(--compose-bg);
+  color: var(--compose-text);
   font-family: inherit;
   font-size: 15px;
   line-height: 1;
   cursor: pointer;
 
   &:hover {
-    background: #1064c0;
+    background: var(--compose-hover-bg);
   }
 
   @media (max-width: 767px) {
@@ -179,12 +179,12 @@ function openCompose() {
 .manage-title {
   margin-top: 12px;
   padding-left: 20px;
-  color: #fff;
+  color: var(--sidebar-text-muted);
 }
 
 .el-menu-item {
   margin: 3px 12px !important;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   height: 36px;
   padding: 10px !important;
 }
@@ -197,7 +197,7 @@ function openCompose() {
 
 @media (hover: hover) {
   .el-menu-item:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
+    background: var(--sidebar-hover-bg) !important;
   }
 }
 
@@ -212,6 +212,12 @@ function openCompose() {
 
 :deep(.el-menu-item) {
   background: var(--aside-backgound);
+  color: var(--sidebar-text);
+}
+
+.choose-item,
+:deep(.el-menu-item.is-active) {
+  color: var(--sidebar-active-text);
 }
 
 :deep(.el-menu) {
@@ -225,7 +231,7 @@ function openCompose() {
 
 :deep(.el-divider__text) {
   background: var(--aside-backgound);
-  color: #FFFFFF;
+  color: var(--sidebar-text);
 }
 
 .scroll {

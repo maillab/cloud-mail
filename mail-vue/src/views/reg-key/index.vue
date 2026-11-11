@@ -533,7 +533,7 @@ function openAdd() {
 }
 
 .gen-code {
-  color: #606266;
+  color: var(--regular-text-color);
   cursor: pointer;
 }
 

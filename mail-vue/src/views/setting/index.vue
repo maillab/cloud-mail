@@ -286,7 +286,7 @@ function submitPwd() {
       }
 
       .edit-name {
-        color: #4dabff;
+        color: var(--el-color-primary-light-3);
         padding-left: 10px;
         white-space: nowrap;
         cursor: pointer;
