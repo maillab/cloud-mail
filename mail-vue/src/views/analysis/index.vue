@@ -758,6 +758,7 @@ function createSendGauge() {
   }
 
   .title {
+    font-family: var(--font-heading);
     margin-top: 10px;
     margin-left: 15px;
     font-size: 18px;

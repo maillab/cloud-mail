@@ -252,6 +252,7 @@ function submitPwd() {
   }
 
   .title {
+    font-family: var(--font-heading);
     font-size: 18px;
     font-weight: bold;
   }

@@ -7,6 +7,13 @@
         <Icon style="color: var(--el-border-color)" icon="solar:star-line-duotone" width="18" height="18"/>
       </div>
       <div v-if="!showStar"></div>
+      <div class="sender-avatar" aria-hidden="true">
+        <el-skeleton animated>
+          <template #template>
+            <el-skeleton-item variant="circle" style="width: 28px;height: 28px;"/>
+          </template>
+        </el-skeleton>
+      </div>
       <div class="title" :class="accountShow ? 'title-column' : 'title-column'">
 
         <div class="email-sender">

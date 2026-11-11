@@ -436,7 +436,7 @@
                   <el-button @click="jump('https://github.com/maillab/cloud-mail/releases')">
                     {{ currentVersion }}
                     <template #icon>
-                      <Icon icon="qlementine-icons:version-control-16" style="font-size: 20px" color="#1890FF"/>
+                      <Icon icon="qlementine-icons:version-control-16" style="font-size: 20px" color="var(--el-color-primary)"/>
                     </template>
                   </el-button>
                 </el-badge>
@@ -1817,6 +1817,7 @@ function editSetting(settingForm, refreshStatus = true) {
 
 
 .card-title {
+  font-family: var(--font-heading);
   font-size: 15px;
   font-weight: bold;
   padding: 15px 20px 12px;

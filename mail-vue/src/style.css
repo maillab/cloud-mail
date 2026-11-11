@@ -514,3 +514,73 @@ html[data-theme-to="light"]::view-transition-old(root) {
     from { clip-path: circle(var(--vt-end-radius, 0px) at var(--vt-x) var(--vt-y)); }
     to   { clip-path: circle(0px at var(--vt-x) var(--vt-y)); }
 }
+
+/* ==========================================================================
+   界面风格标志元素（Task 4）
+   组件样式是 scoped 的，按风格开关的规则统一放在这里。
+   - workspace：发件人首字头像
+   - palette：邮箱色点、邮件左侧色条
+   - postmark：未读红条、斜纹撰写按钮
+   ========================================================================== */
+
+/* 头像配色：avatar-N 由 mailboxColorIndex(sendEmail) 决定 */
+.avatar-1 { --avatar-bg: var(--avatar-1-bg); --avatar-text: var(--avatar-1-text); }
+.avatar-2 { --avatar-bg: var(--avatar-2-bg); --avatar-text: var(--avatar-2-text); }
+.avatar-3 { --avatar-bg: var(--avatar-3-bg); --avatar-text: var(--avatar-3-text); }
+.avatar-4 { --avatar-bg: var(--avatar-4-bg); --avatar-text: var(--avatar-4-text); }
+.avatar-5 { --avatar-bg: var(--avatar-5-bg); --avatar-text: var(--avatar-5-text); }
+.avatar-6 { --avatar-bg: var(--avatar-6-bg); --avatar-text: var(--avatar-6-text); }
+.avatar-7 { --avatar-bg: var(--avatar-7-bg); --avatar-text: var(--avatar-7-text); }
+.avatar-8 { --avatar-bg: var(--avatar-8-bg); --avatar-text: var(--avatar-8-text); }
+
+/* 邮箱颜色：mailbox-N 由 mailboxColorIndex(邮箱地址) 决定，用于色点和色条 */
+.mailbox-1 { --mailbox-color: var(--avatar-1-text); }
+.mailbox-2 { --mailbox-color: var(--avatar-2-text); }
+.mailbox-3 { --mailbox-color: var(--avatar-3-text); }
+.mailbox-4 { --mailbox-color: var(--avatar-4-text); }
+.mailbox-5 { --mailbox-color: var(--avatar-5-text); }
+.mailbox-6 { --mailbox-color: var(--avatar-6-text); }
+.mailbox-7 { --mailbox-color: var(--avatar-7-text); }
+.mailbox-8 { --mailbox-color: var(--avatar-8-text); }
+
+/* workspace：发件人首字头像 */
+html[data-theme="workspace"] .email-row .sender-avatar { display: flex; }
+
+/* palette：侧栏邮箱色点 + 邮件左侧色条（按每行 toEmail 取色） */
+html[data-theme="palette"] .account-box .item .account .mailbox-dot { display: inline-block; }
+html[data-theme="palette"] .email-row::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 4px;
+    border-radius: 2px;
+    background: var(--mailbox-color);
+}
+
+/* postmark：未读行左侧红条，替代未读小圆点 */
+html[data-theme="postmark"] .email-row:has(.unread)::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--unread-mark);
+}
+html[data-theme="postmark"] .email-row .unread { display: none; }
+
+/* postmark：撰写按钮红蓝斜纹边（航空信封） */
+html[data-theme="postmark"] .compose-bar {
+    border: 3px solid transparent;
+    background-image: linear-gradient(var(--compose-bg), var(--compose-bg)), repeating-linear-gradient(135deg, var(--stripe-a) 0 8px, var(--compose-bg) 8px 12px, var(--stripe-b) 12px 20px, var(--compose-bg) 20px 24px);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+}
+html[data-theme="postmark"] .compose-bar:hover {
+    background-image: linear-gradient(var(--compose-hover-bg), var(--compose-hover-bg)), repeating-linear-gradient(135deg, var(--stripe-a) 0 8px, var(--compose-hover-bg) 8px 12px, var(--stripe-b) 12px 20px, var(--compose-hover-bg) 20px 24px);
+    /* scoped 的 :hover 用 background 简写会重置 origin/clip，这里补回 */
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+}
