@@ -28,6 +28,7 @@
 import {useId} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useUiStore} from '@/store/ui.js'
+import {updateThemeColorMeta} from '@/utils/theme.js'
 
 const {t} = useI18n()
 const uiStore = useUiStore()
@@ -51,11 +52,7 @@ function changeDark(nextIsDark, origin) {
   const root = document.documentElement
   const applyTheme = () => {
     root.classList.toggle('dark', nextIsDark)
-    const isMobile = !window.matchMedia("(pointer: fine) and (hover: hover)").matches
-    document.getElementById('theme-color-meta')?.setAttribute(
-      'content',
-      nextIsDark ? (isMobile ? '#141414' : '#000000') : (isMobile ? '#191A23' : '#F1F1F1')
-    )
+    updateThemeColorMeta()
     uiStore.dark = nextIsDark
   }
 

@@ -6,6 +6,7 @@ import {permsToRouter} from "@/perm/perm.js";
 import router from "@/router";
 import {websiteConfig} from "@/request/setting.js";
 import i18n from "@/i18n/index.js";
+import {applyUiTheme} from "@/utils/theme.js";
 
 export async function init() {
     document.title = '\u200B'
@@ -34,6 +35,7 @@ export async function init() {
         const [s, user] = await Promise.all([websiteConfig(), userPromise]);
         setting = s;
         settingStore.settings = setting;
+        applyUiTheme(setting.uiTheme);
         settingStore.domainList = setting.domainList;
         document.title = setting.title;
 
@@ -51,6 +53,7 @@ export async function init() {
     } else {
         setting = await websiteConfig();
         settingStore.settings = setting;
+        applyUiTheme(setting.uiTheme);
         settingStore.domainList = setting.domainList;
         document.title = setting.title;
     }
