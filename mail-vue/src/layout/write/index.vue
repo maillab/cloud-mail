@@ -90,7 +90,7 @@
         <el-table-column width="55" label="" >
           <template #default>
             <div style="display: flex;">
-              <Icon icon="mage:user" style="color: var(--el-text-color-primary)" width="22" height="22" color="#606266" />
+              <Icon icon="mage:user" style="color: var(--el-text-color-primary)" width="22" height="22" color="var(--regular-text-color)" />
             </div>
           </template>
         </el-table-column>

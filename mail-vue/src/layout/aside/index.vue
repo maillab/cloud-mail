@@ -106,6 +106,7 @@ function openCompose() {
 .title {
   margin: 10px 6px;
   height: 45px;
+  font-family: var(--font-heading);
   border-radius: 6px;
   display: flex;
   position: relative;

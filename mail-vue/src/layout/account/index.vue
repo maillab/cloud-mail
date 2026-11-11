@@ -9,7 +9,7 @@
         <el-card class="item" :class="itemBg(item.accountId)" v-for="(item, index) in accounts" :key="item.accountId"
                  @click="changeAccount(item)">
           <div class="account">
-            {{ item.email }}
+            <span class="mailbox-dot" :class="'mailbox-' + mailboxColorIndex(item.email)"></span>{{ item.email }}
           </div>
           <div class="opt">
             <div class="send-email" @click.stop>
@@ -18,10 +18,10 @@
             </div>
             <div class="settings" @click.stop>
               <Icon icon="fluent-color:clipboard-24" width="22" height="22" @click.stop="copyAccount(item.email)"/>
-              <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"
+              <Icon icon="fluent:settings-24-filled" width="21" height="21" color="var(--secondary-text-color)"
                     v-if="showNullSetting(item)"/>
               <el-dropdown v-else>
-                <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"/>
+                <Icon icon="fluent:settings-24-filled" width="21" height="21" color="var(--secondary-text-color)"/>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item v-if="hasPerm('email:send')" @click="openSetName(item)">{{ $t('rename') }}</el-dropdown-item>
@@ -148,6 +148,7 @@ import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
 import {AccountAllReceiveEnum} from "@/enums/account-enum.js";
 import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
+import {mailboxColorIndex} from "@/utils/mailbox-color.js";
 
 const {t} = useI18n();
 const userStore = useUserStore();
@@ -627,6 +628,16 @@ path[fill="#ffdda1"] {
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
+    }
+
+    .mailbox-dot {
+      display: none;
+      width: 9px;
+      height: 9px;
+      border-radius: 3px;
+      margin-right: 8px;
+      background: var(--mailbox-color);
+      vertical-align: middle;
     }
 
     .opt {
