@@ -51,6 +51,10 @@
       <div class="title" id="theme-label">{{$t('themeStyle')}}</div>
       <ThemeSelector/>
     </div>
+    <div class="preference-item" v-if="showForward">
+      <div class="title">{{$t('forwardSetting')}}</div>
+      <forward-panel/>
+    </div>
     <div class="preference-item">
       <div class="title">{{$t('noticeTitle')}}</div>
       <div class="language-row setting-row">
@@ -81,7 +85,7 @@
   </div>
 </template>
 <script setup>
-import {reactive, ref, defineOptions} from 'vue'
+import {reactive, ref, computed, defineOptions} from 'vue'
 import {resetPassword, userDelete} from "@/request/my.js";
 import {useUserStore} from "@/store/user.js";
 import router from "@/router/index.js";
@@ -91,6 +95,8 @@ import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
 import {useUiStore} from "@/store/ui.js";
 import ThemeSelector from "@/components/theme-selector/index.vue";
+import ForwardPanel from "@/components/forward-panel/index.vue";
+import {hasPerm} from "@/perm/perm.js";
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
@@ -101,6 +107,7 @@ const setPwdLoading = ref(false)
 const setNameShow = ref(false)
 const accountName = ref(null)
 const langSelect = ref(settingStore.lang)
+const showForward = computed(() => settingStore.settings.userForward === 0 && hasPerm('account:forward'))
 
 defineOptions({
   name: 'setting'

@@ -15,7 +15,7 @@ const zh = {
 	forwardNoPerm: '你的身份不允许使用转发',
 	forwardTargetInternal: '不能转发到本站域名的邮箱',
 	forwardTargetSelf: '不能转发到邮箱自身',
-	forwardTargetLimit: '每个邮箱最多添加 3 个转发地址',
+	forwardTargetLimit: '每个用户最多添加 3 个转发地址',
 	forwardTargetExists: '该转发地址已添加',
 	forwardNoProvider: '该域名未配置发信渠道，无法开启转发',
 	forwardVerifyTooFrequent: '请稍后再试',
