@@ -39,7 +39,7 @@
               />
             </div>
             <div class="search-content-title search-type-title">{{ t('mailStatus') }}</div>
-            <div class="custom-style status-style">
+            <div class="custom-style">
               <el-segmented
                 v-model="mailStatus"
                 :options="statusOptions"
@@ -524,19 +524,16 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: flex-start;
   margin-top: 8px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 
 .custom-style .el-segmented {
+  flex: 0 0 auto;
   --el-border-radius-base: 6px;
-}
-
-.status-style :deep(.el-segmented) {
-  flex-wrap: wrap;
-  height: auto;
-}
-
-.status-style :deep(.el-segmented__group) {
-  flex-wrap: wrap;
 }
 
 .search-date-range {

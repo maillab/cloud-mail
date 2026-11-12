@@ -191,6 +191,26 @@ const emailService = {
 		return list;
 	},
 
+	// 时间范围先通过窄索引筛出 ID，避免逐行读取大字段之后的 create_time。
+	createTimeCondition({ startDate, endDate, userId }) {
+		if (!startDate && !endDate) return null;
+		const parts = [];
+		if (userId) parts.push(sql`e.user_id = ${userId}`);
+		if (startDate) parts.push(sql`e.create_time >= ${startDate}`);
+		if (endDate) parts.push(sql`e.create_time <= ${endDate}`);
+		return sql`${email.emailId} IN (SELECT e.email_id FROM email AS e WHERE ${sql.join(parts, sql` AND `)})`;
+	},
+
+	// 两个地址分别扫描各自的索引；UNION 去重，避免同时命中时重复计数。
+	// 显式指定索引，避免 D1 为 UNION 合并排序而改用表扫描。
+	emailAddressCondition(pattern) {
+		return sql`${email.emailId} IN (
+			SELECT e.email_id FROM email AS e INDEXED BY idx_email_to_email_nocase WHERE e.to_email COLLATE NOCASE LIKE ${pattern}
+			UNION
+			SELECT e.email_id FROM email AS e INDEXED BY idx_email_send_email_nocase WHERE e.send_email COLLATE NOCASE LIKE ${pattern}
+		)`;
+	},
+
 	emailListFilters({
 		userId,
 		accountId,
@@ -246,13 +266,8 @@ const emailService = {
 			}
 		}
 
-		if (startDate) {
-			conditions.push(gte(email.createTime, startDate));
-		}
-
-		if (endDate) {
-			conditions.push(lte(email.createTime, endDate));
-		}
+		const timeCond = this.createTimeCondition({ startDate, endDate, userId });
+		if (timeCond) conditions.push(timeCond);
 
 		return conditions;
 	},
@@ -281,12 +296,7 @@ const emailService = {
 		}
 
 		if (accountEmail) {
-			conditions.push(
-				or(
-					sql`${email.toEmail} COLLATE NOCASE LIKE ${accountEmail + '%'}`,
-					sql`${email.sendEmail} COLLATE NOCASE LIKE ${accountEmail + '%'}`,
-				)
-			);
+			conditions.push(this.emailAddressCondition(accountEmail + '%'));
 		}
 
 		if (name) {
@@ -317,22 +327,12 @@ const emailService = {
 			}
 
 			if (searchType === 'account') {
-				conditions.push(
-					or(
-						sql`${email.toEmail} COLLATE NOCASE LIKE ${searchText}`,
-						sql`${email.sendEmail} COLLATE NOCASE LIKE ${searchText}`,
-					)
-				);
+				conditions.push(this.emailAddressCondition(searchText));
 			}
 		}
 
-		if (startDate) {
-			conditions.push(gte(email.createTime, startDate));
-		}
-
-		if (endDate) {
-			conditions.push(lte(email.createTime, endDate));
-		}
+		const timeCond = this.createTimeCondition({ startDate, endDate });
+		if (timeCond) conditions.push(timeCond);
 
 		if (withCursor && emailId) {
 			conditions.push(timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId));
