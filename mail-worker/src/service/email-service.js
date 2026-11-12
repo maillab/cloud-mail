@@ -257,7 +257,7 @@ const emailService = {
 		return conditions;
 	},
 
-	allEmailListFilters({ emailId, name, subject, accountEmail, userEmail, type, timeSort, withCursor = true }) {
+	allEmailListFilters({ emailId, name, subject, accountEmail, userEmail, type, timeSort, withCursor = true, text, searchType, startDate, endDate }) {
 		const conditions = [];
 
 		if (type === 'send') {
@@ -295,6 +295,43 @@ const emailService = {
 
 		if (subject) {
 			conditions.push(sql`${email.subject} COLLATE NOCASE LIKE ${subject + '%'}`);
+		}
+
+		if (text?.trim() && searchType) {
+			const searchText = `%${text.trim()}%`;
+
+			if (searchType === 'subject') {
+				conditions.push(sql`${email.subject} COLLATE NOCASE LIKE ${searchText}`);
+			}
+
+			if (searchType === 'sender') {
+				conditions.push(sql`${email.name} COLLATE NOCASE LIKE ${searchText}`);
+			}
+
+			if (searchType === 'senderAddress') {
+				conditions.push(sql`${email.sendEmail} COLLATE NOCASE LIKE ${searchText}`);
+			}
+
+			if (searchType === 'user') {
+				conditions.push(sql`${user.email} COLLATE NOCASE LIKE ${searchText}`);
+			}
+
+			if (searchType === 'account') {
+				conditions.push(
+					or(
+						sql`${email.toEmail} COLLATE NOCASE LIKE ${searchText}`,
+						sql`${email.sendEmail} COLLATE NOCASE LIKE ${searchText}`,
+					)
+				);
+			}
+		}
+
+		if (startDate) {
+			conditions.push(gte(email.createTime, startDate));
+		}
+
+		if (endDate) {
+			conditions.push(lte(email.createTime, endDate));
 		}
 
 		if (withCursor && emailId) {
@@ -1213,7 +1250,7 @@ const emailService = {
 
 	async allList(c, params) {
 
-		let { emailId, size, name, subject, accountEmail, userEmail, type, timeSort, full } = params;
+		let { emailId, size, name, subject, accountEmail, userEmail, type, timeSort, full, text, searchType, startDate, endDate } = params;
 
 		size = Number(size);
 		emailId = Number(emailId) || 0;
@@ -1238,24 +1275,26 @@ const emailService = {
 
 		full = full === 1;
 
-		const filters = this.allEmailListFilters({ emailId, name, subject, accountEmail, userEmail, type, timeSort });
-		const countFilters = this.allEmailListFilters({ emailId, name, subject, accountEmail, userEmail, type, timeSort, withCursor: false });
+		const filters = this.allEmailListFilters({ emailId, name, subject, accountEmail, userEmail, type, timeSort, text, searchType, startDate, endDate });
+		const countFilters = this.allEmailListFilters({ emailId, name, subject, accountEmail, userEmail, type, timeSort, text, searchType, startDate, endDate, withCursor: false });
+		const searchUser = Boolean(text?.trim() && searchType === 'user');
 		const columns = full ? emailListColumns : emailBriefColumns;
 
+		const listWhere = and(...filters);
+		const countWhere = and(...countFilters);
 		const query = orm(c).select({ ...columns, userEmail: user.email })
 			.from(email)
-			.leftJoin(user, eq(email.userId, user.userId))
-			.where(and(...filters));
+			.leftJoin(user, eq(email.userId, user.userId));
+		if (listWhere) query.where(listWhere);
 
 		// count 不搜用户时无需 join user
-		const queryCount = userEmail
+		const queryCount = userEmail || searchUser
 			? orm(c).select({ total: count() })
 				.from(email)
 				.leftJoin(user, eq(email.userId, user.userId))
-				.where(and(...countFilters))
 			: orm(c).select({ total: count() })
-				.from(email)
-				.where(and(...countFilters));
+				.from(email);
+		if (countWhere) queryCount.where(countWhere);
 
 		if (timeSort) {
 			query.orderBy(asc(email.emailId));

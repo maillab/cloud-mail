@@ -1,5 +1,8 @@
 <template>
-  <div id="login-box" :style=" background ? 'background: var(--el-bg-color)' : ''" v-loading="oauthLoading" element-loading-text="登录中...">
+  <div id="login-box" :style=" background ? 'background: var(--el-bg-color)' : ''">
+    <div class="oauth-loading" :class="oauthLoading ? 'loading-show' : 'loading-hide'">
+      <loading/>
+    </div>
     <div id="background-wrap" v-if="!settingStore.settings.background">
       <div class="x1 cloud"></div>
       <div class="x2 cloud"></div>
@@ -171,6 +174,7 @@ import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
 import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
 import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
+import loading from "@/components/loading/index.vue";
 
 const {t} = useI18n();
 const accountStore = useAccountStore();
@@ -825,7 +829,32 @@ function submitRegister() {
 }
 
 
+.oauth-loading {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--loadding-background);
+  left: 0;
+  z-index: 20;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.loading-show {
+  transition: all 200ms ease 200ms;
+  opacity: 1;
+}
+
+.loading-hide {
+  pointer-events: none;
+  transition: var(--loading-hide-transition);
+  opacity: 0;
+}
+
 #login-box {
+  position: relative;
   background: linear-gradient(to bottom, #2980b9, #6dd5fa, #fff);
   font: 100% Arial, sans-serif;
   height: 100%;

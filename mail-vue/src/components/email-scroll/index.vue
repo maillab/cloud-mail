@@ -10,8 +10,8 @@
       </el-checkbox>
       <div class="header-left" :style="'padding-left:' + actionLeft">
 
-        <slot name="first"></slot>
         <Icon class="icon reload" icon="ion:reload" width="18" height="18" @click="refresh"/>
+        <slot name="first"></slot>
         <Icon v-perm="'email:delete'" class="icon delete" icon="uiw:delete" width="16" height="16"
               v-if="getSelectedMailsIds().length > 0"
               @click="handleDelete"/>
