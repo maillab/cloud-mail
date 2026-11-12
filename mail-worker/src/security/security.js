@@ -105,7 +105,7 @@ app.use('*', async (c, next) => {
 
 		const userPublicToken = await c.env.kv.get(KvConst.PUBLIC_KEY);
 		const publicToken = c.req.header(constant.TOKEN_HEADER);
-		if (publicToken !== userPublicToken) {
+		if (!userPublicToken || publicToken !== userPublicToken) {
 			throw new BizError(t('publicTokenFail'), 401);
 		}
 		return await next();
