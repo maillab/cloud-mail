@@ -129,13 +129,13 @@ const userCardVisible = ref(false)
 const outsidePointerEvents = ['mousedown', 'pointerup', 'mouseup', 'click', 'pointercancel']
 let blockOutsideClick = false
 const inboxSearchOptions = computed(() => [
-  {label: t('titleDesc'), type: 'subject'},
+  {label: t('subject'), type: 'subject'},
   {label: t('searchSummaryContent'), type: 'content'},
   {label: t('sender'), type: 'sender'},
   {label: t('searchSenderAddress'), type: 'senderAddress'},
 ])
 const sentSearchOptions = computed(() => [
-  {label: t('titleDesc'), type: 'subject'},
+  {label: t('subject'), type: 'subject'},
   {label: t('searchSummaryContent'), type: 'content'},
   {label: t('searchRecipientAddress'), type: 'recipientAddress'},
 ])

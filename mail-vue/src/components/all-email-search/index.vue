@@ -31,20 +31,25 @@
           </div>
           <div class="search-content">
             <div class="search-content-title">{{ t('searchType') }}</div>
-            <div class="custom-style">
-              <el-segmented
-                v-model="searchType"
-                :options="searchOptions"
-                :props="{ label: 'label', value: 'type' }"
-              />
-            </div>
+            <el-radio-group v-model="searchType" class="search-options" :aria-label="t('searchType')">
+              <el-radio-button
+                v-for="option in searchOptions"
+                :key="option.type"
+                :value="option.type"
+              >
+                {{ option.label }}
+              </el-radio-button>
+            </el-radio-group>
             <div class="search-content-title search-type-title">{{ t('mailStatus') }}</div>
-            <div class="custom-style">
-              <el-segmented
-                v-model="mailStatus"
-                :options="statusOptions"
-              />
-            </div>
+            <el-radio-group v-model="mailStatus" class="search-options" :aria-label="t('mailStatus')">
+              <el-radio-button
+                v-for="option in statusOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </el-radio-button>
+            </el-radio-group>
             <div class="search-date-range">
               <div class="search-date-field">
                 <div class="search-date-label">{{ t('searchDateFrom') }}</div>
@@ -96,7 +101,7 @@ let alignFrame = 0
 let listObserver = null
 
 const searchOptions = computed(() => [
-  {label: t('titleDesc'), type: 'subject'},
+  {label: t('subject'), type: 'subject'},
   {label: t('sender'), type: 'sender'},
   {label: t('searchSenderAddress'), type: 'senderAddress'},
   {label: t('user'), type: 'user'},
@@ -134,11 +139,11 @@ const savedSearchSummary = computed(() => {
     account: 'searchSummaryAccount',
   }
 
-  if (params.status && params.status !== 'all') {
-    parts.push(statusOptions.value.find(option => option.value === params.status)?.label || '')
-  }
   if (text) {
     parts.push(`${t(fieldKeys[params.type] || fieldKeys.subject)}:${text}`)
+  }
+  if (params.status && params.status !== 'all') {
+    parts.push(statusOptions.value.find(option => option.value === params.status)?.label || '')
   }
   if (params.startDate && params.endDate) {
     parts.push(`${formatSummaryDate(params.startDate)} ${t('searchSummaryRange')} ${formatSummaryDate(params.endDate)}`)
@@ -150,7 +155,7 @@ const savedSearchSummary = computed(() => {
   return parts.filter(Boolean).join('\u00a0\u00a0')
 })
 const searchPlaceholder = computed(() =>
-  t('searchMailBy', {field: selectedSearchOption.value?.label || t('titleDesc')})
+  t('searchMailBy', {field: selectedSearchOption.value?.label || t('subject')})
 )
 
 watch(startDate, value => {
@@ -472,7 +477,7 @@ onBeforeUnmount(() => {
   background-color: var(--el-card-bg-color) !important;
   border-radius: 6px !important;
   border: 1px solid var(--el-border-color) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
   overflow: hidden;
   isolation: isolate;
 }
@@ -520,20 +525,23 @@ onBeforeUnmount(() => {
   margin-top: 20px;
 }
 
-.custom-style {
+.search-options {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start;
+  gap: 8px;
   margin-top: 8px;
   min-width: 0;
   max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
 }
 
-.custom-style .el-segmented {
-  flex: 0 0 auto;
-  --el-border-radius-base: 6px;
+.search-options :deep(.el-radio-button .el-radio-button__inner) {
+  border-radius: var(--el-border-radius-base);
+}
+
+.search-options :deep(.el-radio-button.is-active .el-radio-button__inner) {
+  box-shadow: none;
+  outline-color: var(--el-color-primary);
 }
 
 .search-date-range {
