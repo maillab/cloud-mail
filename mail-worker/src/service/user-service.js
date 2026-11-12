@@ -67,6 +67,13 @@ const userService = {
 		await orm(c).update(user).set({ password: hash, salt: salt }).where(eq(user.userId, userId)).run();
 	},
 
+	// 登录成功后将旧版 SHA-256 密码升级为 PBKDF2
+	async rehashPasswordIfNeeded(c, userRow, password) {
+		if (!cryptoUtils.needsRehash(userRow.password)) return;
+		const { salt, hash } = await cryptoUtils.hashPassword(password);
+		await orm(c).update(user).set({ password: hash, salt: salt }).where(eq(user.userId, userRow.userId)).run();
+	},
+
 	selectByEmail(c, email) {
 		return orm(c).select().from(user).where(
 			and(
