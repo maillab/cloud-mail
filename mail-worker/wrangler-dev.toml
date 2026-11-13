@@ -43,4 +43,5 @@ analysis_cache = false
 orm_log = true
 domain = ["example.com", "example2.com", "example3.com", "example4.com"]
 admin = "admin@example.com"
-jwt_secret = "b7f29a1d-18e2-4d3b-941f-f6b2c97c02fd"
+#jwt_secret 不要写在这里: 本地开发写入 mail-worker/.dev.vars (已在 .gitignore 中), 例如 jwt_secret="<随机字符串>"
+#Do not put jwt_secret here: for local dev put it in mail-worker/.dev.vars (gitignored)
