@@ -37,6 +37,7 @@ const dbInit = {
 		await this.v3_6DB(c);
 		await this.v3_7DB(c);
 		await this.v3_8DB(c);
+		await this.v3_9DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
@@ -59,6 +60,11 @@ const dbInit = {
 		await this.addColumns(c, [
 			['email', 'sender_email', `TEXT NOT NULL DEFAULT ''`],
 		]);
+	},
+
+	async v3_9DB(c) {
+		// 上游 144d0c3 的搜索提速索引：fork 的 v3_5DB 已是 TOTP，改号为 v3_9DB。
+		await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_user_create_time ON email(user_id, create_time)`).run();
 	},
 
 	async v3_6DB(c) {
