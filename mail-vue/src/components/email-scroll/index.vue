@@ -801,6 +801,13 @@ function updateCheckStatus() {
   isIndeterminate.value = checkedCount > 0 && !checkAll.value;
 }
 
+function toggleRowChecked(email) {
+  if (!email.checked && isSelectMax.value) {
+    return
+  }
+  email.checked = !email.checked
+}
+
 function jumpDetails(email) {
 
   if (dropdownShow.value) {
@@ -814,6 +821,12 @@ function jumpDetails(email) {
       return
     }
   }
+
+  if (checkedEmailCount.value > 0) {
+    toggleRowChecked(email)
+    return
+  }
+
   emit('jump', email)
 }
 
@@ -1305,9 +1318,12 @@ function renderHighlight(value) {
     background-color: var(--email-right-click-background);
   }
 
-  /*&[data-checked="true"] {
-    background-color: #c2dbff;
-  }*/
+  &[data-checked="true"],
+  &[data-checked="true"]:hover,
+  &.right-checked[data-checked="true"],
+  &.right-checked[data-checked="true"]:hover {
+    background-color: var(--email-hover-background);
+  }
 }
 
 
