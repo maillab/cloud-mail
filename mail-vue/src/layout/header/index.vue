@@ -11,8 +11,8 @@
         :aria-label="$t('compose')"
         @click="openSend"
       >
-        <el-icon :size="21">
-          <Icon icon="material-symbols:edit-outline-sharp"/>
+        <el-icon :size="23">
+          <Icon icon="hugeicons:quill-write-01"/>
         </el-icon>
       </el-button>
     </div>
