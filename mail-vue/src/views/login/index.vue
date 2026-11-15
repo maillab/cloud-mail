@@ -3,12 +3,26 @@
     <div class="oauth-loading" :class="oauthLoading ? 'loading-show' : 'loading-hide'">
       <loading/>
     </div>
-    <div id="background-wrap" v-if="!settingStore.settings.background">
-      <div class="x1 cloud"></div>
-      <div class="x2 cloud"></div>
-      <div class="x3 cloud"></div>
-      <div class="x4 cloud"></div>
-      <div class="x5 cloud"></div>
+    <div id="background-wrap" v-if="!settingStore.settings.background" aria-hidden="true">
+      <svg class="scene" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+        <g class="blobs">
+          <circle cx="260" cy="180" r="420" class="blob blob-a"/>
+          <circle cx="1700" cy="940" r="520" class="blob blob-b"/>
+          <circle cx="1460" cy="120" r="210" class="blob blob-c"/>
+          <circle cx="420" cy="980" r="260" class="blob blob-b"/>
+        </g>
+        <g class="envelope" transform="translate(150 640) rotate(-8)">
+          <rect x="0" y="0" width="560" height="360" rx="28" class="line"/>
+          <path d="M0 40 L280 230 L560 40" class="line"/>
+          <path d="M0 360 L215 190 M560 360 L345 190" class="line"/>
+        </g>
+        <g class="plane" transform="translate(1250 200)">
+          <path d="M0 170 L660 0 L410 320 L320 200 Z" class="line"/>
+          <path d="M320 200 L660 0" class="line"/>
+          <path d="M410 320 L395 215" class="line"/>
+          <path d="M-520 320 C-300 340 -120 250 40 160" class="trail"/>
+        </g>
+      </svg>
     </div>
     <div v-else :style="background"></div>
     <div class="form-wrapper">
@@ -668,41 +682,29 @@ function submitRegister() {
 
 .form-wrapper {
   position: fixed;
-  right: 0;
-  height: 100%;
+  inset: 0;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  @media (max-width: 767px) {
-    width: 100%;
-  }
+  padding: 24px;
 }
 
 .container {
   background: v-bind(loginOpacity);
-  padding-left: 40px;
-  padding-right: 40px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 40px 40px 32px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  width: 450px;
-  height: 100%;
-  border-left: 1px solid var(--login-border);
-  box-shadow: var(--el-box-shadow-light);
-  @media (max-width: 1024px) {
-    padding: 20px 18px;
-    width: 384px;
-    margin-left: 18px;
-  }
+  width: 420px;
+  max-width: 100%;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.25);
   @media (max-width: 767px) {
-    border: 1px solid var(--login-border);
-    padding: 20px 18px;
-    border-radius: 6px;
-    height: fit-content;
-    width: 100%;
-    margin-right: 18px;
-    margin-left: 18px;
+    padding: 28px 20px 24px;
   }
 
   .btn {
@@ -867,76 +869,61 @@ function submitRegister() {
 
 
 #background-wrap {
-  height: 100%;
+  position: fixed;
+  inset: 0;
   z-index: 0;
+  overflow: hidden;
 }
 
-@keyframes animateCloud {
-  0% {
-    margin-left: -500px;
-  }
-
-  100% {
-    margin-left: 100%;
-  }
+.scene {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-.x1 {
-  animation: animateCloud 30s linear infinite;
-  transform: scale(0.65);
+.blob { fill: var(--el-color-primary); opacity: 0.10; }
+.blob-b { fill: var(--chart-2, #2a9d8f); opacity: 0.12; }
+.blob-c { fill: var(--chart-3, #e9c46a); opacity: 0.12; }
+
+.line {
+  fill: none;
+  stroke: var(--el-color-primary);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.22;
 }
 
-.x2 {
-  animation: animateCloud 15s linear infinite;
-  transform: scale(0.3);
+.trail {
+  fill: none;
+  stroke: var(--el-color-primary);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 4 28;
+  opacity: 0.35;
 }
 
-.x3 {
-  animation: animateCloud 25s linear infinite;
-  transform: scale(0.5);
+.plane {
+  animation: plane-drift 14s ease-in-out infinite;
 }
 
-.x4 {
-  animation: animateCloud 13s linear infinite;
-  transform: scale(0.4);
+.blobs {
+  transform-origin: center;
+  animation: blobs-breathe 24s ease-in-out infinite;
 }
 
-.x5 {
-  animation: animateCloud 20s linear infinite;
-  transform: scale(0.55);
+@keyframes plane-drift {
+  0%, 100% { transform: translate(1250px, 200px); }
+  50% { transform: translate(1270px, 176px); }
 }
 
-.cloud {
-  background: linear-gradient(to bottom, #fff 5%, #f1f1f1 100%);
-  border-radius: 100px;
-  box-shadow: 0 8px 5px rgba(0, 0, 0, 0.1);
-  height: 120px;
-  width: 350px;
-  position: relative;
+@keyframes blobs-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
 }
 
-.cloud:after,
-.cloud:before {
-  content: "";
-  position: absolute;
-  background: #fff;
-  z-index: -1;
-}
-
-.cloud:after {
-  border-radius: 100px;
-  height: 100px;
-  left: 50px;
-  top: -50px;
-  width: 100px;
-}
-
-.cloud:before {
-  border-radius: 200px;
-  height: 180px;
-  width: 180px;
-  right: 50px;
-  top: -90px;
+@media (prefers-reduced-motion: reduce) {
+  .plane, .blobs { animation: none; }
 }
 
 </style>
