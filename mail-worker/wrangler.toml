@@ -56,9 +56,9 @@ crons = ["0 * * * *"]	#每小时执行；resetDaySendCount 仅在 UTC 0 点生�
 #ai_model = ""			#ai模型,不填默认使用@cf/meta/llama-3.1-8b-instruct-fast
 #analysis_cache = false			#是否开启分析数据缓存
 #orm_log = false			#是否sql日志
-domain = "[ \"och.kdns.fr\" ]"		#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
-admin = "admin@och.kdns.fr"#管理员的邮箱	示例: admin@example.com
-jwt_secret = "ochayo"	#jwt令牌的密钥,随便填一串字符串
+domain=["och.kdns.fr"]		#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
+admin="admin@och.kdns.fr"#管理员的邮箱	示例: admin@example.com
+jwt_secret="ochayo"	#jwt令牌的密钥,随便填一串字符串
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"
