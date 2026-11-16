@@ -68,17 +68,12 @@ const settingService = {
 		return setting;
 	},
 
-	async get(c, showSiteKey = false) {
+	async get(c) {
 
 		const [settingRow, recordList] = await Promise.all([
 			await this.query(c),
 			verifyRecordService.selectListByIP(c)
 		]);
-
-
-		if (!showSiteKey) {
-			settingRow.siteKey = settingRow.siteKey ? `${settingRow.siteKey.slice(0, 6)}******` : null;
-		}
 
 		settingRow.secretKey = settingRow.secretKey ? `${settingRow.secretKey.slice(0, 6)}******` : null;
 
@@ -196,7 +191,7 @@ const settingService = {
 
 	async websiteConfig(c) {
 
-		const settingRow = await this.get(c, true);
+		const settingRow = await this.get(c);
 		const token = await userContext.getToken(c);
 
 		return {
