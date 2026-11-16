@@ -25,8 +25,22 @@ enabled = true
 [[send_email]]
 name = "forward"		#站内转发到已验证的其他邮箱，不限制单个地址
 
+# ...
 [ai]
 binding = "ai"
+
+[[d1_databases]]
+binding = "db"
+database_id = "799143a1-8273-4484-99d5-e97a1e9ca3c8"
+
+[[send_email]]
+name = "forward"
+
+[[kv_namespaces]]
+binding = "kv"
+id = "c608288b8dd14589b578405adf03be95"
+# ...
+
 
 [assets]
 binding = "assets"		#静态资源绑定名默认不可修改
