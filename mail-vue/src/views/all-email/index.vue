@@ -13,6 +13,7 @@
                  :time-sort="params.timeSort"
                  :item-height="65"
                  @jump="jumpContent"
+                 @refresh-success="onRefreshSuccess"
                  @right-search="rightSearch"
                  :highlight-text="allEmailStore.searchParams.text"
                  :type="'all-email'"
@@ -53,7 +54,7 @@
 <script setup>
 import {starAdd, starCancel} from "@/request/star.js";
 import emailScroll from "@/components/email-scroll/index.vue"
-import {defineOptions, reactive, ref, watch, onMounted} from "vue";
+import {defineOptions, reactive, ref, watch, onMounted, onBeforeUnmount} from "vue";
 import {useAllEmailStore} from "@/store/all-email.js";
 import {useEmailStore} from "@/store/email.js";
 import {
@@ -68,13 +69,12 @@ import {useI18n} from 'vue-i18n';
 import {toUtc} from "@/utils/day.js";
 import {sleep} from "@/utils/time-utils.js";
 import {useSettingStore} from "@/store/setting.js";
-import { useRoute } from 'vue-router'
+import {allEmailWs, isAutoRefreshEnabled} from "@/websocket/client.js";
 
 defineOptions({
   name: 'all-email'
 })
 
-const route = useRoute()
 const {t} = useI18n();
 const emailStore = useEmailStore();
 const allEmailStore = useAllEmailStore();
@@ -83,10 +83,32 @@ const clearTime = ref('')
 const sysEmailScroll = ref({})
 const showBathDelete = ref(false)
 const clearLoading = ref(false)
+let pullTimer = null
 
 onMounted(() => {
-  latest();
+  // 全部邮件实时：连共享 hub，含无人收件；重连后补拉
+  allEmailWs.start({
+    isEnabled: () => isAutoRefreshEnabled(settingStore.settings.autoRefresh),
+    onMessage: () => schedulePullLatest(),
+    onReconnect: () => schedulePullLatest(),
+  });
 })
+
+onBeforeUnmount(() => {
+  if (pullTimer) {
+    window.clearTimeout(pullTimer)
+    pullTimer = null
+  }
+  allEmailWs.stop()
+})
+
+watch(() => settingStore.settings.autoRefresh, () => {
+  allEmailWs.sync()
+})
+
+function onRefreshSuccess() {
+  allEmailWs.retryNow()
+}
 
 const params = reactive({
   timeSort: 0,
@@ -202,64 +224,59 @@ function getEmailList(emailId, size) {
   }))
 }
 
-async function latest() {
+// 短时间多条推送合并成一次补拉。
+function schedulePullLatest() {
+  if (pullTimer) {
+    window.clearTimeout(pullTimer)
+  }
+  pullTimer = window.setTimeout(() => {
+    pullTimer = null
+    void pullLatest()
+  }, 150)
+}
 
-  while (true) {
+// 按当前列表最新 id 拉取之后的新邮件并插入。
+async function pullLatest() {
+  const latestId = sysEmailScroll.value.latestEmail?.emailId
 
-    let autoRefresh = settingStore.settings.autoRefresh;
+  if (!latestId && latestId !== 0) {
+    return
+  }
 
-    await sleep(autoRefresh > 1 ? autoRefresh * 1000 : 3000);
+  if (sysEmailScroll.value.firstLoad) {
+    return
+  }
 
-    const latestId = sysEmailScroll.value.latestEmail?.emailId
+  const search = allEmailStore.searchParams
+  if (search.text || search.startDate || search.endDate || (search.status && search.status !== 'all' && search.status !== 'receive')) {
+    return
+  }
 
-    if (autoRefresh < 2) {
-      continue
+  try {
+    const curTimeSort = params.timeSort
+    const curStatus = search.status
+    const list = await allEmailLatest(latestId)
+
+    if (list.length === 0) {
+      return
     }
 
-    if (!latestId && latestId !== 0) {
-      continue
+    if (params.timeSort !== curTimeSort || allEmailStore.searchParams.status !== curStatus) {
+      return
     }
 
-    if (route.name !== 'all-email') {
-      continue
+    emailStore.applyFullList(list)
+
+    for (let email of list) {
+      sysEmailScroll.value.addItem(email)
+      await sleep(50)
     }
-
-
-    const search = allEmailStore.searchParams
-    if (search.text || search.startDate || search.endDate || (search.status && search.status !== 'all' && search.status !== 'receive')) {
-      continue
+  } catch (e) {
+    if (e.code === 401 || e.code === 403) {
+      settingStore.settings.autoRefresh = 1;
+      allEmailWs.sync();
     }
-
-    try {
-
-      const curTimeSort = params.timeSort
-      const curStatus = search.status
-      let list = await allEmailLatest(latestId)
-
-      if (list.length === 0) {
-        continue
-      }
-
-      if (params.timeSort !== curTimeSort || allEmailStore.searchParams.status !== curStatus) {
-        continue
-      }
-
-      emailStore.applyFullList(list)
-
-      for (let email of list) {
-
-        sysEmailScroll.value.addItem(email)
-        await sleep(50)
-
-      }
-
-    } catch (e) {
-      if (e.code === 401 || e.code === 403) {
-        settingStore.settings.autoRefresh = 0;
-      }
-      console.error(e)
-    }
-
+    console.error(e)
   }
 }
 

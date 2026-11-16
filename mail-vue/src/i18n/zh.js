@@ -180,7 +180,7 @@ const zh = {
     emailSetting: '邮件设置',
     receiveEmail: '邮件接收',
     autoRefresh: '自动刷新',
-    autoRefreshDesc: '轮询请求服务器获取最新邮件',
+    autoRefreshDesc: '有新邮件时实时推送',
     sendEmail: '邮件发送',
     resendToken: 'Resend Token',
     cloudflareEmailSending: 'Cloudflare 邮件发送',

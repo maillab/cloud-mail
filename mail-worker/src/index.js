@@ -6,10 +6,17 @@ import emailService from './service/email-service';
 import r2Service from './service/r2-service';
 import oauthService from './service/oauth-service';
 import analysisService from './service/analysis-service';
+import { handleWsUpgrade } from './websocket/connect';
+export { MailHub } from './websocket/hub'; // Durable Object 必须从 Worker 入口导出
 export default {
 	 async fetch(req, env, ctx) {
 
 		const url = new URL(req.url)
+
+		// WebSocket：浏览器连 /api/realtime，转到 MailHub Durable Object
+		if (url.pathname === '/api/realtime') {
+			return handleWsUpgrade(req, env);
+		}
 
 		if (url.pathname.startsWith('/api/')) {
 			url.pathname = url.pathname.replace('/api', '')

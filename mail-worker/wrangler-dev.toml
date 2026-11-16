@@ -37,6 +37,14 @@ run_worker_first = true
 [[send_email]]
 name = "forward"
 
+[[durable_objects.bindings]]
+name = "ws"
+class_name = "MailHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MailHub"]
+
 [vars]
 ai_model = ""
 analysis_cache = false

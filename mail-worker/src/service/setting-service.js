@@ -62,6 +62,7 @@ const settingService = {
 		setting.projectLink = projectLink;
 
 		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
+		setting.autoRefresh = Number(setting.autoRefresh) === 1 ? 1 : 2; // 1 关闭，2 开启
 
 		c.set?.('setting', setting);
 		return setting;
@@ -131,6 +132,10 @@ const settingService = {
 		}
 
 		params.resendTokens = JSON.stringify(resendTokens);
+
+		if (params.autoRefresh !== undefined) {
+			params.autoRefresh = Number(params.autoRefresh) === 1 ? 1 : 2;
+		}
 
 		await orm(c).update(setting).set({ ...params }).returning().get();
 		await this.refresh(c);

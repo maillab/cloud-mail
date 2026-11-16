@@ -302,7 +302,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['jump', 'refresh-before', 'delete-draft', 'right-search'])
+const emit = defineEmits(['jump', 'refresh-before', 'refresh-success', 'delete-draft', 'right-search'])
 
 const {t} = useI18n()
 const settingStore = useSettingStore()
@@ -823,7 +823,7 @@ function jumpDetails(email) {
 
 function getEmailList(refresh = false) {
 
-  if (reqLock) return;
+  if (reqLock) return Promise.resolve(false);
 
   let emailId = emailList.length > 0 ? emailList.at(-1).emailId : 0;
 
@@ -833,7 +833,7 @@ function getEmailList(refresh = false) {
 
     if (loading.value || noLoading.value) {
       reqLock = false
-      return
+      return Promise.resolve(false)
     }
 
   } else {
@@ -850,7 +850,7 @@ function getEmailList(refresh = false) {
   }
   let start = Date.now();
 
-  props.getEmailList(emailId, queryParam.size).then(async data => {
+  return props.getEmailList(emailId, queryParam.size).then(async data => {
     let end = Date.now();
     let duration = end - start;
     if (duration < 300 && !emailId) {
@@ -878,6 +878,7 @@ function getEmailList(refresh = false) {
     followLoading.value = data.list.length >= queryParam.size;
 
     total.value = data.total;
+    return true;
   }).finally(() => {
     loading.value = false
     reqLock = false
@@ -925,7 +926,11 @@ function refresh() {
   if (props.skeleton) {
     scrollbarRef.value.setScrollTop(0)
   }
-  refreshList()
+  checkAll.value = false;
+  isIndeterminate.value = false;
+  getEmailList(true).then(ok => {
+    if (ok) emit('refresh-success')
+  }).catch(() => {})
 }
 
 function refreshList() {

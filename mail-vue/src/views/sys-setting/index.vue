@@ -154,19 +154,8 @@
                   </el-tooltip>
                 </div>
                 <div>
-                  <el-select
-                      @change="change"
-                      :style="`width: ${ locale === 'en' ? 100 : 80 }px;`"
-                      v-model="setting.autoRefresh"
-                      placeholder="Select"
-                  >
-                    <el-option
-                        v-for="item in authRefreshOptions"
-                        :key="item.value"
-                        :label="item.label"
-                        :value="item.value"
-                    />
-                  </el-select>
+                  <el-switch @change="change" :before-change="beforeChange" :active-value="2" :inactive-value="1"
+                             v-model="setting.autoRefresh"/>
                 </div>
               </div>
               <div class="setting-item">
@@ -932,7 +921,7 @@ defineOptions({
   name: 'sys-setting'
 })
 
-const currentVersion = 'v3.5.0'
+const currentVersion = 'v3.5.1'
 const hasUpdate = ref(false)
 let getUpdateErrorCount = 1;
 const {t, locale} = useI18n();
@@ -1030,15 +1019,6 @@ const blackListForm = ref({
   blackFrom: []
 })
 const aiCodeFilter = ref([])
-
-const authRefreshOptions = computed(() => [
-  {label: t('disable'), value: 0},
-  {label: '3s', value: 3},
-  {label: '5s', value: 5},
-  {label: '10s', value: 10},
-  {label: '15s', value: 15},
-  {label: '20s', value: 20},
-])
 
 const tgChatId = ref([])
 const customDomain = ref('')
