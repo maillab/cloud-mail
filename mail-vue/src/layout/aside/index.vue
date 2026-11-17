@@ -11,9 +11,10 @@
       </button>
       <el-menu :collapse="false" text-color="#fff" active-text-color="#fff" style="margin-top: 6px">
         <el-menu-item @click="router.push({name: 'email'})" index="email"
-                      :class="route.meta.name === 'email' ? 'choose-item' : ''">
+                      :class="['inbox-item', route.meta.name === 'email' ? 'choose-item' : '']">
           <Icon icon="hugeicons:mailbox-01" width="20" height="20" />
           <span class="menu-name" style="margin-left: 16px">{{$t('inbox')}}</span>
+          <span v-if="unreadStore.total" class="unread-badge" :title="$t('unreadMails', { count: unreadStore.total })">{{ unreadStore.total > 99 ? '99+' : unreadStore.total }}</span>
         </el-menu-item>
         <el-menu-item @click="router.push({name: 'send'})" index="send" v-perm="'email:send'"
                       :class="route.meta.name === 'send' ? 'choose-item' : ''">
@@ -80,9 +81,11 @@ import { useRoute } from "vue-router";
 import {Icon} from "@iconify/vue";
 import {useSettingStore} from "@/store/setting.js";
 import {useUiStore} from "@/store/ui.js";
+import {useUnreadStore} from "@/store/unread.js";
 
 const settingStore = useSettingStore();
 const uiStore = useUiStore();
+const unreadStore = useUnreadStore();
 const route = useRoute();
 const logoUrl = `${import.meta.env.BASE_URL}mail.png`
 const titleUsesDisplayFont = computed(() => !/\p{Script=Han}/u.test(settingStore.settings.title || ''))
@@ -201,6 +204,25 @@ function openCompose() {
   }
 }
 
+
+.inbox-item {
+  display: flex;
+}
+
+.unread-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #1890ff;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
 .menu-name {
   user-select: none;
 }

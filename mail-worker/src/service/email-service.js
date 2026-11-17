@@ -1499,6 +1499,34 @@ const emailService = {
 		await orm(c).delete(email).where(eq(email.accountId, accountId)).run();
 	},
 
+	async unreadCounts(c, userId) {
+		const rows = await orm(c)
+			.select({
+				accountId: email.accountId,
+				count: count(email.emailId)
+			})
+			.from(email)
+			.innerJoin(account, eq(account.accountId, email.accountId))
+			.where(and(
+				eq(email.userId, userId),
+				eq(email.type, emailConst.type.RECEIVE),
+				eq(email.isDel, isDel.NORMAL),
+				eq(account.isDel, isDel.NORMAL),
+				eq(email.unread, emailConst.unread.UNREAD),
+			))
+			.groupBy(email.accountId);
+
+		const list = rows.map(row => ({
+			accountId: row.accountId,
+			count: Number(row.count) || 0,
+		})).filter(row => row.count > 0);
+
+		return {
+			total: list.reduce((sum, row) => sum + row.count, 0),
+			list,
+		};
+	},
+
 	async read(c, params, userId) {
 		const { emailIds } = params;
 		await orm(c).update(email).set({ unread: emailConst.unread.READ }).where(and(eq(email.userId, userId), inArray(email.emailId, emailIds)));

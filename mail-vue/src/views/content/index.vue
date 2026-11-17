@@ -89,6 +89,7 @@ import {ElMessage, ElMessageBox} from 'element-plus'
 import {emailDelete, emailRead} from "@/request/email.js";
 import {Icon} from "@iconify/vue";
 import {useEmailStore} from "@/store/email.js";
+import {useUnreadStore} from "@/store/unread.js";
 import {useAccountStore} from "@/store/account.js";
 import {formatDetailDate} from "@/utils/day.js";
 import {starAdd, starCancel} from "@/request/star.js";
@@ -106,6 +107,7 @@ const uiStore = useUiStore();
 const settingStore = useSettingStore();
 const accountStore = useAccountStore();
 const emailStore = useEmailStore();
+const unreadStore = useUnreadStore();
 const router = useRouter()
 const sendNameRef = ref(null)
 const senderWrapped = ref(false)
@@ -184,6 +186,7 @@ function tryMarkRead() {
   emailStore.markListRead(emailId)
   emailRead([emailId]).finally(() => {
     readRequesting = false
+    unreadStore.scheduleRefresh()
   })
 }
 
@@ -307,8 +310,10 @@ const handleDelete = () => {
           plain: true,
         })
         emailStore.deleteIds = [email.value.emailId]
+        unreadStore.scheduleRefresh()
       })
     } else  {
+
 
       allEmailDelete(email.value.emailId).then(() => {
         ElMessage({

@@ -9,7 +9,8 @@
         <el-card class="item" :class="itemBg(item.accountId)" v-for="(item, index) in accounts" :key="item.accountId"
                  @click="changeAccount(item)">
           <div class="account">
-            {{ item.email }}
+            <span class="account-email">{{ item.email }}</span>
+            <span v-if="unreadStore.accountCount(item.accountId)" class="unread-badge" :title="$t('unreadMails', { count: unreadStore.accountCount(item.accountId) })">{{ unreadStore.accountCount(item.accountId) > 99 ? '99+' : unreadStore.accountCount(item.accountId) }}</span>
           </div>
           <div class="opt">
             <div class="send-email" @click.stop>
@@ -144,6 +145,7 @@ import {useSettingStore} from "@/store/setting.js";
 import {useAccountStore} from "@/store/account.js";
 import {useEmailStore} from "@/store/email.js";
 import {useUserStore} from "@/store/user.js";
+import {useUnreadStore} from "@/store/unread.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
 import {AccountAllReceiveEnum} from "@/enums/account-enum.js";
@@ -151,6 +153,7 @@ import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
 
 const {t} = useI18n();
 const userStore = useUserStore();
+const unreadStore = useUnreadStore();
 const accountStore = useAccountStore();
 const settingStore = useSettingStore();
 const emailStore = useEmailStore();
@@ -347,6 +350,7 @@ function remove(account) {
         type: 'success',
         plain: true,
       })
+      unreadStore.scheduleRefresh()
     })
   });
 }
@@ -364,6 +368,7 @@ function refresh() {
   scrollbarRef.value.setScrollTop(0)
   accounts.splice(0, accounts.length)
   getAccountList()
+  unreadStore.refresh()?.catch(err => console.error(err))
 }
 
 function changeAccount(account) {
@@ -621,12 +626,34 @@ path[fill="#ffdda1"] {
     cursor: pointer;
 
     .account {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       font-weight: 400;
       font-size: 15px;
       margin-bottom: 20px;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
+
+      .account-email {
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .unread-badge {
+        flex-shrink: 0;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 9px;
+        background: #1890ff;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 18px;
+        text-align: center;
+      }
     }
 
     .opt {
