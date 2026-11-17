@@ -127,7 +127,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="together">
-                    {{ $t(form.sendType === 'forward' ? 'forward' : 'send') }}
+                    {{ togetherSendLabel }}
                   </el-dropdown-item>
                   <el-dropdown-item command="divide">
                     {{ separateSendLabel }}
@@ -247,12 +247,19 @@ const suggestSelectMap = { receive: mySelect, cc: ccSelectRef, bcc: bccSelectRef
 const suggestFieldMap = { receive: 'receiveEmail', cc: 'ccEmail', bcc: 'bccEmail' }
 
 const contacts = computed(() => writerStore.sendRecipientRecord.map(item => ({email: item})))
-const separateSendLabel = computed(() => t(form.sendType === 'forward' ? 'separateForward' : 'separateSend'))
-const sendButtonLabel = computed(() => {
-  if (form.manyType === 'divide') return separateSendLabel.value
+const togetherSendLabel = computed(() => {
   if (form.sendType === 'reply') return t('reply')
   if (form.sendType === 'forward') return t('forward')
   return t('send')
+})
+const separateSendLabel = computed(() => {
+  if (form.sendType === 'reply') return t('separateReply')
+  if (form.sendType === 'forward') return t('separateForward')
+  return t('separateSend')
+})
+const sendButtonLabel = computed(() => {
+  if (form.manyType === 'divide') return separateSendLabel.value
+  return togetherSendLabel.value
 })
 
 function clearCcBcc() {

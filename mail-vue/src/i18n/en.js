@@ -286,6 +286,7 @@ const en = {
     emptyContentMsg: 'Content cannot be empty',
     separateSend: 'Send Separately',
     separateForward: 'Forward Separately',
+    separateReply: 'Reply Separately',
     partialSendMsg: '{count} emails sent, {failed} failed',
     sendSuccessMsg: 'Send successful',
     sendFailMsg: 'Send failed',

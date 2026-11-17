@@ -286,6 +286,7 @@ const zh = {
     emptyContentMsg: '邮件正文不能为空',
     separateSend: '分开发送',
     separateForward: '分开转发',
+    separateReply: '分开回复',
     partialSendMsg: '已发送 {count} 封，失败 {failed} 封',
     sendSuccessMsg: '发送成功',
     sendFailMsg: '发送失败',

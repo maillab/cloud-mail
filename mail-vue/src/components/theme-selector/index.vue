@@ -17,7 +17,7 @@
           :name="groupName"
           :value="option.dark"
           :checked="uiStore.dark === option.dark"
-          @change="selectTheme(option.dark, $event)"
+          @change="changeDark(option.dark)"
         >
       </span>
     </label>
@@ -37,43 +37,17 @@ const themeOptions = [
   {label: 'darkTheme', dark: true},
 ]
 
-function selectTheme(dark, event) {
-  const bounds = event.currentTarget.closest('.theme-card')?.getBoundingClientRect()
-  changeDark(dark, {
-    x: bounds ? bounds.left + bounds.width / 2 : window.innerWidth / 2,
-    y: bounds ? bounds.top + bounds.height / 2 : window.innerHeight / 2,
-  })
-}
-
-function changeDark(nextIsDark, origin) {
+function changeDark(nextIsDark) {
   if (nextIsDark === uiStore.dark) return
 
   const root = document.documentElement
-  const applyTheme = () => {
-    root.classList.toggle('dark', nextIsDark)
-    const isMobile = !window.matchMedia("(pointer: fine) and (hover: hover)").matches
-    document.getElementById('theme-color-meta')?.setAttribute(
-      'content',
-      nextIsDark ? (isMobile ? '#141414' : '#000000') : (isMobile ? '#191A23' : '#F1F1F1')
-    )
-    uiStore.dark = nextIsDark
-  }
-
-  if (!document.startViewTransition) {
-    applyTheme()
-    return
-  }
-
-  const endRadius = Math.hypot(
-    Math.max(origin.x, window.innerWidth - origin.x),
-    Math.max(origin.y, window.innerHeight - origin.y)
+  root.classList.toggle('dark', nextIsDark)
+  const isMobile = !window.matchMedia("(pointer: fine) and (hover: hover)").matches
+  document.getElementById('theme-color-meta')?.setAttribute(
+    'content',
+    nextIsDark ? (isMobile ? '#141414' : '#000000') : (isMobile ? '#191A23' : '#F1F1F1')
   )
-  root.setAttribute('data-theme-to', nextIsDark ? 'dark' : 'light')
-  root.style.setProperty('--vt-x', `${origin.x}px`)
-  root.style.setProperty('--vt-y', `${origin.y}px`)
-  root.style.setProperty('--vt-end-radius', `${endRadius + 10}px`)
-  const transition = document.startViewTransition(applyTheme)
-  transition.finished.finally(() => root.removeAttribute('data-theme-to'))
+  uiStore.dark = nextIsDark
 }
 </script>
 
