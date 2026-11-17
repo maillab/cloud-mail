@@ -921,7 +921,7 @@ defineOptions({
   name: 'sys-setting'
 })
 
-const currentVersion = 'v3.5.1'
+const currentVersion = 'v3.6.0'
 const hasUpdate = ref(false)
 let getUpdateErrorCount = 1;
 const {t, locale} = useI18n();
