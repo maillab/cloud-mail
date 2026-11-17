@@ -4,6 +4,23 @@ export default function emailHtmlTemplate(html) {
 
 	const { document } = parseHTML(html);
 	document.querySelectorAll('script').forEach(script => script.remove());
+	// 去掉内联事件和 javascript: 伪协议，避免 innerHTML 后再执行。
+	document.querySelectorAll('*').forEach(el => {
+		for (const name of el.getAttributeNames()) {
+			const lower = name.toLowerCase();
+			if (lower.startsWith('on') || lower === 'srcdoc') {
+				el.removeAttribute(name);
+				continue;
+			}
+			if (!['href', 'src', 'xlink:href', 'action', 'formaction', 'poster', 'background'].includes(lower)) {
+				continue;
+			}
+			const value = (el.getAttribute(name) || '').trim();
+			if (/^(javascript|vbscript):/i.test(value)) {
+				el.removeAttribute(name);
+			}
+		}
+	});
 	html = document.toString();
 	html = html.replace(/{{domain}}/g, '/');
 	const safeHtmlJson = JSON.stringify(html).replace(/</g, '\\u003C');
