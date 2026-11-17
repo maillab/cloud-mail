@@ -691,7 +691,7 @@ Authorization: &lt;secret&gt;</pre>
           </div>
         </template>
         <div class="forward-set-body">
-          <el-input-tag :placeholder="$t('ruleEmailsInputDesc')" tag-type="success" v-model="ruleEmail"
+          <el-input-tag :placeholder="$t('ruleUsersInputDesc')" tag-type="warning" v-model="ruleEmail"
                         @add-tag="ruleEmailAddTag"/>
         </div>
         <template #footer>

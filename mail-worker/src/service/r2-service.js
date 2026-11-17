@@ -77,8 +77,7 @@ const r2Service = {
 				return new Response(obj.body, {
 					headers: publicFileHeaders({
 						contentType: obj.httpMetadata?.contentType,
-						contentDisposition: obj.httpMetadata?.contentDisposition,
-						cacheControl: obj.httpMetadata?.cacheControl
+						contentDisposition: obj.httpMetadata?.contentDisposition
 					})
 				});
 			}

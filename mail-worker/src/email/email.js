@@ -165,13 +165,12 @@ export async function email(message, env, ctx) {
 		notifyMailWs(env, ctx, emailRow);
 
 		if (ruleType === settingConst.ruleType.RULE) {
-
-			const emails = ruleEmail.split(',');
-
-			if (!emails.includes(message.to)) {
+			if (!emailService.matchForwardRule({
+				ruleEmail,
+				userEmail: userRow?.email
+			})) {
 				return;
 			}
-
 		}
 
 		//转发到TG

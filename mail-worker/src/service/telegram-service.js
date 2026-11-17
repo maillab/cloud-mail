@@ -31,10 +31,9 @@ const telegramService = {
 		if (emailRow) {
 
 			if (emailRow.content) {
-				const { r2Domain } = await settingService.query(c);
 				// Telegram 网页预览：外链图改成 /proxy?url=，避免暴露打开者 IP。
 				const html = await proxyService.rewriteHtml(c, emailRow.content);
-				return emailHtmlTemplate(html || '', r2Domain)
+				return emailHtmlTemplate(html || '')
 			} else {
 				return emailTextTemplate(emailRow.text || '')
 			}

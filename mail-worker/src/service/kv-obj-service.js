@@ -28,8 +28,7 @@ const kvObjService = {
 		return new Response(obj.value, {
 			headers: publicFileHeaders({
 				contentType: obj.metadata?.contentType,
-				contentDisposition: obj.metadata?.contentDisposition,
-				cacheControl: obj.metadata?.cacheControl
+				contentDisposition: obj.metadata?.contentDisposition
 			})
 		});
 	},

@@ -87,8 +87,7 @@ const s3Service = {
 		return new Response(result.Body, {
 			headers: publicFileHeaders({
 				contentType: result.ContentType,
-				contentDisposition: result.ContentDisposition,
-				cacheControl: result.CacheControl
+				contentDisposition: result.ContentDisposition
 			})
 		});
 	},

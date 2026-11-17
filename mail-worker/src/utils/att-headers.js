@@ -1,5 +1,7 @@
 // 公开对象（/oss、/attachments、/static）的响应头。
 // 只允许栅格图 inline；SVG/HTML 等一律当附件，并加 nosniff + CSP sandbox。
+// 内嵌附件保存、读取共用 4 小时。
+export const ATT_CACHE_CONTROL = 'public, max-age=14400';
 
 const SAFE_INLINE_TYPES = new Set([
 	'image/jpeg',
@@ -29,10 +31,10 @@ export function isDangerousAttType(contentType) {
 	return /svg|html|xml|javascript|ecmascript/.test(type);
 }
 
-export function publicFileHeaders({ contentType, contentDisposition, cacheControl } = {}) {
+export function publicFileHeaders({ contentType, contentDisposition } = {}) {
 	const type = mimeTypeOf(contentType);
 	const safeInline = SAFE_INLINE_TYPES.has(type);
-	const headers = {
+	return {
 		'Content-Type': isDangerousAttType(type) || !type
 			? 'application/octet-stream'
 			: contentType,
@@ -40,14 +42,9 @@ export function publicFileHeaders({ contentType, contentDisposition, cacheContro
 			? (contentDisposition || 'inline')
 			: toAttachmentDisposition(contentDisposition),
 		'X-Content-Type-Options': 'nosniff',
-		'Content-Security-Policy': 'sandbox'
+		'Content-Security-Policy': 'sandbox',
+		'Cache-Control': ATT_CACHE_CONTROL
 	};
-
-	if (cacheControl) {
-		headers['Cache-Control'] = cacheControl;
-	}
-
-	return headers;
 }
 
 function toAttachmentDisposition(disposition) {

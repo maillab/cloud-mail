@@ -9,7 +9,7 @@ import { parseHTML } from 'linkedom';
 import { v4 as uuidv4 } from 'uuid';
 import domainUtils from '../utils/domain-uitls';
 import settingService from "./setting-service";
-import { isDangerousAttType, isSafeInlineAtt } from '../utils/att-headers';
+import { ATT_CACHE_CONTROL, isDangerousAttType, isSafeInlineAtt } from '../utils/att-headers';
 
 const attService = {
 
@@ -23,9 +23,11 @@ const attService = {
 					: attachment.mimeType,
 			}
 
-			if (attachment.contentId && isSafeInlineAtt(attachment.mimeType)) {
-				metadate.contentDisposition = `inline;filename=${attachment.filename}`
-				metadate.cacheControl = `max-age=259200`
+			if (attachment.contentId) {
+				metadate.cacheControl = ATT_CACHE_CONTROL
+				metadate.contentDisposition = isSafeInlineAtt(attachment.mimeType)
+					? `inline;filename=${attachment.filename}`
+					: `attachment;filename=${attachment.filename}`
 			} else {
 				metadate.contentDisposition = `attachment;filename=${attachment.filename}`
 			}
@@ -190,7 +192,7 @@ const attService = {
 				contentType: isDangerousAttType(attData.mimeType)
 					? 'application/octet-stream'
 					: attData.mimeType,
-				cacheControl: `max-age=259200`,
+				cacheControl: ATT_CACHE_CONTROL,
 				contentDisposition: isSafeInlineAtt(attData.mimeType)
 					? `inline;filename=${attData.filename}`
 					: `attachment;filename=${attData.filename}`

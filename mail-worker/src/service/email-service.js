@@ -1084,14 +1084,27 @@ const emailService = {
 		return emailRowList;
 	},
 
+	// 规则转发：只按所属用户登录邮箱匹配，名单仍存在 rule_email。
+	matchForwardRule({ ruleEmail, userEmail }) {
+		const users = String(ruleEmail || '').split(',').map(item => item.trim().toLowerCase()).filter(Boolean);
+		return !!(userEmail && users.includes(String(userEmail).toLowerCase()));
+	},
+
 	//站内邮件不经过 email 事件，在这里按转发规则推送
 	async forwardOnSiteEmail(c, emailRowList, { sendParams }) {
 
 		const { tgBotStatus, tgChatId, forwardStatus, forwardEmail, webhookStatus, webhookUrl, webhookRetry, webhookSecret, ruleEmail, ruleType } = await settingService.query(c);
 
 		if (ruleType === settingConst.ruleType.RULE) {
-			const emails = ruleEmail.split(',');
-			emailRowList = emailRowList.filter(emailRow => emails.includes(emailRow.toEmail));
+			const userIds = [...new Set(emailRowList.map(row => row.userId).filter(Boolean))];
+			const userRows = userIds.length
+				? await orm(c).select({ userId: user.userId, email: user.email }).from(user).where(inArray(user.userId, userIds)).all()
+				: [];
+			const userEmailById = Object.fromEntries(userRows.map(row => [row.userId, row.email]));
+			emailRowList = emailRowList.filter(emailRow => this.matchForwardRule({
+				ruleEmail,
+				userEmail: userEmailById[emailRow.userId]
+			}));
 		}
 
 		for (const emailRow of emailRowList) {
