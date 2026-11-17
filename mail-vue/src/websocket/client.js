@@ -71,8 +71,7 @@ export function createWsClient(scope) {
 		const base = import.meta.env.VITE_BASE_URL || '/api';
 		const httpUrl = new URL(base, window.location.origin);
 		const protocol = httpUrl.protocol === 'https:' ? 'wss:' : 'ws:';
-		const path = `${httpUrl.pathname.replace(/\/$/, '')}/realtime`;
-		const wsUrl = new URL(`${protocol}//${httpUrl.host}${path}`);
+		const wsUrl = new URL(`${protocol}//${httpUrl.host}/realtime`);
 		wsUrl.searchParams.set('token', token);
 		if (scope && scope !== 'inbox') {
 			wsUrl.searchParams.set('scope', scope);

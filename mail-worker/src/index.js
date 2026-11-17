@@ -7,15 +7,21 @@ import r2Service from './service/r2-service';
 import oauthService from './service/oauth-service';
 import analysisService from './service/analysis-service';
 import { handleWsUpgrade } from './websocket/connect';
+import proxyService from './service/proxy-service';
 export { MailHub } from './websocket/hub'; // Durable Object 必须从 Worker 入口导出
 export default {
 	 async fetch(req, env, ctx) {
 
 		const url = new URL(req.url)
 
-		// WebSocket：浏览器连 /api/realtime，转到 MailHub Durable Object
-		if (url.pathname === '/api/realtime') {
+		// WebSocket：浏览器连 /realtime，转到 MailHub Durable Object
+		if (url.pathname === '/realtime') {
 			return handleWsUpgrade(req, env);
+		}
+
+		// 邮件图片代理：公开接口，img 无法带 JWT，由 Worker 代拉外链图，避免泄露用户 IP。
+		if (url.pathname === '/proxy') {
+			return proxyService.fetchImage(url.searchParams.get('url'));
 		}
 
 		if (url.pathname.startsWith('/api/')) {
