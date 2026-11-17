@@ -32,6 +32,8 @@ export default defineConfig(({mode}) => {
                     ],
                 },
                 workbox: {
+                    // Web Push 的 push / notificationclick 处理，见 public/push-sw.js
+                    importScripts: ['push-sw.js'],
                     disableDevLogs: true,
                     globPatterns: [],
                     runtimeCaching: [],

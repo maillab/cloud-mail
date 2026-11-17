@@ -27,6 +27,7 @@ import webhookService from './webhook-service';
 import forwardMime from '../utils/forward-mime';
 import verifyUtils from '../utils/verify-utils';
 import { notifyMailWsFromContext } from '../websocket/notify';
+import { notifyMailPushFromContext } from '../push/notify';
 
 const emailService = {
 
@@ -1049,6 +1050,7 @@ const emailService = {
 			emailRowList.push(emailRow);
 			// 站内信同样：有 userId 推收件箱，无人收件只推全部邮件。
 			notifyMailWsFromContext(c, emailRow);
+			notifyMailPushFromContext(c, emailRow);
 
 			//设置附件保存
 			for (const attRow of attList) {

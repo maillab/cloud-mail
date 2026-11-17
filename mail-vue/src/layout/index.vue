@@ -28,6 +28,7 @@ import Main from '@/layout/main/index.vue'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import {useUiStore} from "@/store/ui.js";
 import writer from '@/layout/write/index.vue'
+import {syncPush} from "@/push/push.js";
 
 const uiStore = useUiStore();
 const writerRef = ref({})
@@ -42,6 +43,7 @@ onMounted(() => {
 
   window.addEventListener('resize', handleResize)
   handleResize()
+  syncPush()
 })
 
 onBeforeUnmount(() => {

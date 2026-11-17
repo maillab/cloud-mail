@@ -13,6 +13,7 @@ import telegramService from '../service/telegram-service';
 import aiService from '../service/ai-service';
 import webhookService from '../service/webhook-service';
 import { notifyMailWs } from '../websocket/notify';
+import { notifyMailPush } from '../push/notify';
 
 export async function email(message, env, ctx) {
 
@@ -163,6 +164,8 @@ export async function email(message, env, ctx) {
 
 		// 有账号才推个人收件箱；无人收件（无 account / userId=0）只推全部邮件。
 		notifyMailWs(env, ctx, emailRow);
+		// 同时向用户已开启通知的设备发 Web Push（App 不在前台也能收到）。
+		notifyMailPush(env, ctx, emailRow);
 
 		if (ruleType === settingConst.ruleType.RULE) {
 

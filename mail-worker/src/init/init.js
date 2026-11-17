@@ -1,4 +1,5 @@
 import settingService from '../service/setting-service';
+import pushService from '../service/push-service';
 import emailUtils from '../utils/email-utils';
 import {emailConst} from "../const/entity-const";
 
@@ -35,8 +36,14 @@ const dbInit = {
 		await this.v3_4DB(c);
 		await this.v3_5DB(c);
 		await this.v3_5_1DB(c);
+		await this.v3_6DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async v3_6DB(c) {
+		// Web Push：设备订阅表 + VAPID 密钥表。没执行过这一步也没关系，首次开启通知时会自动建表。
+		await pushService.createTables(c);
 	},
 
 	async v3_5_1DB(c) {
