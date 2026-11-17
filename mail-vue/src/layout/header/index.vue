@@ -102,6 +102,7 @@
 import router from "@/router";
 import hanburger from '@/components/hamburger/index.vue'
 import {logout} from "@/request/login.js";
+import {clearLocalPush} from "@/push/push.js";
 import {Icon} from "@iconify/vue";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
@@ -254,6 +255,7 @@ function changeAside() {
 function clickLogout() {
   logoutLoading.value = true
   logout().then(() => {
+    clearLocalPush()
     localStorage.removeItem("token")
     router.replace('/login')
   }).finally(() => {

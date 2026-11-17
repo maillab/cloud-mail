@@ -65,7 +65,7 @@ With only one domain, you can create multiple different email addresses, similar
 
 - **📦 Attachment Support**: Send and receive attachments, stored and downloaded via R2 object storage.
 
-- **🔔 Email Push**: Forward received emails to Telegram bots or other email providers.
+- **🔔 Email Push**: Forward received emails to Telegram bots or other email providers, with new-email notifications in browsers and the iOS Home Screen web app.
 
 - **📡 Open API**: Supports batch user creation via API and multi-condition email queries
 

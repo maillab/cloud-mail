@@ -52,6 +52,21 @@
       <ThemeSelector/>
     </div>
     <div class="preference-item">
+      <div class="title">{{$t('pushTitle')}}</div>
+      <div class="language-row setting-row">
+        <div>{{$t('pushNewMail')}}</div>
+        <div>
+          <el-switch
+              :model-value="pushState === PUSH_STATE.ON"
+              :loading="pushLoading"
+              :disabled="pushDisabled"
+              @change="changePush"
+          />
+        </div>
+      </div>
+      <div class="push-tip">{{ pushTip }}</div>
+    </div>
+    <div class="preference-item">
       <div class="title">{{$t('noticeTitle')}}</div>
       <div class="language-row setting-row">
         <div>{{$t('noticeInfo')}}</div>
@@ -81,7 +96,7 @@
   </div>
 </template>
 <script setup>
-import {reactive, ref, defineOptions} from 'vue'
+import {computed, onMounted, reactive, ref, defineOptions} from 'vue'
 import {resetPassword, userDelete} from "@/request/my.js";
 import {useUserStore} from "@/store/user.js";
 import router from "@/router/index.js";
@@ -91,6 +106,7 @@ import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
 import {useUiStore} from "@/store/ui.js";
 import ThemeSelector from "@/components/theme-selector/index.vue";
+import {PUSH_STATE, clearLocalPush, disablePush, enablePush, getPushState} from "@/push/push.js";
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
@@ -105,6 +121,59 @@ const langSelect = ref(settingStore.lang)
 defineOptions({
   name: 'setting'
 })
+
+// 新邮件通知（Web Push）。状态为空表示还在检测。
+const pushState = ref('')
+const pushLoading = ref(false)
+
+const pushDisabled = computed(() => ![PUSH_STATE.ON, PUSH_STATE.OFF].includes(pushState.value))
+
+const pushTip = computed(() => {
+  const tips = {
+    [PUSH_STATE.NEED_INSTALL]: t('pushNeedInstall'),
+    [PUSH_STATE.DENIED]: t('pushDenied'),
+    [PUSH_STATE.UNSUPPORTED]: t('pushUnsupported'),
+  }
+  return tips[pushState.value] || t('pushDesc')
+})
+
+onMounted(async () => {
+  pushState.value = await getPushState()
+})
+
+// 不能在 enablePush 之前 await 任何东西：iOS 要求权限弹窗由点击直接触发。
+async function changePush(value) {
+  if (pushLoading.value) return
+  pushLoading.value = true
+  try {
+    if (value) {
+      pushState.value = await enablePush()
+      if (pushState.value === PUSH_STATE.ON) {
+        ElMessage({
+          message: t('pushEnabledMsg'),
+          type: 'success',
+          plain: true,
+        })
+      }
+    } else {
+      await disablePush()
+      pushState.value = PUSH_STATE.OFF
+    }
+  } catch (e) {
+    console.error(e)
+    // 接口报错已由请求拦截器提示（带 code），这里只提示浏览器侧的失败。
+    if (!e?.code) {
+      ElMessage({
+        message: t('pushFailMsg'),
+        type: 'error',
+        plain: true,
+      })
+    }
+    pushState.value = await getPushState()
+  } finally {
+    pushLoading.value = false
+  }
+}
 
 function showSetName() {
   accountName.value = userStore.user.name
@@ -169,6 +238,7 @@ const deleteConfirm = () => {
     type: 'warning'
   }).then(() => {
     userDelete().then(() => {
+      clearLocalPush()
       localStorage.removeItem('token');
       router.replace('/login');
       ElMessage({
@@ -329,6 +399,12 @@ function submitPwd() {
       grid-template-columns: 120px minmax(0, 1fr);
       column-gap: 24px;
     }
+  }
+
+  .push-tip {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--secondary-text-color);
   }
 
   .language-select {
