@@ -322,7 +322,6 @@ const en = {
     backgroundWarning: 'Image file size affects website load speed',
     rulesVerify: 'Rules',
     rulesVerifyTitle: 'Trigger after {count} daily uses per IP',
-    loginRulesVerifyTitle: 'Trigger after {count} daily login attempts per IP',
     botVerifyMsg: 'Please verify that you are human',
     oauthLogin: 'OAuth2',
     noticeTitle: 'Announcements',

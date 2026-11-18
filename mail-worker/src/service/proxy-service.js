@@ -4,6 +4,14 @@ import settingService from './setting-service';
 // 可能带远程图地址的属性；data-* 覆盖懒加载写法。
 const ATTRS = ['src', 'poster', 'background', 'data-src', 'data-original', 'data-lazy-src'];
 
+const PROXY_MEDIA_TYPES = new Set([
+	'image/avif', 'image/bmp', 'image/gif', 'image/jpeg', 'image/png', 'image/webp',
+	'image/apng', 'image/x-icon', 'image/vnd.microsoft.icon'
+]);
+const PROXY_IP_PLACEHOLDER = '192.0.2.1';
+const PROXY_LINK_TTL = 3600;
+const encoder = new TextEncoder();
+
 const proxyService = {
 
 	// 改写单封邮件 HTML：内部读取 R2 域名，把外链图换成 /proxy?url=。
@@ -13,7 +21,7 @@ const proxyService = {
 			return html;
 		}
 		const { r2Domain } = await settingService.query(c);
-		return this.applyRewrite(html, r2Domain);
+		return this.applyRewrite(html, this.rewriter(await this.signingKey(c.env), r2Domain));
 	},
 
 	// 批量改写邮件列表的 content，R2 域名只查一次。
@@ -22,11 +30,12 @@ const proxyService = {
 			return list;
 		}
 		const { r2Domain } = await settingService.query(c);
+		const rewriteUrl = this.rewriter(await this.signingKey(c.env), r2Domain);
 		for (const item of list) {
 			if (!item.content) {
 				continue;
 			}
-			item.content = this.applyRewrite(item.content, r2Domain);
+			item.content = await this.applyRewrite(item.content, rewriteUrl);
 		}
 		return list;
 	},
@@ -39,57 +48,154 @@ const proxyService = {
 		return this.applyRestore(html);
 	},
 
-	// Worker 入口 /proxy：代拉远程资源并流式返回，Content-Type 用对方的。
-	async fetchImage(rawUrl) {
-		const res = await fetch(new URL(rawUrl).toString(), { redirect: 'follow' });
-		const headers = new Headers();
-		// 对方有的头才带上：类型、大小、文件名（Content-Disposition）。
-		for (const name of ['content-type', 'content-length', 'content-disposition']) {
-			const value = res.headers.get(name);
-			if (value) {
-				headers.set(name, value);
+	// Worker 入口 /proxy：验签后代拉，只返回允许的图片类型。
+	async fetchImage(env, params) {
+		const rawUrl = params.get('url');
+		const exp = params.get('exp');
+		const signature = this.decodeSignature(params.get('sig'));
+		if (!rawUrl || !/^[1-9]\d{0,12}$/.test(exp) || Number(exp) <= Math.floor(Date.now() / 1000) ||
+			!signature) {
+			return new Response(null, { status: 403 });
+		}
+		try {
+			const key = await this.signingKey(env);
+			const valid = await crypto.subtle.verify('HMAC', key, signature, this.signatureInput(rawUrl, exp));
+			if (!valid) {
+				return new Response(null, { status: 403 });
 			}
+			const target = this.proxyTarget(rawUrl);
+			if (!target) {
+				return new Response(null, { status: 400 });
+			}
+			const res = await fetch(target.toString(), {
+				redirect: 'manual',
+				// 使用文档保留地址覆盖可修改的访客 IP 头。
+				headers: {
+					'X-Real-IP': PROXY_IP_PLACEHOLDER,
+					'CF-Connecting-IP': PROXY_IP_PLACEHOLDER
+				}
+			});
+			if (!res.ok) {
+				await res.body?.cancel();
+				return new Response(null, { status: 502 });
+			}
+			const type = res.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase();
+			if (!res.body || !PROXY_MEDIA_TYPES.has(type)) {
+				await res.body?.cancel();
+				return new Response(null, { status: 415 });
+			}
+			const headers = new Headers({
+				'Content-Type': type,
+				'X-Content-Type-Options': 'nosniff',
+				'Content-Security-Policy': "sandbox; default-src 'none'",
+				'Referrer-Policy': 'no-referrer',
+				'Cache-Control': 'public, max-age=3600'
+			});
+			const disposition = res.headers.get('Content-Disposition');
+			if (disposition) {
+				headers.set('Content-Disposition', disposition);
+			}
+
+			let body = res.body;
+			const length = res.headers.get('Content-Length');
+			const encoding = res.headers.get('Content-Encoding')?.toLowerCase();
+			// Workers 从固定长度流生成 Content-Length。压缩响应的上游长度可能与解码后的内容不同。
+			if (length && /^\d+$/.test(length) && Number.isSafeInteger(Number(length)) && (!encoding || encoding === 'identity')) {
+				const { readable, writable } = new FixedLengthStream(Number(length));
+				// 传输错误会通过 readable 传给客户端。
+				body.pipeTo(writable).catch(() => {});
+				body = readable;
+			}
+			return new Response(body, { status: res.status, headers });
+		} catch {
+			return new Response(null, { status: 502 });
 		}
-		if (res.ok) {
-			headers.set('Cache-Control', 'public, max-age=86400');
-		}
-		return new Response(res.body, { status: res.status, headers });
 	},
 
 	// ---------- 私有方法 ----------
 
-	// 解析 HTML，把 img/srcset/CSS url 等外链改成同源 /proxy?url=。
-	applyRewrite(html, r2Domain) {
+	decodeSignature(sig) {
+		// 32 字节的 Base64URL 签名末字符只有高 4 位有效。
+		if (!sig || !/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(sig)) {
+			return null;
+		}
+		const base64 = sig.replaceAll('-', '+').replaceAll('_', '/') + '=';
+		return Uint8Array.from(atob(base64), ch => ch.charCodeAt(0));
+	},
+
+	async signingKey(env) {
+		if (!env.jwt_secret) {
+			throw new Error('Missing jwt_secret for image proxy');
+		}
+		const algorithm = { name: 'HMAC', hash: 'SHA-256' };
+		const root = await crypto.subtle.importKey('raw', encoder.encode(env.jwt_secret), algorithm, false, ['sign']);
+		// 从现有部署密钥派生图片代理专用密钥。
+		const key = await crypto.subtle.sign('HMAC', root, encoder.encode('cloud-mail/image-proxy/v1'));
+		return crypto.subtle.importKey('raw', key, algorithm, false, ['sign', 'verify']);
+	},
+
+	signatureInput(url, exp) {
+		return encoder.encode(JSON.stringify([url, exp]));
+	},
+
+	rewriter(key, r2Domain) {
+		const exp = String(Math.floor(Date.now() / 1000) + PROXY_LINK_TTL);
+		return raw => {
+			const restored = this.fromProxyPath(raw);
+			const url = restored || (this.shouldProxyUrl(raw, r2Domain) ? this.absoluteUrl(raw) : null);
+			return url ? this.toProxyPath(url, exp, key) : null;
+		};
+	},
+
+	proxyTarget(rawUrl) {
+		if (!rawUrl) {
+			return null;
+		}
+		try {
+			const url = new URL(rawUrl);
+			const host = url.hostname.replace(/\.$/, '');
+			if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+				return null;
+			}
+			// 过滤 IP 字面量和本地域名，不解析 DNS 记录。
+			if (!host.includes('.') || host.startsWith('[') || /^[\d.]+$/.test(host) ||
+				/\.(localhost|local|internal)$/.test(host)) {
+				return null;
+			}
+			return url;
+		} catch {
+			return null;
+		}
+	},
+
+	// 解析 HTML，把 img/srcset/CSS url 等外链改成带签名的同源代理地址。
+	async applyRewrite(html, rewriteUrl) {
 		const { document } = parseHTML(html);
-		const rewriteAttr = (el, attr) => {
-			const value = el.getAttribute(attr);
-			const restored = this.fromProxyPath(value);
-			if (restored) {
-				el.setAttribute(attr, this.toProxyPath(restored));
-				return;
+		const updates = [];
+		const rewriteAttr = async (el, attr) => {
+			const path = await rewriteUrl(el.getAttribute(attr));
+			if (path) {
+				el.setAttribute(attr, path);
 			}
-			if (!this.shouldProxyUrl(value, r2Domain)) {
-				return;
-			}
-			el.setAttribute(attr, this.toProxyPath(this.absoluteUrl(value)));
 		};
 
 		document.querySelectorAll('img,source,video,audio,track,input').forEach(el => {
-			ATTRS.forEach(attr => rewriteAttr(el, attr));
+			ATTRS.forEach(attr => updates.push(rewriteAttr(el, attr)));
 			const srcset = el.getAttribute('srcset');
 			if (srcset) {
-				el.setAttribute('srcset', this.rewriteSrcset(srcset, r2Domain));
+				updates.push(this.rewriteSrcset(srcset, rewriteUrl).then(value => el.setAttribute('srcset', value)));
 			}
 		});
 
-		document.querySelectorAll('[background]').forEach(el => rewriteAttr(el, 'background'));
+		document.querySelectorAll('[background]').forEach(el => updates.push(rewriteAttr(el, 'background')));
 		document.querySelectorAll('[style]').forEach(el => {
-			el.setAttribute('style', this.rewriteCssUrls(el.getAttribute('style'), r2Domain));
+			updates.push(this.rewriteCssUrls(el.getAttribute('style'), rewriteUrl).then(value => el.setAttribute('style', value)));
 		});
 		document.querySelectorAll('style').forEach(el => {
-			el.textContent = this.rewriteCssUrls(el.textContent, r2Domain);
+			updates.push(this.rewriteCssUrls(el.textContent, rewriteUrl).then(value => { el.textContent = value; }));
 		});
 
+		await Promise.all(updates);
 		return document.toString();
 	},
 
@@ -122,24 +228,26 @@ const proxyService = {
 		return document.toString();
 	},
 
-	// 拼浏览器可直接请求的代理地址。
-	toProxyPath(url) {
-		return '/proxy?url=' + encodeURIComponent(url);
+	// 拼浏览器可直接请求的签名代理地址。
+	async toProxyPath(url, exp, key) {
+		const signature = await crypto.subtle.sign('HMAC', key, this.signatureInput(url, exp));
+		const sig = btoa(String.fromCharCode(...new Uint8Array(signature)))
+			.replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+		return '/proxy?' + new URLSearchParams({ url, exp, sig });
 	},
 
-	// 从 proxy?url=编码地址 解出原始 URL。编辑器可能去掉开头的 /，带站点域名也可以。
+	// 从新旧代理链接中还原原图地址，兼容编辑器输出的相对地址。
 	fromProxyPath(raw) {
-		if (!raw) {
-			return null;
-		}
-		const value = String(raw).trim();
-		const marker = 'proxy?url=';
-		const idx = value.indexOf(marker);
-		if (idx === -1) {
+		if (!raw || !String(raw).includes('proxy?')) {
 			return null;
 		}
 		try {
-			return decodeURIComponent(value.slice(idx + marker.length));
+			const path = new URL(raw, 'https://proxy.invalid/');
+			if (path.pathname !== '/proxy') {
+				return null;
+			}
+			const original = path.searchParams.get('url');
+			return /^https?:\/\//i.test(original || '') ? original : null;
 		} catch {
 			return null;
 		}
@@ -187,22 +295,16 @@ const proxyService = {
 	},
 
 	// 改写 srcset 里每一段 URL，保留 1x / 2x 等描述符。
-	rewriteSrcset(srcset, r2Domain) {
-		return String(srcset).split(',').map(part => {
+	async rewriteSrcset(srcset, rewriteUrl) {
+		const parts = await Promise.all(String(srcset).split(',').map(async part => {
 			const bits = part.trim().split(/\s+/);
-			if (!bits[0]) {
-				return part;
-			}
-			const restored = this.fromProxyPath(bits[0]);
-			if (restored) {
-				bits[0] = this.toProxyPath(restored);
-				return bits.join(' ');
-			}
-			if (this.shouldProxyUrl(bits[0], r2Domain)) {
-				bits[0] = this.toProxyPath(this.absoluteUrl(bits[0]));
+			const path = await rewriteUrl(bits[0]);
+			if (path) {
+				bits[0] = path;
 			}
 			return bits.join(' ');
-		}).join(', ');
+		}));
+		return parts.join(', ');
 	},
 
 	// 还原 srcset 里每一段代理地址。
@@ -218,20 +320,16 @@ const proxyService = {
 	},
 
 	// 改写 style / <style> 中的 url(...)，一般是背景图。
-	rewriteCssUrls(css, r2Domain) {
+	async rewriteCssUrls(css, rewriteUrl) {
 		if (!css) {
 			return css;
 		}
-		return String(css).replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (match, quote, url) => {
-			const trimmed = String(url || '').trim();
-			const restored = this.fromProxyPath(trimmed);
-			if (restored) {
-				return `url(${quote}${this.toProxyPath(restored)}${quote})`;
-			}
-			if (!this.shouldProxyUrl(trimmed, r2Domain)) {
-				return match;
-			}
-			return `url(${quote}${this.toProxyPath(this.absoluteUrl(trimmed))}${quote})`;
+		const pattern = /url\(\s*(['"]?)(.*?)\1\s*\)/gi;
+		const paths = await Promise.all(Array.from(css.matchAll(pattern), match => rewriteUrl(match[2])));
+		let index = 0;
+		return css.replace(pattern, (match, quote) => {
+			const path = paths[index++];
+			return path ? 'url(' + quote + path + quote + ')' : match;
 		});
 	},
 

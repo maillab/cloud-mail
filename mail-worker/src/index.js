@@ -19,9 +19,9 @@ export default {
 			return handleWsUpgrade(req, env);
 		}
 
-		// 邮件图片代理：公开接口，img 无法带 JWT，由 Worker 代拉外链图，避免泄露用户 IP。
+		// 邮件图片代理：校验链接签名后，由 Worker 代拉外链图。
 		if (url.pathname === '/proxy') {
-			return proxyService.fetchImage(url.searchParams.get('url'));
+			return proxyService.fetchImage(env, url.searchParams);
 		}
 
 		if (url.pathname.startsWith('/api/')) {

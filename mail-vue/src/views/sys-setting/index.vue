@@ -315,14 +315,13 @@
               <div class="setting-item">
                 <div><span>{{ $t('loginVerification') }}</span></div>
                 <div>
-                  <el-button class="opt-button" size="small" type="primary" :disabled="settingLoading"
-                             :aria-label="$t('rulesVerify')" @click="loginVerifyCountShow = true">
+                  <el-button class="opt-button" size="small" type="primary"
+                             :aria-label="$t('rulesVerify')" @click="openLoginVerifyCount">
                     <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
                   </el-button>
                   <el-select
                       :model-value="setting.loginVerify"
                       @change="changeField('loginVerify', $event)"
-                      :disabled="settingLoading"
                       :style="`width: ${ locale === 'en' ? 100 : 80 }px;`"
                       class="bot-verify-select"
                   >
@@ -742,7 +741,7 @@ Authorization: &lt;secret&gt;</pre>
           <el-button type="primary" :loading="settingLoading" @click="saveRegVerifyCount">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
-      <el-dialog v-model="loginVerifyCountShow" :title="$t('loginRulesVerifyTitle',{count: loginVerifyCount})"
+      <el-dialog v-model="loginVerifyCountShow" :title="$t('rulesVerifyTitle',{count: loginVerifyCount})"
                  @closed="loginVerifyCount = setting.loginVerifyCount">
         <form @submit.prevent="saveLoginVerifyCount">
           <el-input-number v-model="loginVerifyCount" :min="1" :precision="0"/>
@@ -1130,6 +1129,11 @@ function openAddVerifyCount() {
 function openRegVerifyCount() {
   if (settingLoading.value) return
   regVerifyCountShow.value = true
+}
+
+function openLoginVerifyCount() {
+  if (settingLoading.value) return
+  loginVerifyCountShow.value = true
 }
 
 function resetAddS3Form() {
@@ -1685,7 +1689,7 @@ function change(e) {
 }
 
 function changeField(key, value) {
-  if (!settingReady.value) return
+  if (!settingReady.value || settingLoading.value) return
   setting.value[key] = value
   editSetting({[key]: value}, false)
 }

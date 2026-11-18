@@ -322,7 +322,6 @@ const zh = {
     backgroundWarning: '图片文件大小会影响网站加载速度',
     rulesVerify: '规则',
     rulesVerifyTitle: 'IP 每天使用 {count} 次后触发',
-    loginRulesVerifyTitle: '同一 IP 每天尝试登录 {count} 次后触发',
     botVerifyMsg: '请完成人机验证',
     oauthLogin: 'OAuth2',
     noticeTitle: '系统公告',

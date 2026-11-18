@@ -9,6 +9,7 @@ import { parseHTML } from 'linkedom';
 import { v4 as uuidv4 } from 'uuid';
 import domainUtils from '../utils/domain-uitls';
 import settingService from "./setting-service";
+import proxyService from './proxy-service';
 import { ATT_CACHE_CONTROL, isDangerousAttType, isSafeInlineAtt } from '../utils/att-headers';
 
 const attService = {
@@ -87,7 +88,7 @@ const attService = {
 			}
 
 			// TinyMCE 可能把路径收成 ../attachments 或 /attachments
-			const proxyUrl = this.fromProxySrc(src);
+			const proxyUrl = proxyService.fromProxyPath(src);
 			if (proxyUrl) {
 				img.setAttribute('src', proxyUrl);
 			}
@@ -303,23 +304,6 @@ const attService = {
 			return null;
 		}
 		return String(src).slice(idx);
-	},
-
-	// proxy?url=、/proxy?url=、../proxy?url= 解出原始外链。
-	fromProxySrc(src) {
-		if (!src) {
-			return null;
-		}
-		const marker = 'proxy?url=';
-		const idx = String(src).indexOf(marker);
-		if (idx === -1) {
-			return null;
-		}
-		try {
-			return decodeURIComponent(String(src).slice(idx + marker.length));
-		} catch {
-			return null;
-		}
 	}
 };
 
