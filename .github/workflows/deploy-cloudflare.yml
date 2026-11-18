@@ -18,6 +18,7 @@ jobs:
       CUSTOM_DOMAIN: ${{ secrets.CUSTOM_DOMAIN || vars.CUSTOM_DOMAIN }}
       DOMAIN: ${{ secrets.DOMAIN || vars.DOMAIN }}
       ADMIN: ${{ secrets.ADMIN || vars.ADMIN }}
+      PASSWORD: ${{ secrets.PASSWORD || vars.PASSWORD }}
       JWT_SECRET: ${{ secrets.JWT_SECRET || vars.JWT_SECRET }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -119,6 +120,7 @@ jobs:
           sed -i "s|\${CUSTOM_DOMAIN}|${CUSTOM_DOMAIN}|g" "$CONFIG_FILE"
           sed -i "s|\"\${DOMAIN}\"|${DOMAIN}|g" "$CONFIG_FILE"
           sed -i "s|\${ADMIN}|${ADMIN}|g" "$CONFIG_FILE"
+          sed -i "s|\${PASSWORD}|${PASSWORD}|g" "$CONFIG_FILE"
           sed -i "s|\${JWT_SECRET}|${JWT_SECRET}|g" "$CONFIG_FILE"
           sed -i "s|\${R2_BUCKET_NAME}|${R2_BUCKET_NAME}|g" "$CONFIG_FILE"
           sed -i "s|\${PROJECT_LINK}|${PROJECT_LINK}|g" "$CONFIG_FILE"

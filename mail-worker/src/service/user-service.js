@@ -337,7 +337,7 @@ const userService = {
 
 	async initAdmin(c) {
 		const email = c.env.admin;
-		const password = c.env.PASSWORD;
+		const password = c.env.password;
 
 		if (!email || !password) {
 			return;
