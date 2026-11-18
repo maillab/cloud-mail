@@ -1,5 +1,6 @@
 const en = {
     inbox: 'Inbox',
+    unreadMails: '{count} unread',
     compose: 'Compose',
     drafts: 'Drafts',
     sent: 'Sent',

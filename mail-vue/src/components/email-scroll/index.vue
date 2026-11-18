@@ -239,6 +239,7 @@ import {Icon} from "@iconify/vue";
 import skeletonBlock from "@/components/email-scroll/skeleton/index.vue"
 import {computed, onActivated, reactive, ref, watch, nextTick, onMounted, onUnmounted } from "vue";
 import {useEmailStore} from "@/store/email.js";
+import {useUnreadStore} from "@/store/unread.js";
 import {useUiStore} from "@/store/ui.js";
 import {useSettingStore} from "@/store/setting.js";
 import {sleep} from "@/utils/time-utils.js"
@@ -305,6 +306,7 @@ const props = defineProps({
 const emit = defineEmits(['jump', 'refresh-before', 'refresh-success', 'delete-draft', 'right-search'])
 
 const {t} = useI18n()
+const unreadStore = useUnreadStore();
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
 const emailStore = useEmailStore();
@@ -604,13 +606,17 @@ function changeAccountShow() {
 
 const handleRead = () => {
   const emailIds = getSelectedMailsIds();
-  props.emailRead(emailIds);
+  Promise.resolve(props.emailRead(emailIds)).finally(() => refreshUnread());
   localRead(emailIds);
 }
 
 function emailRead(emailId) {
-  props.emailRead([emailId])
+  Promise.resolve(props.emailRead([emailId])).finally(() => refreshUnread());
   localRead([emailId]);
+}
+
+function refreshUnread() {
+  unreadStore.scheduleRefresh()
 }
 
 function localRead(emailIds) {
@@ -638,6 +644,7 @@ function rightDelete(emailId) {
           plain: true
         })
         emailStore.deleteIds = [emailId];
+        refreshUnread()
       })
     })
     return;
@@ -649,6 +656,7 @@ function rightDelete(emailId) {
       plain: true
     })
     emailStore.deleteIds = [emailId];
+        refreshUnread()
   })
 }
 
@@ -695,6 +703,7 @@ function handleDelete() {
         plain: true
       })
       emailStore.deleteIds = emailIds;
+        refreshUnread()
     })
   })
 }

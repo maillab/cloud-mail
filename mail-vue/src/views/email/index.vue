@@ -20,6 +20,7 @@
 import {useAccountStore} from "@/store/account.js";
 import {useEmailStore} from "@/store/email.js";
 import {useSettingStore} from "@/store/setting.js";
+import {useUnreadStore} from "@/store/unread.js";
 import emailScroll from "@/components/email-scroll/index.vue"
 import {emailList, emailDelete, emailLatest, emailRead} from "@/request/email.js";
 import {starAdd, starCancel} from "@/request/star.js";
@@ -38,18 +39,20 @@ defineOptions({
 const emailStore = useEmailStore();
 const accountStore = useAccountStore();
 const settingStore = useSettingStore();
+const unreadStore = useUnreadStore();
 const scroll = ref({})
 const existIds = new Set();
 let pullTimer = null
 
+const inboxRealtime = {
+  isEnabled: () => isAutoRefreshEnabled(settingStore.settings.autoRefresh),
+  onMessage: (event) => onWsMessage(event),
+  onReconnect: () => schedulePullLatest(),
+}
 onMounted(() => {
   emailStore.emailScroll = scroll;
   // 收件箱实时：推送或重连后再拉 emailLatest，不按间隔轮询
-  inboxWs.start({
-    isEnabled: () => isAutoRefreshEnabled(settingStore.settings.autoRefresh),
-    onMessage: onWsMessage,
-    onReconnect: () => schedulePullLatest(),
-  });
+  inboxWs.start(inboxRealtime);
 })
 
 onBeforeUnmount(() => {
@@ -57,7 +60,7 @@ onBeforeUnmount(() => {
     window.clearTimeout(pullTimer)
     pullTimer = null
   }
-  inboxWs.stop()
+  inboxWs.stop(inboxRealtime)
 })
 
 watch(() => accountStore.currentAccountId, () => {
@@ -78,6 +81,7 @@ watch(() => settingStore.settings.autoRefresh, () => {
 
 function onRefreshSuccess() {
   inboxWs.retryNow()
+  unreadStore.scheduleRefresh()
 }
 
 function jumpContent(email) {

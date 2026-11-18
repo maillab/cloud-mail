@@ -1,5 +1,6 @@
 const zh = {
     inbox: '收件箱',
+    unreadMails: '{count} 封未读',
     compose: '撰写邮件',
     drafts: '草稿箱',
     sent: '已发送',

@@ -25,13 +25,27 @@
 import Aside from '@/layout/aside/index.vue'
 import Header from '@/layout/header/index.vue'
 import Main from '@/layout/main/index.vue'
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import {useUiStore} from "@/store/ui.js";
 import writer from '@/layout/write/index.vue'
+import {useSettingStore} from "@/store/setting.js";
+import {useUnreadStore} from "@/store/unread.js";
+import {inboxWs, isAutoRefreshEnabled} from "@/websocket/client.js";
 
 const uiStore = useUiStore();
+const settingStore = useSettingStore();
+const unreadStore = useUnreadStore();
+const inboxUnreadRealtime = {
+  isEnabled: () => isAutoRefreshEnabled(settingStore.settings.autoRefresh),
+  onMessage: () => unreadStore.scheduleRefresh(),
+  onReconnect: () => unreadStore.scheduleRefresh(),
+}
 const writerRef = ref({})
 const isMobile = ref(window.innerWidth < 1025)
+watch(() => settingStore.settings.autoRefresh, () => {
+  inboxWs.sync()
+})
+
 const handleResize = () => {
   isMobile.value = window.innerWidth < 1025
   uiStore.asideShow = window.innerWidth > 1024;
@@ -42,10 +56,15 @@ onMounted(() => {
 
   window.addEventListener('resize', handleResize)
   handleResize()
+  if (localStorage.getItem('token')) {
+    unreadStore.refresh()?.catch(err => console.error(err))
+    inboxWs.start(inboxUnreadRealtime)
+  }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  inboxWs.stop(inboxUnreadRealtime)
 })
 </script>
 

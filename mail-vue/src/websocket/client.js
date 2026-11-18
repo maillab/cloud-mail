@@ -14,7 +14,8 @@ export function isAutoRefreshEnabled(value) {
 // 创建一个作用域的实时连接。
 // scope=inbox 连用户 hub；scope=all-email 连共享 hub。
 export function createWsClient(scope) {
-	let options = null;
+	// 收件箱列表和侧栏未读数各自注册，共用这一条连接。
+	let registrations = [];
 	let socket = null;
 	let heartbeatTimer = null;
 	let reconnectTimer = null;
@@ -27,7 +28,9 @@ export function createWsClient(scope) {
 
 	// 登录后开始连接；opts.isEnabled / onMessage / onReconnect。
 	function start(opts) {
-		options = opts;
+		if (opts && !registrations.includes(opts)) {
+			registrations.push(opts);
+		}
 		authRejected = false;
 		reconnectAttempt = 0;
 		sessionToken = getToken();
@@ -39,10 +42,19 @@ export function createWsClient(scope) {
 	}
 
 	// 离开页面或登出时关闭连接。
-	function stop() {
-		options = null;
-		clearPullTimer();
-		disconnect();
+	// 传入注册对象只取消这一处；不传则全部断开。
+	function stop(opts) {
+		if (opts) {
+			registrations = registrations.filter(item => item !== opts);
+		} else {
+			registrations = [];
+		}
+		if (registrations.length === 0) {
+			clearPullTimer();
+			disconnect();
+			return;
+		}
+		sync();
 	}
 
 	// 按自动刷新开关决定连接或断开。
@@ -55,7 +67,7 @@ export function createWsClient(scope) {
 	}
 
 	function shouldConnect() {
-		return Boolean(options && getToken() && options.isEnabled?.() && !authRejected);
+		return Boolean(getToken() && !authRejected && registrations.some(item => item.isEnabled?.()));
 	}
 
 	function getToken() {
@@ -156,7 +168,7 @@ export function createWsClient(scope) {
 			if (payload?.type !== 'new_message') {
 				return;
 			}
-			options?.onMessage?.(payload);
+			emit('onMessage', payload);
 		};
 
 		socket.onerror = () => {
@@ -211,14 +223,20 @@ export function createWsClient(scope) {
 
 	// 连上后防抖补拉，避免漏掉断开窗口里的新信。
 	function schedulePull() {
-		if (!options?.onReconnect) {
+		if (!registrations.some(item => item.onReconnect)) {
 			return;
 		}
 		clearPullTimer();
 		pullTimer = window.setTimeout(() => {
 			pullTimer = null;
-			options?.onReconnect?.();
+			emit('onReconnect');
 		}, PULL_DEBOUNCE_MS);
+	}
+
+	function emit(name, arg) {
+		for (const item of [...registrations]) {
+			item[name]?.(arg);
+		}
 	}
 
 	function clearHeartbeat() {
