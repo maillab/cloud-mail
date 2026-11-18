@@ -35,6 +35,8 @@ const dbInit = {
 		await this.v3_4DB(c);
 		await this.v3_5DB(c);
 		await this.v3_6DB(c);
+		await this.v3_7DB(c);
+		await this.v3_8DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
@@ -42,6 +44,22 @@ const dbInit = {
 	async v3_6DB(c) {
 		try {
 			await c.env.db.prepare(`UPDATE setting SET auto_refresh = 2 WHERE auto_refresh != 1`).run(); // 1 关闭，其余改为 2 开启
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
+	},
+
+	async v3_7DB(c) {
+		try {
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN login_verify INTEGER NOT NULL DEFAULT 1`).run();
+		} catch (e) {
+			console.warn(`跳过字段：${e.message}`);
+		}
+	},
+
+	async v3_8DB(c) {
+		try {
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN login_verify_count INTEGER NOT NULL DEFAULT 1`).run();
 		} catch (e) {
 			console.warn(`跳过字段：${e.message}`);
 		}

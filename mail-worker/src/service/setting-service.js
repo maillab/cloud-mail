@@ -1,7 +1,7 @@
 import KvConst from '../const/kv-const';
 import setting from '../entity/setting';
 import orm from '../entity/orm';
-import {verifyRecordType} from '../const/entity-const';
+import {settingConst, verifyRecordType} from '../const/entity-const';
 import fileUtils from '../utils/file-utils';
 import r2Service from './r2-service';
 import constant from '../const/constant';
@@ -60,6 +60,8 @@ const settingService = {
 		}
 
 		setting.projectLink = projectLink;
+		setting.loginVerify ??= settingConst.loginVerify.CLOSE;
+		setting.loginVerifyCount ??= 1;
 
 		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
 		setting.autoRefresh = Number(setting.autoRefresh) === 1 ? 1 : 2; // 1 关闭，2 开启
@@ -89,6 +91,7 @@ const settingService = {
 
 		let regVerifyOpen = false
 		let addVerifyOpen = false
+		let loginVerifyOpen = false
 
 		recordList.forEach(row => {
 			if (row.type === verifyRecordType.REG) {
@@ -97,10 +100,14 @@ const settingService = {
 			if (row.type === verifyRecordType.ADD) {
 				addVerifyOpen = row.count >= settingRow.addVerifyCount
 			}
+			if (row.type === verifyRecordType.LOGIN) {
+				loginVerifyOpen = row.count >= settingRow.loginVerifyCount
+			}
 		})
 
 		settingRow.regVerifyOpen = regVerifyOpen
 		settingRow.addVerifyOpen = addVerifyOpen
+		settingRow.loginVerifyOpen = loginVerifyOpen
 
 		settingRow.storageType = await r2Service.storageType(c);
 
@@ -130,6 +137,10 @@ const settingService = {
 
 		if (params.autoRefresh !== undefined) {
 			params.autoRefresh = Number(params.autoRefresh) === 1 ? 1 : 2;
+		}
+
+		if (params.loginVerifyCount !== undefined && (!Number.isSafeInteger(params.loginVerifyCount) || params.loginVerifyCount < 1)) {
+			params.loginVerifyCount = 1;
 		}
 
 		await orm(c).update(setting).set({ ...params }).returning().get();
@@ -202,6 +213,7 @@ const settingService = {
 			autoRefresh: settingRow.autoRefresh,
 			addEmailVerify: settingRow.addEmailVerify,
 			registerVerify: settingRow.registerVerify,
+			loginVerify: settingRow.loginVerify,
 			send: settingRow.send,
 			r2Domain: settingRow.r2Domain,
 			siteKey: settingRow.siteKey,
@@ -211,6 +223,7 @@ const settingService = {
 			regKey: settingRow.regKey,
 			regVerifyOpen: settingRow.regVerifyOpen,
 			addVerifyOpen: settingRow.addVerifyOpen,
+			loginVerifyOpen: settingRow.loginVerifyOpen,
 			noticeTitle: settingRow.noticeTitle,
 			noticeContent: settingRow.noticeContent,
 			noticeType: settingRow.noticeType,

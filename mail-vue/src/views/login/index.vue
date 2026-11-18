@@ -44,6 +44,12 @@
           </el-input>
           <el-input v-model="form.password" :placeholder="$t('password')" type="password" autocomplete="off" @keyup.enter="submit">
           </el-input>
+          <div id="login-turnstile">
+            <div v-if="show === 'login' && verifyShow" class="auth-turnstile">
+              <div ref="loginTurnstileContainer" :key="turnstileContainerKey"></div>
+              <span class="turnstile-error" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('loginBtn')}) }}</span>
+            </div>
+          </div>
           <el-button class="btn" type="primary" @click="submit" :loading="loginLoading"
           >{{ $t('loginBtn') }}
           </el-button>
@@ -86,17 +92,11 @@
                     type="text" autocomplete="off" @keyup.enter="submitRegister"/>
           <el-input v-if="settingStore.settings.regKey === 2" v-model="registerForm.code"
                     :placeholder="$t('regKeyOptional')" type="text" autocomplete="off" @keyup.enter="submitRegister"/>
-          <div v-show="verifyShow"
-               ref="turnstileContainer"
-               :key="turnstileContainerKey"
-               class="register-turnstile"
-               :data-sitekey="settingStore.settings.siteKey"
-               data-callback="onTurnstileSuccess"
-               data-error-callback="onTurnstileError"
-               data-after-interactive-callback="loadAfter"
-               data-before-interactive-callback="loadBefore"
-          >
-            <span style="font-size: 12px;color: #F56C6C" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('regBtn')}) }}</span>
+          <div id="register-turnstile">
+            <div v-if="show === 'register' && verifyShow" class="auth-turnstile">
+              <div ref="registerTurnstileContainer" :key="turnstileContainerKey"></div>
+              <span class="turnstile-error" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('regBtn')}) }}</span>
+            </div>
           </div>
           <el-button class="btn" style="margin: 0" type="primary" @click="submitRegister" :loading="registerLoading"
           >{{ $t('regBtn') }}
@@ -158,7 +158,7 @@
 <script setup>
 import router from "@/router";
 import {useRoute} from "vue-router";
-import {computed, nextTick, reactive, ref} from "vue";
+import {computed, nextTick, onBeforeUnmount, reactive, ref, watch} from "vue";
 import {login} from "@/request/login.js";
 import {register} from "@/request/login.js";
 import {websiteConfig} from "@/request/setting.js";
@@ -231,59 +231,84 @@ suffix.value = domainList[0]
 const verifyShow = ref(false)
 let verifyToken = ''
 let turnstileId = null
-let botJsError = ref(false)
-let verifyErrorCount = 0
-let turnstileRecoveryAttempted = false
-const turnstileContainer = ref(null)
+const botJsError = ref(false)
+let turnstileLoading = false
+const loginTurnstileContainer = ref(null)
+const registerTurnstileContainer = ref(null)
+const turnstileContainer = computed(() => show.value === 'login' ? loginTurnstileContainer.value : registerTurnstileContainer.value)
 const turnstileContainerKey = ref(0)
 
-async function recoverTurnstile() {
-  if (turnstileRecoveryAttempted) return
-  turnstileRecoveryAttempted = true
+function clearTurnstile() {
+  if (turnstileId !== null) window.turnstile?.remove(turnstileId)
+  turnstileId = null
+  verifyShow.value = false
   botJsError.value = false
   verifyToken = ''
-  turnstileId = null
-  turnstileContainerKey.value++
+}
+
+watch(show, clearTurnstile)
+onBeforeUnmount(clearTurnstile)
+
+function renderTurnstile(api, container) {
+  turnstileId = api.render(container, {
+    sitekey: settingStore.settings.siteKey,
+    size: 'flexible',
+    callback: (token) => {
+      if (turnstileContainer.value !== container) return
+      verifyToken = token
+      botJsError.value = false
+    },
+    'expired-callback': () => {
+      if (turnstileContainer.value === container) verifyToken = ''
+    },
+    'error-callback': () => {
+      if (turnstileContainer.value !== container) return true
+      verifyToken = ''
+      botJsError.value = true
+      return true
+    }
+  })
+}
+
+async function showTurnstile() {
+  if (turnstileLoading) return
+  verifyToken = ''
+  botJsError.value = false
+  verifyShow.value = true
+  turnstileLoading = true
+  await nextTick()
+  let container = turnstileContainer.value
   try {
-    const api = await reloadTurnstileScript()
-    await nextTick()
-    if (show.value === 'login' || !turnstileContainer.value) return
-    turnstileId = api.render(turnstileContainer.value)
+    if (!container) return
+    if (turnstileId !== null) {
+      window.turnstile.reset(turnstileId)
+    } else {
+      renderTurnstile(window.turnstile, container)
+    }
   } catch (error) {
-    botJsError.value = true
-    console.warn('Turnstile recovery failed', error)
+    if (turnstileContainer.value !== container) return
+    turnstileId = null
+    turnstileContainerKey.value++
+    await nextTick()
+    container = turnstileContainer.value
+    try {
+      if (!container) return
+      const api = await reloadTurnstileScript()
+      if (turnstileContainer.value === container) renderTurnstile(api, container)
+    } catch (error) {
+      if (turnstileContainer.value === container) botJsError.value = true
+      console.warn('Turnstile recovery failed', error)
+    }
   } finally {
-    turnstileRecoveryAttempted = false
+    turnstileLoading = false
   }
 }
 
-window.onTurnstileSuccess = (token) => {
-  verifyToken = token;
-};
-
-window.onTurnstileError = (e) => {
-  if (verifyErrorCount >= 4) {
-    return
-  }
-  verifyErrorCount++
-  console.warn('人机验加载失败', e)
-  setTimeout(() => {
-    nextTick(() => {
-      if (!turnstileId) {
-        turnstileId = window.turnstile.render('.register-turnstile')
-      } else {
-        window.turnstile.reset(turnstileId);
-      }
-    })
-  }, 1500)
-};
-
-window.loadAfter = (e) => {
-  console.log('loadAfter')
-}
-
-window.loadBefore = (e) => {
-  console.log('loadBefore')
+function needsTurnstile(mode, open) {
+  if (verifyToken || (mode !== 0 && !(mode === 2 && open))) return false
+  if (!verifyShow.value || botJsError.value) showTurnstile()
+  else if (!turnstileLoading) ElMessage({message: t('botVerifyMsg'), type: 'error', plain: true})
+  return true
 }
 
 const loginOpacity = computed(() => {
@@ -460,9 +485,14 @@ const submit = () => {
     return
   }
 
+  const {loginVerify, loginVerifyOpen} = settingStore.settings
+  if (needsTurnstile(loginVerify, loginVerifyOpen)) return
+
+  const token = verifyToken
   loginLoading.value = true
-  login(email, form.password).then(async data => {
-    await saveToken(data.token)
+  login(email, form.password, token).then(data => saveToken(data.token)).catch(res => {
+    if (res.code === 400) settingStore.settings.loginVerifyOpen = true
+    if (show.value === 'login' && (token || res.code === 400)) showTurnstile()
   }).finally(() => {
     loginLoading.value = false
   })
@@ -576,34 +606,8 @@ function submitRegister() {
 
   }
 
-  if (!verifyToken && (settingStore.settings.registerVerify === 0 || (settingStore.settings.registerVerify === 2 && settingStore.settings.regVerifyOpen))) {
-    if (turnstileRecoveryAttempted) return
-    if (!verifyShow.value) {
-      verifyShow.value = true
-      nextTick(() => {
-        if (!turnstileId) {
-          try {
-            turnstileId = window.turnstile.render('.register-turnstile')
-          } catch (e) {
-            botJsError.value = true
-            console.log('人机验证js加载失败')
-            recoverTurnstile()
-          }
-        } else {
-          window.turnstile.reset('.register-turnstile')
-        }
-      })
-    } else if (botJsError.value) {
-      recoverTurnstile()
-    } else {
-      ElMessage({
-        message: t('botVerifyMsg'),
-        type: "error",
-        plain: true
-      })
-    }
-    return;
-  }
+  const {registerVerify, regVerifyOpen} = settingStore.settings
+  if (needsTurnstile(registerVerify, regVerifyOpen)) return
 
   registerLoading.value = true
 
@@ -621,9 +625,7 @@ function submitRegister() {
     registerForm.confirmPassword = ''
     registerForm.code = ''
     registerLoading.value = false
-    verifyToken = ''
     settingStore.settings.regVerifyOpen = regVerifyOpen
-    verifyShow.value = false
     ElMessage({
       message: t('regSuccessMsg'),
       type: 'success',
@@ -633,19 +635,8 @@ function submitRegister() {
 
     registerLoading.value = false
 
-    if (res.code === 400) {
-      verifyToken = ''
-      settingStore.settings.regVerifyOpen = true
-      if (turnstileId) {
-        window.turnstile.reset(turnstileId)
-      } else {
-        nextTick(() => {
-          turnstileId = window.turnstile.render('.register-turnstile')
-        })
-      }
-      verifyShow.value = true
-
-    }
+    if (res.code === 400) settingStore.settings.regVerifyOpen = true
+    if (show.value === 'register' && (form.token || res.code === 400)) showTurnstile()
   });
 }
 
@@ -806,8 +797,13 @@ function submitRegister() {
   margin: 0;
 }
 
-.register-turnstile {
+.auth-turnstile {
   margin-bottom: 18px;
+}
+
+.turnstile-error {
+  font-size: 12px;
+  color: var(--el-color-danger);
 }
 
 .select {
