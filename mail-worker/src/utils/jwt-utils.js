@@ -12,6 +12,17 @@ const base64urlDecode = (str) => {
 	return Uint8Array.from(atob(str), c => c.charCodeAt(0));
 };
 
+// 曾提交在 wrangler-dev.toml / wrangler-test.toml 中的公开密钥, 用它签名的 token 任何人都能伪造
+const LEAKED_SECRETS = ['b7f29a1d-18e2-4d3b-941f-f6b2c97c02fd'];
+
+const getSecret = (c) => {
+	const secret = c.env.jwt_secret;
+	if (!secret || LEAKED_SECRETS.includes(String(secret).trim())) {
+		throw new Error('jwt_secret is empty or a publicly known value; set a new random secret with `wrangler secret put jwt_secret`');
+	}
+	return secret;
+};
+
 const jwtUtils = {
 	async generateToken(c, payload, expiresInSeconds) {
 		const header = {
@@ -34,7 +45,7 @@ const jwtUtils = {
 
 		const key = await crypto.subtle.importKey(
 			'raw',
-			encoder.encode(c.env.jwt_secret),
+			encoder.encode(getSecret(c)),
 			{ name: 'HMAC', hash: 'SHA-256' },
 			false,
 			['sign']
@@ -55,7 +66,7 @@ const jwtUtils = {
 			const data = `${headerB64}.${payloadB64}`;
 			const key = await crypto.subtle.importKey(
 				'raw',
-				encoder.encode(c.env.jwt_secret),
+				encoder.encode(getSecret(c)),
 				{ name: 'HMAC', hash: 'SHA-256' },
 				false,
 				['verify']
