@@ -5,11 +5,21 @@ import settingService from './setting-service';
 const ATTRS = ['src', 'poster', 'background', 'data-src', 'data-original', 'data-lazy-src'];
 
 const PROXY_MEDIA_TYPES = new Set([
-	'image/avif', 'image/bmp', 'image/gif', 'image/jpeg', 'image/png', 'image/webp',
+	'image/avif', 'image/bmp', 'image/gif', 'image/jpeg', 'image/pjpeg', 'image/png', 'image/webp',
 	'image/apng', 'image/x-icon', 'image/vnd.microsoft.icon'
 ]);
+
+const PROXY_IMAGE_EXTENSIONS = new Map([
+	['avif', 'image/avif'], ['bmp', 'image/bmp'], ['gif', 'image/gif'],
+	['jpg', 'image/jpeg'], ['jpeg', 'image/jpeg'], ['jpe', 'image/jpeg'], ['jfif', 'image/jpeg'],
+	['pjpeg', 'image/pjpeg'], ['png', 'image/png'], ['webp', 'image/webp'],
+	['apng', 'image/apng'], ['ico', 'image/x-icon']
+]);
+
 const PROXY_IP_PLACEHOLDER = '192.0.2.1';
 const PROXY_LINK_TTL = 3600;
+const PROXY_MAX_REDIRECTS = 5;
+const PROXY_REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const encoder = new TextEncoder();
 
 const proxyService = {
@@ -21,7 +31,7 @@ const proxyService = {
 			return html;
 		}
 		const { r2Domain } = await settingService.query(c);
-		return this.applyRewrite(html, this.rewriter(await this.signingKey(c.env), r2Domain));
+		return this.applyRewrite(html, this.rewriter(await this.signingKey(c.env), r2Domain), r2Domain);
 	},
 
 	// 批量改写邮件列表的 content，R2 域名只查一次。
@@ -35,7 +45,7 @@ const proxyService = {
 			if (!item.content) {
 				continue;
 			}
-			item.content = await this.applyRewrite(item.content, rewriteUrl);
+			item.content = await this.applyRewrite(item.content, rewriteUrl, r2Domain);
 		}
 		return list;
 	},
@@ -58,32 +68,61 @@ const proxyService = {
 			return new Response(null, { status: 403 });
 		}
 		try {
+
 			const key = await this.signingKey(env);
 			const valid = await crypto.subtle.verify('HMAC', key, signature, this.signatureInput(rawUrl, exp));
 			if (!valid) {
 				return new Response(null, { status: 403 });
 			}
-			const target = this.proxyTarget(rawUrl);
+
+			let target = this.proxyTarget(rawUrl);
+
 			if (!target) {
 				return new Response(null, { status: 400 });
 			}
-			const res = await fetch(target.toString(), {
+
+			const requestOptions = {
 				redirect: 'manual',
 				// 使用文档保留地址覆盖可修改的访客 IP 头。
 				headers: {
 					'X-Real-IP': PROXY_IP_PLACEHOLDER,
 					'CF-Connecting-IP': PROXY_IP_PLACEHOLDER
 				}
-			});
+			};
+
+			let res = await fetch(target.href, requestOptions);
+
+			for (let redirects = 0; PROXY_REDIRECT_STATUSES.has(res.status); redirects++) {
+				const location = res.headers.get('Location');
+				await res.body?.cancel();
+				if (redirects >= PROXY_MAX_REDIRECTS) {
+					return new Response(null, { status: 502 });
+				}
+				target = this.proxyTarget(location, target);
+				if (!target) {
+					return new Response(null, { status: 502 });
+				}
+				res = await fetch(target.href, requestOptions);
+			}
+
 			if (!res.ok) {
 				await res.body?.cancel();
 				return new Response(null, { status: 502 });
 			}
-			const type = res.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase();
+
+			let type = res.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase();
+
+			if (!type || type === 'application/octet-stream') {
+				// 仅在响应类型缺失或通用时，按最终 URL 的路径后缀推导。
+				const extension = target.pathname.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+				type = PROXY_IMAGE_EXTENSIONS.get(extension);
+			}
+
 			if (!res.body || !PROXY_MEDIA_TYPES.has(type)) {
 				await res.body?.cancel();
 				return new Response(null, { status: 415 });
 			}
+
 			const headers = new Headers({
 				'Content-Type': type,
 				'X-Content-Type-Options': 'nosniff',
@@ -91,6 +130,7 @@ const proxyService = {
 				'Referrer-Policy': 'no-referrer',
 				'Cache-Control': 'public, max-age=3600'
 			});
+
 			const disposition = res.headers.get('Content-Disposition');
 			if (disposition) {
 				headers.set('Content-Disposition', disposition);
@@ -99,6 +139,7 @@ const proxyService = {
 			let body = res.body;
 			const length = res.headers.get('Content-Length');
 			const encoding = res.headers.get('Content-Encoding')?.toLowerCase();
+
 			// Workers 从固定长度流生成 Content-Length。压缩响应的上游长度可能与解码后的内容不同。
 			if (length && /^\d+$/.test(length) && Number.isSafeInteger(Number(length)) && (!encoding || encoding === 'identity')) {
 				const { readable, writable } = new FixedLengthStream(Number(length));
@@ -106,6 +147,7 @@ const proxyService = {
 				body.pipeTo(writable).catch(() => {});
 				body = readable;
 			}
+
 			return new Response(body, { status: res.status, headers });
 		} catch {
 			return new Response(null, { status: 502 });
@@ -147,12 +189,12 @@ const proxyService = {
 		};
 	},
 
-	proxyTarget(rawUrl) {
-		if (!rawUrl) {
+	proxyTarget(rawUrl, base) {
+		if (!rawUrl?.trim()) {
 			return null;
 		}
 		try {
-			const url = new URL(rawUrl);
+			const url = new URL(rawUrl, base);
 			const host = url.hostname.replace(/\.$/, '');
 			if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
 				return null;
@@ -168,9 +210,44 @@ const proxyService = {
 		}
 	},
 
+	// 在生成代理链接前移除疑似追踪图：宽或高为 0，或宽高均为 1px 的外链图片。
+	// 检查普通、懒加载和响应式图片来源，也识别已经改写过的代理链接。
+	removeTrackingImages(document, r2Domain) {
+		const isExternal = url => this.fromProxyPath(url) || this.shouldProxyUrl(url, r2Domain);
+		const hasExternalImage = el => ATTRS.some(attr => isExternal(el.getAttribute(attr))) ||
+			el.getAttribute('srcset')?.split(',').some(candidate => isExternal(candidate.trim().split(/\s+/, 1)[0]));
+
+		for (const img of document.querySelectorAll('img')) {
+			const width = this.imageDimension(img, 'width');
+			const height = this.imageDimension(img, 'height');
+			if (width !== 0 && height !== 0 && !(width === 1 && height === 1)) {
+				continue;
+			}
+
+			// picture 的 source 也可能提供外链，命中后一起移除。
+			const picture = img.parentElement?.localName === 'picture' ? img.parentElement : null;
+			if (hasExternalImage(img) || (picture && Array.from(picture.querySelectorAll('source')).some(hasExternalImage))) {
+				(picture || img).remove();
+			}
+		}
+	},
+
+	// 优先读取内联样式，再回退到对应的 HTML 属性。
+	// 仅识别过滤规则所需的 0 和 1px，其余值返回 undefined。
+	imageDimension(img, name) {
+		const value = (img.style.getPropertyValue(name) || img.getAttribute(name) || '').replace(/\s*!important$/i, '').trim();
+		if (/^(?:0+(?:\.0+)?|\.0+)(?:px|%)?$/i.test(value)) {
+			return 0;
+		}
+		if (/^0*1(?:\.0+)?(?:px)?$/i.test(value)) {
+			return 1;
+		}
+	},
+
 	// 解析 HTML，把 img/srcset/CSS url 等外链改成带签名的同源代理地址。
-	async applyRewrite(html, rewriteUrl) {
+	async applyRewrite(html, rewriteUrl, r2Domain) {
 		const { document } = parseHTML(html);
+		this.removeTrackingImages(document, r2Domain);
 		const updates = [];
 		const rewriteAttr = async (el, attr) => {
 			const path = await rewriteUrl(el.getAttribute(attr));
