@@ -335,6 +335,35 @@ const userService = {
 			.run();
 	},
 
+	async initAdmin(c) {
+		const email = c.env.admin;
+		const password = c.env.PASSWORD;
+
+		if (!email || !password) {
+			return;
+		}
+
+		const exist = await userService.selectByEmailIncludeDel(c, email);
+		if (exist) {
+			return;
+		}
+
+		const role = await roleService.selectDefaultRole(c);
+		const { salt, hash } = await cryptoUtils.hashPassword(password);
+		const userId = await userService.insert(c, {
+			email,
+			password: hash,
+			salt,
+			type: role?.roleId || 1
+		});
+		await userService.updateUserInfo(c, userId, true);
+		await accountService.insert(c, {
+			userId,
+			email,
+			name: emailUtils.getName(email)
+		});
+	},
+
 	async add(c, params) {
 
 		let { email, type, password } = params;

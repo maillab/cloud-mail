@@ -1,4 +1,5 @@
 import settingService from '../service/setting-service';
+import userService from '../service/user-service';
 
 const dbInit = {
 	async init(c) {
@@ -23,6 +24,7 @@ const dbInit = {
 		await this.v3_4DB(c);
 		await this.v3_5DB(c);
 		await this.v3_6DB(c);
+		await userService.initAdmin(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
