@@ -25,8 +25,22 @@ enabled = true
 [[send_email]]
 name = "forward"		#站内转发到已验证的其他邮箱，不限制单个地址
 
+# ...
 [ai]
 binding = "ai"
+
+[[d1_databases]]
+binding = "db"
+database_id = "799143a1-8273-4484-99d5-e97a1e9ca3c8"
+
+[[send_email]]
+name = "forward"
+
+[[kv_namespaces]]
+binding = "kv"
+id = "c608288b8dd14589b578405adf03be95"
+# ...
+
 
 [assets]
 binding = "assets"		#静态资源绑定名默认不可修改
@@ -50,9 +64,9 @@ new_sqlite_classes = ["MailHub"]
 #ai_model = ""			#ai模型,不填默认使用@cf/meta/llama-3.1-8b-instruct-fast
 #analysis_cache = false			#是否开启分析数据缓存
 #orm_log = false			#是否sql日志
-#domain = []				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
-#admin = ""					#管理员的邮箱	示例: admin@example.com
-#jwt_secret = ""			#jwt令牌的密钥,随便填一串字符串
+domain=["och.kdns.fr"]		#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
+admin="admin@och.kdns.fr"#管理员的邮箱	示例: admin@example.com
+jwt_secret="ochayo"	#jwt令牌的密钥,随便填一串字符串
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"
