@@ -1,5 +1,5 @@
 // 收件箱 / 全部邮件的 WebSocket 客户端。
-// 连接期间靠推送刷新列表；断开后指数退避重连（1s、2s、4s… 最长 30s），连上再补拉，不再按间隔轮询。
+// 连接期间靠推送刷新列表；断开后指数退避重连（1s、2s、4s… 最长 30s），重连成功后补拉，不再按间隔轮询。
 const HEARTBEAT_MS = 25_000;
 const RECONNECT_MAX_MS = 30_000;
 const PULL_DEBOUNCE_MS = 150;
@@ -20,6 +20,7 @@ export function createWsClient(scope) {
 	let reconnectTimer = null;
 	let pullTimer = null;
 	let connected = false;
+	let hasConnected = false;
 	let listenersBound = false;
 	let sessionToken = '';
 	let authRejected = false;
@@ -28,6 +29,7 @@ export function createWsClient(scope) {
 	// 登录后开始连接；opts.isEnabled / onMessage / onReconnect。
 	function start(opts) {
 		options = opts;
+		hasConnected = false;
 		authRejected = false;
 		reconnectAttempt = 0;
 		sessionToken = getToken();
@@ -134,7 +136,10 @@ export function createWsClient(scope) {
 			setConnected(true);
 			sendHeartbeat();
 			heartbeatTimer = window.setInterval(sendHeartbeat, HEARTBEAT_MS);
-			schedulePull();
+			if (hasConnected) {
+				schedulePull();
+			}
+			hasConnected = true;
 		};
 
 		socket.onmessage = (event) => {
@@ -209,7 +214,7 @@ export function createWsClient(scope) {
 		connected = value;
 	}
 
-	// 连上后防抖补拉，避免漏掉断开窗口里的新信。
+	// 重连后防抖补拉，避免漏掉断开窗口里的新信。
 	function schedulePull() {
 		if (!options?.onReconnect) {
 			return;
