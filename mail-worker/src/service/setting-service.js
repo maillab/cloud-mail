@@ -62,6 +62,7 @@ const settingService = {
 		setting.projectLink = projectLink;
 		setting.loginVerify ??= settingConst.loginVerify.CLOSE;
 		setting.loginVerifyCount ??= 1;
+		setting.customWorkerStatus ??= settingConst.customWorkerStatus.CLOSE;
 
 		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
 		setting.autoRefresh = Number(setting.autoRefresh) === 1 ? 1 : 2; // 1 关闭，2 开启

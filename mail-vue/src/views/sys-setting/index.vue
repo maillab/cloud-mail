@@ -251,6 +251,18 @@
                 </div>
               </div>
               <div class="setting-item">
+                <div>
+                  <span>{{ $t('customWorker') }}</span>
+                  <el-tooltip effect="dark" :content="$t('customWorkerDesc')">
+                    <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+                  </el-tooltip>
+                </div>
+                <div>
+                  <el-switch @change="changeField('customWorkerStatus', $event)" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                             v-model="setting.customWorkerStatus"/>
+                </div>
+              </div>
+              <div class="setting-item">
                 <div><span>{{ $t('forwardingRules') }}</span></div>
                 <div class="forward">
                   <span>{{ setting.ruleType === 0 ? $t('forwardAll') : $t('rules') }}</span>

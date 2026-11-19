@@ -208,6 +208,8 @@ const en = {
     webhookSecret: 'Secret (Optional)',
     webhookRetry: 'Retries',
     webhookFormat: 'Payload format',
+    customWorker: 'Custom Worker',
+    customWorkerDesc: 'Execute custom Cloudflare Worker code upon receiving emails (modify manually in custom-worker-service.js)',
     forwardingRules: 'Forwarding rules',
     forwardAll: 'All',
     rules: 'Rules',

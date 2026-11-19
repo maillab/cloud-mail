@@ -208,6 +208,8 @@ const zh = {
     webhookSecret: '密钥（可选）',
     webhookRetry: '重试次数',
     webhookFormat: '格式说明',
+    customWorker: '自定义 Worker',
+    customWorkerDesc: '收到邮件后执行自定义 Cloudflare Worker 代码（需在custom-worker-service.js中手动修改）',
     forwardingRules: '转发规则',
     forwardAll: '全部转发',
     rules: '规则转发',
