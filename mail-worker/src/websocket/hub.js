@@ -47,7 +47,7 @@ export class MailHub extends DurableObject {
 	}
 
 	// 客户端断开时关闭服务端套接字，便于对象休眠。
-	async webSocketClose(socket, code) {
-		socket.close(code, 'Durable Object is closing WebSocket');
+	async webSocketClose(socket) {
+		socket.close();
 	}
 }
