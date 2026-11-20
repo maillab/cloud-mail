@@ -1,14 +1,16 @@
-# plugin-stalwart
+# Stalwart integration for cloud-mail
 
-An **add-on** for a working [maillab/cloud-mail](https://github.com/maillab/cloud-mail)
-deployment. It publishes a private, LAN-hosted **Stalwart** WebUI through a
-Cloudflare Tunnel on a subdomain of the **same** `<DOMAIN>` cloud-mail already
-owns, and gives Stalwart an outbound path through Cloudflare Email Service.
+This adds a private, LAN-hosted **Stalwart** as optional persistent JMAP mail
+storage to a working [maillab/cloud-mail](https://github.com/maillab/cloud-mail)
+deployment. The Stalwart WebUI and JMAP endpoint are reachable only through a
+Cloudflare Tunnel at `https://jadmin.<DOMAIN>`; Stalwart itself binds
+`127.0.0.1:8080` with no inbound ports. Outbound Stalwart mail relays through
+Cloudflare Email Service.
 
-**cloud-mail remains the primary mail system on `<DOMAIN>`.** Nothing in this
-repository changes cloud-mail's MX, Email Routing, `email()` handler, webmail
-host, D1/R2/KV, send path, or Worker code. This repo is additive and easy to
-roll back by deleting one DNS record and one tunnel route.
+**cloud-mail remains the primary mail system on `<DOMAIN>`.** MX, Email
+Routing, `mail.<DOMAIN>`, the existing send path, and all D1/R2/KV bindings are
+unchanged. The per-account mirror in `mail-worker/` is additive and **disabled
+by default**; it never deletes or rewrites cloud-mail's own mail records.
 
 ## Design at a glance
 
@@ -39,19 +41,21 @@ Hostname ownership:
 
 | Path | Purpose |
 | --- | --- |
-| `src/index.ts` | Optional, transparent reverse-proxy Worker (no route) |
-| `test/index.test.ts` | Unit tests for the proxy |
-| `wrangler.toml` | Local dev config |
-| `wrangler-action.toml` | Deploy template; `${DOMAIN}` is injected by Actions |
-| `.github/workflows/` | CI and optional Worker deploy |
-| `tunnel/config.example.yml` | `cloudflared` ingress for `jadmin.<DOMAIN>` |
-| [`docs/merge.md`](docs/merge.md) | How to land this as `stalwart/` in latest `maillab/cloud-mail` |
-| [`scripts/merge-into-cloud-mail.sh`](scripts/merge-into-cloud-mail.sh) | Scaffold helper for that merge |
+| `stalwart/src/index.ts` | Optional, transparent reverse-proxy Worker (no route) |
+| `stalwart/test/index.test.ts` | Unit tests for the proxy |
+| `stalwart/wrangler.toml` / `wrangler-action.toml` | Worker config / deploy template |
+| `stalwart/tunnel/config.example.yml` | `cloudflared` ingress for `jadmin.<DOMAIN>` |
+| `mail-worker/src/stalwart/` | Token encryption, JMAP client, mirror queue and settings API |
+| `mail-worker/test/stalwart/` | Unit tests for encryption and JMAP client (mocked `fetch`) |
+| `mail-vue/src/layout/account/index.vue` | Per-account Stalwart settings dialog |
 
 ## Red lines
 
-1. **Do not touch cloud-mail.** No MX change, no `mail.<DOMAIN>` change, no
-   Worker edits, no new binding. Verify cloud-mail first, add this second.
+1. **Do not change cloud-mail's mail flow.** No MX change, no `mail.<DOMAIN>`
+   change, no new binding. The mirror starts after `completeReceive()` via
+   `ctx.waitUntil`, so receive, forwarding, Telegram and webhooks are never
+   blocked or skipped. D1 remains canonical: a successful Stalwart import never
+   deletes the local mail record.
 2. **No inbound port on the Stalwart host.** The HTTP listener binds
    `127.0.0.1:8080` only; only outbound TCP 465 is needed.
 3. **Never route `jadmin.<DOMAIN>` to the Worker.** The tunnel serves it.
@@ -250,15 +254,53 @@ After each step, re-run the cloud-mail checkpoint from section 1.
 Rollback, in order: remove the Stalwart relay route → remove the
 `jadmin.<DOMAIN>` DNS record / tunnel route. No cloud-mail state is changed.
 
-## 6. Merging into latest `maillab/cloud-mail`
+## 6. Per-account mirror (mail-worker / mail-vue)
 
-This repository is staged as the `stalwart/` package for a later upstream PR.
-See [`docs/merge.md`](docs/merge.md) and run
-[`scripts/merge-into-cloud-mail.sh`](scripts/merge-into-cloud-mail.sh) against a
-fresh checkout of `maillab/cloud-mail` main. The `mail-worker/` and `mail-vue/`
-trees stay clean in that PR. The narrow Stalwart credential contract used by the
-later delivery feature is recorded in
-[`docs/token-contract.md`](docs/token-contract.md).
+Each account can optionally mirror incoming raw MIME into its Stalwart inbox.
+Open an account's **⋯** menu → **Stalwart storage** to configure it.
+
+| Field | Value |
+| --- | --- |
+| Enabled | Off by default; nothing is sent until switched on |
+| Public JMAP URL | Exactly `https://jadmin.<DOMAIN>` or another validated public HTTPS origin (localhost/private IPs are rejected) |
+| API token | Narrow per-account Stalwart API key, write-only |
+
+Token contract (create one key per account in Stalwart, mode **Replace**):
+
+- Allowed: `authenticate`, `emailReceive`, `emailSend`, `jmapEmailGet`,
+  `jmapEmailImport`, `jmapBlobUpload`, `jmapMailboxGet`, `jmapMailboxQuery`,
+  `jmapIdentityGet`, `jmapEmailSubmissionCreate`.
+- Never include `impersonate` or any `sys*` permission.
+- Do not register webhooks with this key; that needs `sysWebHook*` and should be
+  configured by an admin separately.
+
+Storage and behaviour:
+
+- The token is sealed with AES-256-GCM using a key derived from `jwt_secret`
+  via HKDF-SHA256 (per-account info). Reads return only `hasToken`, never the
+  secret. There is no plaintext fallback.
+- On receive, `Email/import` is the acknowledgement. `session → Mailbox/query →
+  upload raw blob → Email/import` supply the real `blobId` (creation ids like
+  `#u0` are rejected by Stalwart).
+- A failed import is queued in D1 (`stalwart_queue`) with exponential backoff
+  and is retried by the existing hourly cron. No new queue binding or cron
+  trigger is added.
+- **Manual retry first probes `/jmap/ws`** with a short authenticated upgrade.
+  If the tunnel/token/websocket endpoint is offline, nothing is drained. The
+  WebSocket is never held open.
+- Every Stalwart status notification is advisory; failures never reject an
+  incoming message.
+
+Rollback: switch the account's mirror off (or clear its token). Cloud-mail's
+D1 mail records are untouched, so no recovery step is needed.
+
+## 7. Deploying this combined change
+
+The tunnel Worker in `stalwart/` is optional and has no route by default. The
+`mail-worker/` and `mail-vue/` changes are additive migrations; run the usual
+`/init` once after deploy so the new account columns and `stalwart_queue`
+table are created. The narrow credential contract above is what the per-account
+settings expect.
 
 ## Local development
 

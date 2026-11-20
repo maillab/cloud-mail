@@ -25,6 +25,7 @@
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item v-if="hasPerm('email:send')" @click="openSetName(item)">{{ $t('rename') }}</el-dropdown-item>
+                    <el-dropdown-item v-if="hasPerm('account:query')" @click="openStalwart(item)">{{ $t('stalwartSettings') }}</el-dropdown-item>
                     <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId" @click="setAsTop(item, index)">{{ $t('pin') }}</el-dropdown-item>
                     <el-dropdown-item v-if="item.accountId !== userStore.user.account.accountId && hasPerm('account:delete')"
                                       @click="remove(item)">{{ $t('delete') }}
@@ -125,6 +126,21 @@
         </el-button>
       </div>
     </el-dialog>
+    <el-dialog v-model="stalwartShow" :title="$t('stalwartSettings')" width="500px">
+      <div class="container stalwart-form">
+        <div class="tip">{{ $t('stalwartHint') }}</div>
+        <el-switch v-model="stalwartForm.enabled" :active-text="$t('enable')" :inactive-text="$t('disable')"/>
+        <el-input v-model="stalwartForm.url" type="text" :placeholder="$t('stalwartUrl')" autocomplete="off"/>
+        <el-input v-model="stalwartForm.token" type="password"
+                  :placeholder="stalwartForm.hasToken ? $t('stalwartTokenSaved') : $t('stalwartToken')"
+                  autocomplete="new-password"/>
+        <div v-if="stalwartResult" class="tip">{{ stalwartResult }}</div>
+        <div class="stalwart-actions">
+          <el-button type="primary" @click="saveStalwart" :loading="stalwartLoading">{{ $t('save') }}</el-button>
+          <el-button @click="retryStalwart" :loading="stalwartRetrying">{{ $t('stalwartRetry') }}</el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 <script setup>
@@ -138,6 +154,7 @@ import {
   accountSetAllReceive,
   accountSetAsTop
 } from "@/request/account.js";
+import {stalwartGet, stalwartSave, stalwartRetry} from "@/request/stalwart.js";
 import {sleep} from "@/utils/time-utils.js"
 import {isEmail} from "@/utils/verify-utils.js";
 import {useSettingStore} from "@/store/setting.js";
@@ -165,6 +182,11 @@ const verifyShow = ref(false)
 const setNameShow = ref(false)
 const setNameLoading = ref(false)
 const accountName = ref(null)
+const stalwartShow = ref(false)
+const stalwartLoading = ref(false)
+const stalwartRetrying = ref(false)
+const stalwartResult = ref('')
+const stalwartForm = reactive({accountId: 0, enabled: false, url: '', token: '', hasToken: false})
 const addRef = ref({})
 const scrollbarRef = ref({})
 let account = null
@@ -296,6 +318,59 @@ function openSetName(accountItem) {
   accountName.value = accountItem.name
   account = accountItem
   setNameShow.value = true
+}
+
+async function openStalwart(accountItem) {
+  account = accountItem
+  stalwartForm.accountId = accountItem.accountId
+  stalwartForm.enabled = false
+  stalwartForm.url = ''
+  stalwartForm.token = ''
+  stalwartForm.hasToken = false
+  stalwartResult.value = ''
+  stalwartShow.value = true
+  try {
+    const data = await stalwartGet(accountItem.accountId) || {}
+    stalwartForm.enabled = !!data.enabled
+    stalwartForm.url = data.url || ''
+    stalwartForm.hasToken = !!data.hasToken
+  } catch (e) {
+    console.warn('stalwart config read failed', e)
+  }
+}
+
+function saveStalwart() {
+  if (stalwartLoading.value) return
+  stalwartLoading.value = true
+  stalwartSave({
+    accountId: stalwartForm.accountId,
+    enabled: stalwartForm.enabled,
+    url: stalwartForm.url,
+    token: stalwartForm.token
+  }).then((data) => {
+    stalwartForm.hasToken = !!data?.hasToken
+    stalwartForm.token = ''
+    stalwartResult.value = data?.configured ? t('stalwartOnline') : ''
+    ElMessage({message: t('saveSuccessMsg'), type: 'success', plain: true})
+  }).catch((e) => {
+    stalwartResult.value = e?.message || ''
+  }).finally(() => {
+    stalwartLoading.value = false
+  })
+}
+
+function retryStalwart() {
+  if (stalwartRetrying.value) return
+  stalwartRetrying.value = true
+  stalwartRetry(stalwartForm.accountId).then((data) => {
+    stalwartResult.value = data?.online
+        ? `${t('stalwartOnline')}${data.processed != null ? ` · ${data.processed}` : ''}`
+        : `${t('stalwartOffline')}${data?.reason ? ` · ${data.reason}` : ''}`
+  }).catch((e) => {
+    stalwartResult.value = `${t('stalwartOffline')}${e?.message ? ` · ${e.message}` : ''}`
+  }).finally(() => {
+    stalwartRetrying.value = false
+  })
 }
 
 function setAllReceive(account) {
@@ -700,6 +775,24 @@ path[fill="#ffdda1"] {
   opacity: 0;
   pointer-events: none;
   position: fixed;
+}
+
+.stalwart-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stalwart-form .tip {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.5;
+}
+
+.stalwart-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 </style>

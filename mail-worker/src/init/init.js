@@ -24,9 +24,39 @@ const dbInit = {
 		await this.v3_4DB(c);
 		await this.v3_5DB(c);
 		await this.v3_6DB(c);
+		await this.v3_7DB(c);
 		await userService.initAdmin(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async v3_7DB(c) {
+		try {
+			await c.env.db.batch([
+				c.env.db.prepare(`ALTER TABLE account ADD COLUMN stalwart_enabled INTEGER NOT NULL DEFAULT 0`),
+				c.env.db.prepare(`ALTER TABLE account ADD COLUMN stalwart_url TEXT NOT NULL DEFAULT ''`),
+				c.env.db.prepare(`ALTER TABLE account ADD COLUMN stalwart_token TEXT NOT NULL DEFAULT ''`)
+			]);
+		} catch (e) {
+			console.warn(`sql skip:${e.message}`);
+		}
+
+		try {
+			await c.env.db.prepare(`
+				CREATE TABLE IF NOT EXISTS stalwart_queue (
+					email_id INTEGER PRIMARY KEY,
+					account_id INTEGER NOT NULL,
+					raw TEXT NOT NULL DEFAULT '',
+					attempts INTEGER NOT NULL DEFAULT 0,
+					next_at INTEGER NOT NULL DEFAULT 0,
+					last_error TEXT NOT NULL DEFAULT '',
+					state TEXT NOT NULL DEFAULT 'pending',
+					created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+				)
+			`).run();
+		} catch (e) {
+			console.warn(`sql skip:${e.message}`);
+		}
 	},
 
 	async v3_6DB(c) {

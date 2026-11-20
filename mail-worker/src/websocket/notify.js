@@ -33,6 +33,20 @@ export function notifyMailWs(env, ctx, emailRow) {
 	}
 }
 
+// Stalwart 镜像状态推送：失败不影响收发，沿用同样的 waitUntil 语义。
+export function notifyStalwartStatus(env, ctx, detail) {
+	if (!env?.ws) return;
+	const payload = { type: 'stalwart_sync', ...detail };
+	const tasks = [];
+	if (detail?.userId) tasks.push(env.ws.getByName(String(detail.userId)).notify(payload));
+	tasks.push(env.ws.getByName(ALL_EMAIL_HUB).notify(payload));
+	const task = Promise.all(tasks).catch(err => {
+		console.error('stalwart status ws notify failed', err);
+	});
+	if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(task);
+	else void task;
+}
+
 // Hono 请求里取 executionCtx 再推送（站内互发走 HTTP，没有独立的 email handler ctx）。
 export function notifyMailWsFromContext(c, emailRow) {
 	let ctx;
