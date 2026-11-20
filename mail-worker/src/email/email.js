@@ -166,10 +166,10 @@ export async function email(message, env, ctx) {
 		// 有账号才推个人收件箱；无人收件（无 account / userId=0）只推全部邮件。
 		notifyMailWs(env, ctx, emailRow);
 
-		if (ruleType === settingConst.ruleType.RULE) {
+		if (ruleType !== settingConst.ruleType.ALL) {
 			if (!emailService.matchForwardRule({
 				ruleEmail,
-				userEmail: userRow?.email,
+				userEmail: ruleType === settingConst.ruleType.RULE ? userRow?.email : '',
 				toEmail: message.to
 			})) {
 				return;

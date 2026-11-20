@@ -724,6 +724,10 @@ Authorization: &lt;secret&gt;</pre>
         <div class="forward-set-body">
           <el-input-tag :placeholder="$t('ruleUsersInputDesc')" tag-type="warning" v-model="ruleEmail"
                         @add-tag="ruleEmailAddTag"/>
+          <div class="tg-msg-label" style="margin: 0">
+            <span>{{ $t('subAccountForward') }}</span>
+            <el-switch v-model="ruleSubAccount" :active-value="1" :inactive-value="0"/>
+          </div>
         </div>
         <template #footer>
           <div class="dialog-footer">
@@ -1086,6 +1090,7 @@ const webhookPayloadExample = `{
 const emailColumnWidth = ref(0)
 const tokenColumnWidth = ref(0)
 const ruleType = ref(0)
+const ruleSubAccount = ref(1)
 const ruleEmail = ref([])
 const tgMsgFrom = ref('')
 const tgMsgTo = ref('')
@@ -1302,7 +1307,8 @@ function openAutoClean() {
 }
 
 function openForwardRules() {
-  ruleType.value = setting.value.ruleType
+  ruleType.value = setting.value.ruleType === 0 ? 0 : 1
+  ruleSubAccount.value = setting.value.ruleType === 2 ? 0 : 1
   ruleEmail.value = []
   if (setting.value.ruleEmail) {
     const list = setting.value.ruleEmail.split(',')
@@ -1431,7 +1437,7 @@ function webhookSave() {
 function ruleEmailSave() {
   const form = {
     ruleEmail: ruleEmail.value + '',
-    ruleType: ruleType.value
+    ruleType: ruleType.value === 0 ? 0 : (ruleSubAccount.value ? 1 : 2)
   }
   editSetting(form)
 }

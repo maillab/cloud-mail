@@ -213,6 +213,7 @@ const en = {
     forwardingRules: 'Forwarding rules',
     forwardAll: 'All',
     rules: 'Rules',
+    subAccountForward: 'Forward sub-mailboxes of main account',
     turnstileSetting: 'Turnstile',
     signUpVerification: 'Sign up verification',
     loginVerification: 'Login verification',

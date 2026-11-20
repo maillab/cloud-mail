@@ -1099,8 +1099,8 @@ const emailService = {
 
 		const { tgBotStatus, tgChatId, forwardStatus, forwardEmail, webhookStatus, webhookUrl, webhookRetry, webhookSecret, customWorkerStatus, ruleEmail, ruleType } = await settingService.query(c);
 
-		if (ruleType === settingConst.ruleType.RULE) {
-			const userIds = [...new Set(emailRowList.map(row => row.userId).filter(Boolean))];
+		if (ruleType !== settingConst.ruleType.ALL) {
+			const userIds = ruleType === settingConst.ruleType.RULE ? [...new Set(emailRowList.map(row => row.userId).filter(Boolean))] : [];
 			const userRows = userIds.length
 				? await orm(c).select({ userId: user.userId, email: user.email }).from(user).where(inArray(user.userId, userIds)).all()
 				: [];

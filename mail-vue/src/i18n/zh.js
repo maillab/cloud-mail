@@ -213,6 +213,7 @@ const zh = {
     forwardingRules: '转发规则',
     forwardAll: '全部转发',
     rules: '规则转发',
+    subAccountForward: '主账号下子邮箱转发',
     turnstileSetting: 'Turnstile 人机验证',
     signUpVerification: '注册验证',
     loginVerification: '登录验证',
