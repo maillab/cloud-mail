@@ -28,9 +28,9 @@ const loginService = {
 
 		let { regKey, register, registerVerify, regVerifyCount, minEmailPrefix, emailPrefixFilter } = await settingService.query(c)
 
+		// 第三方登录跳过人机验证, 但仍遵守注册开关
 		if (oauth) {
 			registerVerify = settingConst.registerVerify.CLOSE;
-			register = settingConst.register.OPEN;
 		}
 
 		if (register === settingConst.register.CLOSE) {
