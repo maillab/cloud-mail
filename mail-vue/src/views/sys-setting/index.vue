@@ -724,7 +724,7 @@ Authorization: &lt;secret&gt;</pre>
         <div class="forward-set-body">
           <el-input-tag :placeholder="$t('ruleUsersInputDesc')" tag-type="warning" v-model="ruleEmail"
                         @add-tag="ruleEmailAddTag"/>
-          <div class="tg-msg-label" style="margin: 0">
+          <div v-if="ruleType === 1" class="tg-msg-label" style="margin: 0">
             <span>{{ $t('subAccountForward') }}</span>
             <el-switch v-model="ruleSubAccount" :active-value="1" :inactive-value="0"/>
           </div>
