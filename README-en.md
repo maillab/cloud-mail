@@ -123,6 +123,11 @@ cloud-mail
 │   ├── package.json               # Project dependencies
 │   └── wrangler.toml              # Project configuration
 │
+├── stalwart                       # Optional Stalwart tunnel front door (not part of mail delivery)
+│   ├── src                        # Transparent proxy Worker
+│   ├── tunnel                     # Cloudflare Tunnel config example
+│   └── README.md                  # Deployment and merge notes
+│
 ├── mail-vue                       # Frontend Vue project
 │   ├── src
 │   │   ├── axios                  # Axios configuration
@@ -144,6 +149,15 @@ cloud-mail
 └── └── env.release                # Environment configuration
 
 ```
+
+## Optional Stalwart front door
+
+`stalwart/` is an optional component that exposes a private-LAN Stalwart mail store
+to JMAP clients through a Cloudflare Tunnel. cloud-mail stays the primary sending
+and receiving system: MX, Email Routing, `mail.<DOMAIN>`, `mail-worker/` and
+`mail-vue/` are unchanged. The Worker declares no route by default; the WebUI and
+JMAP are reachable only at `https://jadmin.<DOMAIN>`. See
+[`stalwart/README.md`](stalwart/README.md).
 
 ## License
 

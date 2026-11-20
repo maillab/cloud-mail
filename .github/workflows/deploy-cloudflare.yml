@@ -2,10 +2,12 @@ name: 🚀 Deploy cloud-mail to Cloudflare Workers
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
     paths:
       - "mail-worker/**"
       - "mail-vue/**"
+      - ".github/workflows/deploy-cloudflare.yml"
+      - "stalwart/**"
   workflow_dispatch:
 
 jobs:
@@ -262,3 +264,51 @@ jobs:
         with:
           retain_days: '1'
           keep_minimum_runs: '0'
+
+  Deploy-stalwart-front-door:
+    name: Optional Stalwart front door
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      STALWART_DOMAIN: ${{ secrets.STALWART_DOMAIN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: 🚚 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚙ Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: stalwart/package-lock.json
+
+      - name: 📦 Install dependencies
+        working-directory: stalwart
+        run: npm ci
+
+      - name: 🧪 Check
+        working-directory: stalwart
+        run: npm run check
+
+      - name: 🔎 Check optional domain secret
+        run: |
+          if [ -z "$STALWART_DOMAIN" ]; then
+            echo "::warning::STALWART_DOMAIN is not set; skipping the optional Stalwart front door deploy. The tunnel at jadmin.<DOMAIN> is unaffected."
+          fi
+
+      - name: 🛠 Render deploy config
+        if: env.STALWART_DOMAIN != ''
+        working-directory: stalwart
+        run: sed "s|\${DOMAIN}|${STALWART_DOMAIN}|g" wrangler-action.toml > wrangler.deploy.toml
+
+      - name: 🚀 Deploy optional front door
+        if: env.STALWART_DOMAIN != ''
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: stalwart
+          command: deploy -c wrangler.deploy.toml

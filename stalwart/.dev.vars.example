@@ -1,0 +1,22 @@
+# Copy to .dev.vars for `npm run dev`. Never commit .dev.vars.
+
+# Required for local proxying: the tunnel hostname that reaches Stalwart.
+# A bare hostname means https:// on port 443; a full URL also works.
+# In production this is derived as jadmin.<DOMAIN> by the deploy workflow,
+# so it is not stored as a Worker secret there.
+UPSTREAM_URL=jadmin.example.com
+
+# Optional: Cloudflare Access service token for the Worker -> tunnel hop.
+# Only needed if the tunnel hostname is behind Access.
+# ACCESS_CLIENT_ID=your-service-token-id.access
+# ACCESS_CLIENT_SECRET=your-service-token-secret
+
+# Optional proxy behaviour.
+# PATH_PREFIX=/mail
+# CORS_ORIGIN=*
+
+# Intentionally unsupported (do not add):
+#   UPSTREAM_TOKEN   - the Worker never injects credentials; client auth is
+#                      passed through unchanged to Stalwart.
+#   DISCOVERY_ORIGIN - no discovery rewriting; STALWART_PUBLIC_URL must be the
+#                      exact URL users type.

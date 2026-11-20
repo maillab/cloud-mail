@@ -1,0 +1,18 @@
+# Deploy template. The deploy workflow replaces ${DOMAIN} with the DOMAIN
+# Action secret (the base domain, e.g. example.com). Do not edit the rendered
+# wrangler.deploy.toml; it is gitignored.
+#
+# This template deliberately declares NO route. jadmin.${DOMAIN} is served by
+# the Cloudflare Tunnel directly and must never be routed to this Worker.
+name = "cloud-stalwart"
+main = "src/index.ts"
+compatibility_date = "2024-11-12"
+
+[vars]
+# Tunnel hostname this Worker fetches. Bare hostname implies https:// on 443.
+# It is also the public WebUI host, so Stalwart's STALWART_PUBLIC_URL must be
+# exactly https://jadmin.${DOMAIN}.
+UPSTREAM_URL = "jadmin.${DOMAIN}"
+
+[observability]
+enabled = true

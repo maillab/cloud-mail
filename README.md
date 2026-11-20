@@ -129,6 +129,11 @@ cloud-mail
 │   ├── pageckge.json              # 项目依赖
 │   └── wrangler.toml              # 项目配置
 │
+├── stalwart                       # 可选的 Stalwart 隧道前端（不参与收发主流程）
+│   ├── src                        # 透明代理 Worker
+│   ├── tunnel                     # Cloudflare Tunnel 配置示例
+│   └── README.md                  # 部署与合并说明
+│
 ├── mail-vue                       # vue前端项目
 │   ├── src
 │   │   ├── axios                  # axios配置
@@ -149,6 +154,14 @@ cloud-mail
 │   ├── package.json               # 项目依赖
 └── └── env.release                # 项目配置
 ```
+
+## 可选的 Stalwart 前端
+
+`stalwart/` 是一个可选组件，用于把私有局域网内的 Stalwart 邮件存储通过 Cloudflare
+Tunnel 暴露给 JMAP 客户端。cloud-mail 仍然是收发邮件的主系统：不改变 MX、Email
+Routing、`mail.<DOMAIN>`、`mail-worker/` 或 `mail-vue/`。该 Worker 默认不声明任何
+路由；WebUI 和 JMAP 仅通过 `https://jadmin.<DOMAIN>` 对外提供。详见
+[`stalwart/README.md`](stalwart/README.md)。
 
 ## 许可证
 

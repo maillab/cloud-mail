@@ -1,0 +1,23 @@
+# Local development config for the OPTIONAL Stalwart front door.
+#
+# The primary deployment publishes Stalwart's WebUI directly through a
+# Cloudflare Tunnel at jadmin.<DOMAIN>. This Worker is optional and has no
+# route: run it locally at http://localhost:8787, or deploy the script with
+# wrangler-action.toml if you want a generic transparent proxy available.
+name = "cloud-stalwart"
+main = "src/index.ts"
+compatibility_date = "2024-11-12"
+
+# UPSTREAM_URL is required whenever a request is proxied. For local dev put it
+# in .dev.vars (see .dev.vars.example); in production the deploy workflow
+# derives it from the DOMAIN secret as jadmin.${DOMAIN}.
+#
+# Never point UPSTREAM_URL at this Worker itself. jadmin.<DOMAIN> is served by
+# the tunnel, and this Worker declares no route.
+
+[vars]
+# PATH_PREFIX = "/mail"
+# CORS_ORIGIN = "*"
+
+[observability]
+enabled = true
