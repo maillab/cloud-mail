@@ -255,6 +255,10 @@ const loginService = {
 			throw new BizError(t('IncorrectPwd'));
 		}
 
+		if (!noVerifyPwd) {
+			await userService.rehashPasswordIfNeeded(c, userRow, password);
+		}
+
 		const uuid = uuidv4();
 		const jwt = await JwtUtils.generateToken(c,{ userId: userRow.userId, token: uuid, gen: constant.AUTH_GEN });
 
