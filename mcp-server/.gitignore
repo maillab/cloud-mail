@@ -1,0 +1,9 @@
+# local env / secrets — never commit real credentials
+.env
+.env.*
+!.env.example
+
+# build output & dependencies (also covered by the repo-root .gitignore;
+# repeated here so a standalone checkout of mcp-server/ stays clean)
+node_modules
+dist
