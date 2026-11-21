@@ -56,6 +56,8 @@ admin = "${ADMIN}"
 password = "${PASSWORD}"
 jwt_secret = "${JWT_SECRET}"
 project_link = "${PROJECT_LINK}"
+# Optional Bulwark Lite workers.dev URL; shown in every account's Stalwart settings.
+stalwart_webmail_url = "${STALWART_WEBMAIL_URL}"
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"

@@ -11,5 +11,8 @@ export const account = sqliteTable('account', {
 	allReceive: integer('all_receive').default(0).notNull(),
 	sort: integer('sort').default(0).notNull(),
 	isDel: integer('is_del').default(0).notNull(),
+	stalwartEnabled: integer('stalwart_enabled').default(0).notNull(),
+	stalwartUrl: text('stalwart_url').default('').notNull(),
+	stalwartToken: text('stalwart_token').default('').notNull(),
 });
 export default account

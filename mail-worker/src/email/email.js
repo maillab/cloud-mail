@@ -13,6 +13,7 @@ import telegramService from '../service/telegram-service';
 import aiService from '../service/ai-service';
 import webhookService from '../service/webhook-service';
 import { notifyMailWs } from '../websocket/notify';
+import { mirrorIncoming, isEnabled as isStalwartEnabled } from '../stalwart/delivery';
 
 export async function email(message, env, ctx) {
 
@@ -160,6 +161,21 @@ export async function email(message, env, ctx) {
 		}
 
 		emailRow = await emailService.completeReceive({ env }, account ? emailConst.status.RECEIVE : emailConst.status.NOONE, emailRow.emailId);
+
+		// Optional per-account Stalwart mirror. Fire-and-forget: the core receive
+		// path, notifications, forwarding and webhooks are never blocked or skipped.
+		if (account && isStalwartEnabled(account)) {
+			const mirror = mirrorIncoming({
+				env,
+				ctx,
+				account,
+				emailId: emailRow.emailId,
+				raw: content,
+				receivedAt: new Date().toISOString()
+			});
+			if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(mirror);
+			else void mirror;
+		}
 
 		// 有账号才推个人收件箱；无人收件（无 account / userId=0）只推全部邮件。
 		notifyMailWs(env, ctx, emailRow);

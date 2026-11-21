@@ -129,6 +129,12 @@ cloud-mail
 │   ├── pageckge.json              # 项目依赖
 │   └── wrangler.toml              # 项目配置
 │
+├── stalwart                       # 可选的 Stalwart 隧道前端（不参与收发主流程）
+│   ├── src                        # 透明代理 Worker
+│   ├── tunnel                     # Cloudflare Tunnel 配置示例
+│   ├── webmail                    # 可选的 Bulwark Lite 静态资源（手动部署）
+│   └── README.md                  # 部署与合并说明
+│
 ├── mail-vue                       # vue前端项目
 │   ├── src
 │   │   ├── axios                  # axios配置
@@ -149,6 +155,20 @@ cloud-mail
 │   ├── package.json               # 项目依赖
 └── └── env.release                # 项目配置
 ```
+
+## 可选的 Stalwart 前端
+
+`stalwart/` 是一个可选组件，用于把私有局域网内的 Stalwart 邮件存储通过 Cloudflare
+Tunnel 暴露给 JMAP 客户端。cloud-mail 仍然是收发邮件的主系统：不改变 MX、Email
+Routing、`mail.<DOMAIN>` 或现有收发路径；`mail-worker/` 与 `mail-vue/` 仅增加可被
+账户级开关关闭的 Stalwart 镜像代码。该 Worker 默认不声明任何
+路由；WebUI 和 JMAP 仅通过 `https://jadmin.<DOMAIN>` 对外提供。详见
+[`stalwart/README.md`](stalwart/README.md)，其中
+[第 8 节](stalwart/README.md#8-free-tier-quotas-and-limits)列出了相关的
+Cloudflare 免费额度及本方案如何控制在额度内。
+[第 9 节](stalwart/README.md#9-optional-webmail-bulwark-lite-static-assets-only)
+描述了可选、手动部署的 Bulwark Lite 静态资源方案；当前不新增 `jmap.<DOMAIN>`
+主机名，也不改动 cloud-mail 的 UI。
 
 ## 许可证
 

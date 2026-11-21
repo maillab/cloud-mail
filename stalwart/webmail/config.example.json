@@ -1,0 +1,16 @@
+{
+  "_comment": "Optional Bulwark Lite webmail for the Stalwart mirror. deploy.sh renders example.com to DOMAIN and writes this file to dist/config.json. Keep jmapServerUrl pinned to the tunnel host; do not leave it empty.",
+  "appName": "Stalwart Mail (mirror)",
+  "jmapServerUrl": "https://jadmin.example.com",
+  "allowCustomJmapEndpoint": false,
+  "jmapServers": [],
+  "jmapServerAutoPickByDomain": false,
+  "rememberMeEnabled": false,
+  "loginShowRememberMe": false,
+  "demoMode": false,
+  "noThirdPartyTraffic": true,
+  "loginShowTotp": true,
+  "loginShowVersion": false,
+  "oauthRevokeOnSignOut": true,
+  "sourceCodeUrl": "https://github.com/bulwarkmail/webmail"
+}

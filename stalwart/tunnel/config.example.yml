@@ -1,0 +1,20 @@
+# Copy this file to the cloudflared host (e.g. /etc/cloudflared/config.yml).
+# Docs: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+#
+# This publishes ONLY the admin/JMAP web host. cloud-mail keeps the MX, Email
+# Routing and mail.<DOMAIN>; there is no inbound SMTP ingress and no public
+# port on the Stalwart host. Outbound mail leaves Stalwart via the Cloudflare
+# Email Service SMTP relay (see README.md).
+
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: /etc/cloudflared/REPLACE_WITH_TUNNEL_UUID.json
+
+ingress:
+  # Single first-party host for the Stalwart WebUI and JMAP endpoints.
+  # No Worker route for this hostname; the tunnel serves it directly.
+  - hostname: jadmin.example.com
+    service: http://127.0.0.1:8080
+    originRequest:
+      # Stalwart expects the public Host, not the LAN address.
+      httpHostHeader: jadmin.example.com
+  - service: http_status:404

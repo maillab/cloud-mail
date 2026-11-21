@@ -1,0 +1,5 @@
+# Rendered at deploy time by deploy.sh; never commit a real domain or token.
+dist/
+config.json
+*.zip
+wrangler.deploy.toml

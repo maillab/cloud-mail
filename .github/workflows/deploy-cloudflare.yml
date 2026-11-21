@@ -6,6 +6,8 @@ on:
     paths:
       - "mail-worker/**"
       - "mail-vue/**"
+      - ".github/workflows/deploy-cloudflare.yml"
+      - "stalwart/**"
   workflow_dispatch:
 
 jobs:
@@ -29,6 +31,7 @@ jobs:
       AI_MODEL: ${{ secrets.AI_MODEL || vars.AI_MODEL || '@cf/meta/llama-3.1-8b-instruct-fast' }}
       EMAIL: ${{ secrets.EMAIL || vars.EMAIL }}
       ANALYSIS_CACHE: ${{ secrets.ANALYSIS_CACHE || vars.ANALYSIS_CACHE || false }}
+      STALWART_WEBMAIL_URL: ${{ secrets.STALWART_WEBMAIL_URL || vars.STALWART_WEBMAIL_URL }}
 
 
     outputs:
@@ -129,7 +132,12 @@ jobs:
           sed -i "s|\${LINUXDO_CLIENT_ID}|${LINUXDO_CLIENT_ID}|g" "$CONFIG_FILE"
           sed -i "s|\${LINUXDO_CLIENT_SECRET}|${LINUXDO_CLIENT_SECRET}|g" "$CONFIG_FILE"
           sed -i "s|\${LINUXDO_CALLBACK_URL}|${LINUXDO_CALLBACK_URL}|g" "$CONFIG_FILE"
-          
+          sed -i "s|\${STALWART_WEBMAIL_URL}|${STALWART_WEBMAIL_URL}|g" "$CONFIG_FILE"
+
+          if [ -n "$STALWART_WEBMAIL_URL" ] && [[ "$STALWART_WEBMAIL_URL" != https://* ]]; then
+            echo "::warning::STALWART_WEBMAIL_URL is not an https URL; the webmail entry will be hidden."
+          fi
+
           echo "✅ Environment setup completed."
 
       - name: ⚡ Set up KV database
@@ -262,3 +270,36 @@ jobs:
         with:
           retain_days: '1'
           keep_minimum_runs: '0'
+
+  Deploy-stalwart-front-door:
+    name: Optional Stalwart front door + webmail assets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: 🔎 Check optional domain secret
+        id: domain
+        env:
+          STALWART_DOMAIN: ${{ secrets.STALWART_DOMAIN || vars.STALWART_DOMAIN }}
+        run: |
+          if [ -z "$STALWART_DOMAIN" ]; then
+            echo "::warning::STALWART_DOMAIN is not set; skipping the optional Stalwart deploy. The tunnel at jadmin.<DOMAIN> is unaffected."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! printf '%s' "$STALWART_DOMAIN" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$' \
+            || [[ "$STALWART_DOMAIN" == *..* ]] || [[ "$STALWART_DOMAIN" != *.* ]] \
+            || [[ "$STALWART_DOMAIN" == jadmin.* ]]; then
+            echo "::error::STALWART_DOMAIN must be a bare base domain such as example.com (no scheme, path or 'jadmin.' host)."
+            exit 1
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "base_domain=$STALWART_DOMAIN" >> "$GITHUB_OUTPUT"
+
+      - name: 🚀 Deploy optional front door + webmail assets
+        if: steps.domain.outputs.enabled == 'true'
+        uses: tankl-hass/plugin-stalwart/.github/actions/deploy-stalwart@v1.0.0
+        with:
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          base_domain: ${{ steps.domain.outputs.base_domain }}

@@ -1,0 +1,15 @@
+# Deploy template. deploy.sh renders the jmap.<DOMAIN> Custom Domain below.
+# The Worker stays asset-only (no main) and owns exactly one Custom Domain;
+# Cloudflare creates the DNS record and certificate for that hostname.
+# Do not edit the rendered wrangler.deploy.toml — it is gitignored.
+name = "cloud-stalwart-webmail"
+compatibility_date = "2026-11-21"
+
+[assets]
+directory = "./dist"
+# Bulwark Lite ships 404.html for deep-link replay; let static assets handle it.
+not_found_handling = "404-page"
+
+[[routes]]
+pattern = "${WEBMAIL_HOST}"
+custom_domain = true
