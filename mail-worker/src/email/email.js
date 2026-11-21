@@ -12,6 +12,7 @@ import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
 import aiService from '../service/ai-service';
 import webhookService from '../service/webhook-service';
+import customWorkerService from '../service/custom-worker-service';
 import { notifyMailWs } from '../websocket/notify';
 
 export async function email(message, env, ctx) {
@@ -28,6 +29,7 @@ export async function email(message, env, ctx) {
 			webhookUrl,
 			webhookRetry,
 			webhookSecret,
+			customWorkerStatus,
 			ruleEmail,
 			ruleType,
 			r2Domain,
@@ -164,10 +166,11 @@ export async function email(message, env, ctx) {
 		// 有账号才推个人收件箱；无人收件（无 account / userId=0）只推全部邮件。
 		notifyMailWs(env, ctx, emailRow);
 
-		if (ruleType === settingConst.ruleType.RULE) {
+		if (ruleType !== settingConst.ruleType.ALL) {
 			if (!emailService.matchForwardRule({
 				ruleEmail,
-				userEmail: userRow?.email
+				userEmail: ruleType === settingConst.ruleType.RULE ? userRow?.email : '',
+				toEmail: message.to
 			})) {
 				return;
 			}
@@ -198,6 +201,11 @@ export async function email(message, env, ctx) {
 		//转发到 Webhook
 		if (webhookStatus === settingConst.webhookStatus.OPEN && webhookUrl) {
 			await webhookService.sendEmail({ env }, emailRow, webhookUrl, webhookRetry, webhookSecret);
+		}
+
+		//转发到自定义 Worker
+		if (customWorkerStatus === settingConst.customWorkerStatus.OPEN) {
+			await customWorkerService.sendEmail({ env, ctx }, emailRow, message, email);
 		}
 
 	} catch (e) {

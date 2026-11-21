@@ -251,6 +251,18 @@
                 </div>
               </div>
               <div class="setting-item">
+                <div>
+                  <span>{{ $t('customWorker') }}</span>
+                  <el-tooltip effect="dark" :content="$t('customWorkerDesc')">
+                    <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+                  </el-tooltip>
+                </div>
+                <div>
+                  <el-switch @change="changeField('customWorkerStatus', $event)" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                             v-model="setting.customWorkerStatus"/>
+                </div>
+              </div>
+              <div class="setting-item">
                 <div><span>{{ $t('forwardingRules') }}</span></div>
                 <div class="forward">
                   <span>{{ setting.ruleType === 0 ? $t('forwardAll') : $t('rules') }}</span>
@@ -712,6 +724,10 @@ Authorization: &lt;secret&gt;</pre>
         <div class="forward-set-body">
           <el-input-tag :placeholder="$t('ruleUsersInputDesc')" tag-type="warning" v-model="ruleEmail"
                         @add-tag="ruleEmailAddTag"/>
+          <div v-if="ruleType === 1" class="tg-msg-label" style="margin: 0">
+            <span>{{ $t('subAccountForward') }}</span>
+            <el-switch v-model="ruleSubAccount" :active-value="1" :inactive-value="0"/>
+          </div>
         </div>
         <template #footer>
           <div class="dialog-footer">
@@ -1074,6 +1090,7 @@ const webhookPayloadExample = `{
 const emailColumnWidth = ref(0)
 const tokenColumnWidth = ref(0)
 const ruleType = ref(0)
+const ruleSubAccount = ref(1)
 const ruleEmail = ref([])
 const tgMsgFrom = ref('')
 const tgMsgTo = ref('')
@@ -1290,7 +1307,8 @@ function openAutoClean() {
 }
 
 function openForwardRules() {
-  ruleType.value = setting.value.ruleType
+  ruleType.value = setting.value.ruleType === 0 ? 0 : 1
+  ruleSubAccount.value = setting.value.ruleType === 2 ? 0 : 1
   ruleEmail.value = []
   if (setting.value.ruleEmail) {
     const list = setting.value.ruleEmail.split(',')
@@ -1419,7 +1437,7 @@ function webhookSave() {
 function ruleEmailSave() {
   const form = {
     ruleEmail: ruleEmail.value + '',
-    ruleType: ruleType.value
+    ruleType: ruleType.value === 0 ? 0 : (ruleSubAccount.value ? 1 : 2)
   }
   editSetting(form)
 }

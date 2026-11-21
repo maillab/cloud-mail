@@ -24,6 +24,7 @@ import account from "../entity/account";
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
 import webhookService from './webhook-service';
+import customWorkerService from './custom-worker-service';
 import forwardMime from '../utils/forward-mime';
 import verifyUtils from '../utils/verify-utils';
 import { notifyMailWsFromContext } from '../websocket/notify';
@@ -1084,28 +1085,34 @@ const emailService = {
 		return emailRowList;
 	},
 
-	// 规则转发：只按所属用户登录邮箱匹配，名单仍存在 rule_email。
-	matchForwardRule({ ruleEmail, userEmail }) {
+	// 规则转发：按所属用户登录邮箱或实际收件邮箱匹配，名单仍存在 rule_email。
+	matchForwardRule({ ruleEmail, userEmail, toEmail }) {
 		const users = String(ruleEmail || '').split(',').map(item => item.trim().toLowerCase()).filter(Boolean);
-		return !!(userEmail && users.includes(String(userEmail).toLowerCase()));
+		return !!(
+			(userEmail && users.includes(String(userEmail).toLowerCase())) ||
+			(toEmail && users.includes(String(toEmail).toLowerCase()))
+		);
 	},
 
 	//站内邮件不经过 email 事件，在这里按转发规则推送
 	async forwardOnSiteEmail(c, emailRowList, { sendParams }) {
 
-		const { tgBotStatus, tgChatId, forwardStatus, forwardEmail, webhookStatus, webhookUrl, webhookRetry, webhookSecret, ruleEmail, ruleType } = await settingService.query(c);
+		const { tgBotStatus, tgChatId, forwardStatus, forwardEmail, webhookStatus, webhookUrl, webhookRetry, webhookSecret, customWorkerStatus, ruleEmail, ruleType } = await settingService.query(c);
 
-		if (ruleType === settingConst.ruleType.RULE) {
-			const userIds = [...new Set(emailRowList.map(row => row.userId).filter(Boolean))];
+		if (ruleType !== settingConst.ruleType.ALL) {
+			const userIds = ruleType === settingConst.ruleType.RULE ? [...new Set(emailRowList.map(row => row.userId).filter(Boolean))] : [];
 			const userRows = userIds.length
 				? await orm(c).select({ userId: user.userId, email: user.email }).from(user).where(inArray(user.userId, userIds)).all()
 				: [];
 			const userEmailById = Object.fromEntries(userRows.map(row => [row.userId, row.email]));
 			emailRowList = emailRowList.filter(emailRow => this.matchForwardRule({
 				ruleEmail,
-				userEmail: userEmailById[emailRow.userId]
+				userEmail: userEmailById[emailRow.userId],
+				toEmail: emailRow.toEmail
 			}));
 		}
+
+		let cfAttachments;
 
 		for (const emailRow of emailRowList) {
 
@@ -1119,6 +1126,32 @@ const emailService = {
 				await webhookService.sendEmail(c, emailRow, webhookUrl, webhookRetry, webhookSecret);
 			}
 
+			//转发到自定义 Worker
+			if (customWorkerStatus === settingConst.customWorkerStatus.OPEN) {
+				const message = {
+					from: emailRow.sendEmail,
+					to: emailRow.toEmail,
+					forward: async (address) => {
+						cfAttachments ??= await this.toCloudflareAttachments(sendParams.attachments || []);
+						const result = await forwardMime.send(c.env.forward, {
+							...sendParams,
+							attachments: cfAttachments,
+							receiveEmail: [{ address: emailRow.toEmail, name: emailRow.toName || '' }]
+						}, address);
+						if (result?.error) {
+							throw result.error;
+						}
+					}
+				};
+				await customWorkerService.sendEmail(c, emailRow, message, {
+					subject: emailRow.subject,
+					text: emailRow.text,
+					html: emailRow.content,
+					from: { address: emailRow.sendEmail, name: emailRow.name },
+					to: [{ address: emailRow.toEmail, name: emailRow.toName }]
+				});
+			}
+
 		}
 
 		//转发到其他邮箱。发件人用站内实际发件人，信头收件人保留原收件人，信封送到已验证地址。
@@ -1127,7 +1160,7 @@ const emailService = {
 			const addresses = forwardEmail.split(',').map(address => address.trim()).filter(Boolean);
 			const params = {
 				...sendParams,
-				attachments: await this.toCloudflareAttachments(sendParams.attachments || []),
+				attachments: cfAttachments ?? await this.toCloudflareAttachments(sendParams.attachments || []),
 				receiveEmail: emailRowList.map(row => ({ address: row.toEmail, name: row.toName || '' })).filter(item => item.address)
 			};
 

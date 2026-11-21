@@ -48,6 +48,12 @@ const dbInit = {
 		} catch (e) {
 			console.warn(`sql skip:${e.message}`);
 		}
+
+		try {
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN custom_worker_status INTEGER NOT NULL DEFAULT 1`).run();
+		} catch (e) {
+			console.warn(`sql skip:${e.message}`);
+		}
 	},
 
 	async v3_5DB(c) {

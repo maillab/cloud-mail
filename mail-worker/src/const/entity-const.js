@@ -121,9 +121,14 @@ export const settingConst = {
 		OPEN: 0,
 		CLOSE: 1,
 	},
+	customWorkerStatus: {
+		OPEN: 0,
+		CLOSE: 1,
+	},
 	ruleType: {
 		ALL: 0,
-		RULE: 1
+		RULE: 1,
+		RULE_EMAIL: 2
 	},
 	noRecipient: {
 		OPEN: 0,
