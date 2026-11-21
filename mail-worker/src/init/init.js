@@ -24,9 +24,56 @@ const dbInit = {
 		await this.v3_4DB(c);
 		await this.v3_5DB(c);
 		await this.v3_6DB(c);
+		await this.v3_7DB(c);
 		await userService.initAdmin(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async v3_7DB(c) {
+		// Each ALTER runs on its own so one already-existing column cannot
+		// prevent the remaining columns from being added.
+		const columns = [
+			'stalwart_enabled INTEGER NOT NULL DEFAULT 0',
+			"stalwart_url TEXT NOT NULL DEFAULT ''",
+			"stalwart_token TEXT NOT NULL DEFAULT ''"
+		];
+		for (const column of columns) {
+			try {
+				await c.env.db.prepare(`ALTER TABLE account ADD COLUMN ${column}`).run();
+			} catch (e) {
+				console.warn(`sql skip:${e.message}`);
+			}
+		}
+
+		try {
+			await c.env.db.prepare(`
+				CREATE TABLE IF NOT EXISTS stalwart_queue (
+					email_id INTEGER PRIMARY KEY,
+					account_id INTEGER NOT NULL,
+					raw TEXT NOT NULL DEFAULT '',
+					attempts INTEGER NOT NULL DEFAULT 0,
+					next_at INTEGER NOT NULL DEFAULT 0,
+					last_error TEXT NOT NULL DEFAULT '',
+					state TEXT NOT NULL DEFAULT 'pending',
+					claimed_at INTEGER NOT NULL DEFAULT 0,
+					received_at TEXT NOT NULL DEFAULT '',
+					created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+				)
+			`).run();
+		} catch (e) {
+			console.warn(`sql skip:${e.message}`);
+		}
+		try {
+			await c.env.db.prepare(`ALTER TABLE stalwart_queue ADD COLUMN received_at TEXT NOT NULL DEFAULT ''`).run();
+		} catch (e) {
+			console.warn(`sql skip:${e.message}`);
+		}
+		try {
+			await c.env.db.prepare(`ALTER TABLE stalwart_queue ADD COLUMN claimed_at INTEGER NOT NULL DEFAULT 0`).run();
+		} catch (e) {
+			console.warn(`sql skip:${e.message}`);
+		}
 	},
 
 	async v3_6DB(c) {

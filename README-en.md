@@ -123,6 +123,12 @@ cloud-mail
 │   ├── package.json               # Project dependencies
 │   └── wrangler.toml              # Project configuration
 │
+├── stalwart                       # Optional Stalwart tunnel front door (not part of mail delivery)
+│   ├── src                        # Transparent proxy Worker
+│   ├── tunnel                     # Cloudflare Tunnel config example
+│   ├── webmail                    # Optional Bulwark Lite static assets (manual deploy)
+│   └── README.md                  # Deployment and merge notes
+│
 ├── mail-vue                       # Frontend Vue project
 │   ├── src
 │   │   ├── axios                  # Axios configuration
@@ -144,6 +150,21 @@ cloud-mail
 └── └── env.release                # Environment configuration
 
 ```
+
+## Optional Stalwart front door
+
+`stalwart/` is an optional component that exposes a private-LAN Stalwart mail store
+to JMAP clients through a Cloudflare Tunnel. cloud-mail stays the primary sending
+and receiving system: MX, Email Routing, `mail.<DOMAIN>` and the existing send
+path are unchanged; `mail-worker/` and `mail-vue/` only gain opt-in, per-account
+mirror code. The Worker declares no route by default; the WebUI and
+JMAP are reachable only at `https://jadmin.<DOMAIN>`. See
+[`stalwart/README.md`](stalwart/README.md), including
+[section 8](stalwart/README.md#8-free-tier-quotas-and-limits) for the relevant
+Cloudflare free-tier quotas and how this design stays within them.
+[Section 9](stalwart/README.md#9-optional-webmail-bulwark-lite-static-assets-only)
+covers the optional, manually deployed Bulwark Lite static-asset setup; no
+`jmap.<DOMAIN>` hostname is added and cloud-mail's UI is unchanged.
 
 ## License
 

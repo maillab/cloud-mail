@@ -8,6 +8,7 @@ import oauthService from './service/oauth-service';
 import analysisService from './service/analysis-service';
 import { handleWsUpgrade } from './websocket/connect';
 import proxyService from './service/proxy-service';
+import { processPending } from './stalwart/delivery';
 export { MailHub } from './websocket/hub'; // Durable Object 必须从 Worker 入口导出
 export default {
 	 async fetch(req, env, ctx) {
@@ -49,12 +50,12 @@ export default {
 			await analysisService.refreshEchartsCache({ env })
 			return;
 		}
-
 		await verifyRecordService.clearRecord({ env })
 		await userService.resetDaySendCount({ env })
 		await emailService.completeReceiveAll({ env })
 		await emailService.autoClean({ env })
 		await analysisService.refreshEchartsCache({ env })
 		await oauthService.clearNoBindOathUser({ env })
+		await processPending({ env, ctx })
 	},
 };

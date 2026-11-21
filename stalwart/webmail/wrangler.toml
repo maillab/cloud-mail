@@ -1,0 +1,17 @@
+# Asset-only Worker for the OPTIONAL Bulwark Lite webmail.
+#
+# There is deliberately no `main` here. With no Worker script, requests are
+# served straight from `dist/` and do not consume the Workers request quota.
+# This local dev config has no route; deploy.sh renders wrangler-action.toml
+# into a gitignored wrangler.deploy.toml that adds the jmap.<DOMAIN> Custom
+# Domain (no Worker script, still asset-only).
+#
+# Do NOT add jadmin.<DOMAIN> here. That hostname belongs to the Cloudflare
+# Tunnel and Stalwart must remain its only publisher.
+name = "cloud-stalwart-webmail"
+compatibility_date = "2026-11-21"
+
+[assets]
+directory = "./dist"
+# Bulwark Lite ships 404.html for deep-link replay; let static assets handle it.
+not_found_handling = "404-page"
