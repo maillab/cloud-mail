@@ -17,7 +17,10 @@ export default defineConfig(({mode}) => {
         base: env.VITE_STATIC_URL || '/',
         plugins: [vue(),
             VitePWA({
-                injectRegister: 'script-defer',
+                // 新版本部署后自动接管：预缓存 index.html 让 sw.js 每次构建都变化，
+                // 新 worker 立即激活并接管页面，页面在 main.js 里监听接管事件后自动刷新。
+                registerType: 'autoUpdate',
+                injectRegister: null,
                 manifest: {
                     name: env.VITE_PWA_NAME,
                     short_name: env.VITE_PWA_NAME,
@@ -33,7 +36,9 @@ export default defineConfig(({mode}) => {
                 },
                 workbox: {
                     disableDevLogs: true,
-                    globPatterns: [],
+                    globPatterns: ['index.html'],
+                    skipWaiting: true,
+                    clientsClaim: true,
                     runtimeCaching: [],
                     navigateFallback: null,
                     cleanupOutdatedCaches: true,
