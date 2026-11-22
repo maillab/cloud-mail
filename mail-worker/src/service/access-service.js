@@ -19,7 +19,11 @@ const SCOPE_PHRASE = {
 // receive every permission (the XPass control plane currently has more than
 // that), so validation and clearing must be chunked instead of building one
 // enormous IN (...) clause.
-const D1_BINDING_BATCH = 90;
+const D1_BINDING_BATCH = 80;
+// Each override row uses three bindings (user, key, effect). Keeping this at
+// 30 rows stays below D1's binding limit while reducing a full-access save from
+// hundreds of round trips to a handful of statements.
+const D1_OVERRIDE_BATCH = 30;
 
 function batches(values, size = D1_BINDING_BATCH) {
 	const result = [];
@@ -111,7 +115,8 @@ const AREAS = [
 		actions: [
 			{ key: 'view', perm: 'finance:view', allow: 'View finance records', deny: 'View finance records' },
 			{ key: 'edit', perm: 'finance:edit', allow: 'Create and edit finance records', deny: 'Edit finance records' },
-			{ key: 'approve', perm: 'finance:approve', allow: 'Approve finance records', deny: 'Approve finance records' }
+			{ key: 'approve', perm: 'finance:approve', allow: 'Approve finance records', deny: 'Approve finance records' },
+			{ key: 'viewAll', perm: 'finance:view_all', allow: 'View company-wide finance records', deny: 'View company-wide finance records' }
 		]
 	},
 	{
@@ -386,10 +391,12 @@ const accessService = {
 				).bind(userId, ...batch).run();
 			}
 		} else {
-			for (const key of keys) {
+			for (const batch of batches(keys, D1_OVERRIDE_BATCH)) {
+				const values = batch.map(() => '(?, ?, ?)').join(', ');
+				const bindings = batch.flatMap((key) => [userId, key, effect]);
 				await c.env.db.prepare(
-					`INSERT OR REPLACE INTO user_perm_override (user_id, perm_key, effect) VALUES (?, ?, ?)`
-				).bind(userId, key, effect).run();
+					`INSERT OR REPLACE INTO user_perm_override (user_id, perm_key, effect) VALUES ${values}`
+				).bind(...bindings).run();
 			}
 		}
 
