@@ -98,22 +98,22 @@
 
       <el-dialog v-model="contactDialogVisible" title="Contact" width="520px">
         <el-form :model="contactForm" label-width="100px">
-          <el-form-item label="Name" prop="name">
-            <el-input v-model="contactForm.name" />
+          <el-form-item label="Full name" prop="name" required>
+            <el-input v-model="contactForm.name" placeholder="e.g. Jane Smith" />
           </el-form-item>
           <el-form-item label="Email" prop="email">
             <el-input v-model="contactForm.email" type="email" />
           </el-form-item>
           <el-form-item label="Phone" prop="phone">
-            <el-input v-model="contactForm.phone" />
+            <el-input v-model="contactForm.phone" placeholder="Include country code" />
           </el-form-item>
           <el-form-item label="Company" prop="company_id">
-            <el-select v-model="contactForm.company_id" placeholder="Select company" filterable allow-create>
+            <el-select v-model="contactForm.company_id" placeholder="Select or add a company" filterable allow-create style="width:100%">
               <el-option v-for="c in companies" :key="c.id" :label="c.name" :value="c.id" />
             </el-select>
           </el-form-item>
           <el-form-item label="Address" prop="address">
-            <el-input v-model="contactForm.address" />
+            <el-input v-model="contactForm.address" placeholder="Street, city, country" />
           </el-form-item>
           <el-form-item label="Source" prop="source">
             <el-select v-model="contactForm.source">
@@ -126,15 +126,15 @@
             <el-input v-model="contactForm.notes" type="textarea" rows="3" />
           </el-form-item>
           <el-form-item label="Tags" prop="tags">
-            <el-input v-model="contactForm.tagsInput" placeholder="comma-separated tags" />
+            <el-input v-model="contactForm.tagsInput" placeholder="Separate tags with commas" />
           </el-form-item>
-          <template #footer>
-            <span class="dialog-footer">
-              <el-button @click="contactDialogVisible = false">Cancel</el-button>
-              <el-button type="primary" :loading="saving" @click="saveContact">Save contact</el-button>
-            </span>
-          </template>
         </el-form>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="contactDialogVisible = false">Cancel</el-button>
+            <el-button v-perm="contactForm.id ? 'contacts:edit' : 'contacts:add'" type="primary" :loading="saving" @click="saveContact">Save contact</el-button>
+          </span>
+        </template>
       </el-dialog>
     </div>
   </el-scrollbar>
