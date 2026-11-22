@@ -14,7 +14,7 @@
         </div>
         <div class="si-heading-actions">
           <select
-            v-if="mailboxStore.sharedMailboxes.length > 1"
+            v-if="mailboxStore.sharedMailboxes.length > 1 && !isSupportMailbox"
             class="si-inbox-select"
             :value="mailboxId"
             aria-label="Filter by source inbox"
@@ -67,8 +67,8 @@
             <span class="si-subject">{{ row.subject || '(no subject)' }}</span>
             <span class="si-snippet">{{ snippet(row) }}</span>
             <span class="si-meta">
-              <span class="si-inbox-tag" :title="inboxLabel(row)">
-                <Icon icon="fluent:mail-20-regular" width="11" height="11" />{{ inboxLabel(row) }}
+              <span class="si-inbox-tag" :title="inboxSourceLabel(row)">
+                <Icon icon="fluent:mail-20-regular" width="11" height="11" />{{ inboxSourceLabel(row) }}
               </span>
               <span class="si-status" :class="`is-${row.status}`">{{ statusLabel(row.status) }}</span>
               <span v-if="row.priority === 'urgent'" class="si-flag is-urgent">Urgent</span>
@@ -352,6 +352,7 @@ const eventLabels = {
 const mailbox = computed(() => mailboxStore.mailboxById(mailboxId.value))
 const mailboxLabel = computed(() => mailbox.value?.display_name || mailbox.value?.email || 'Shared inbox')
 const mailboxAddress = computed(() => mailbox.value?.email || '')
+const isSupportMailbox = computed(() => `${mailboxLabel.value} ${mailboxAddress.value}`.toLowerCase().includes('support'))
 
 // The inbox a conversation arrived at. In a single-mailbox view every row shares
 // the current address; the helper still resolves per row so the label stays
@@ -363,6 +364,14 @@ function inboxLabel(row) {
     if (box?.email) return box.email
   }
   return mailboxAddress.value
+}
+
+function inboxSourceLabel(row) {
+  const id = Number(row?.account_id)
+  const box = id ? mailboxStore.mailboxById(id) : mailbox.value
+  if (!box) return mailboxAddress.value
+  const title = box.display_name || 'Shared inbox'
+  return `${title} · ${box.email || 'address unavailable'}`
 }
 
 function changeInbox(event) {

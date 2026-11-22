@@ -338,7 +338,10 @@ const savingMember = ref(false)
 
 const assignableUsers = computed(() => {
   const memberIds = new Set(members.value.map(m => Number(m.user_id)))
-  return users.value.filter(u => Number(u.status) === 0 && !memberIds.has(Number(u.userId)))
+  // The member-options endpoint already returns only active company accounts;
+  // older UI code also checked a missing `status` field and filtered everyone
+  // out, leaving the picker stuck on “No data”.
+  return users.value.filter(u => !memberIds.has(Number(u.userId)))
 })
 
 async function loadUsers() {
