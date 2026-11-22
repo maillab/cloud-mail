@@ -2,11 +2,10 @@
   <div id="login-box" class="login-surface" v-loading="oauthLoading" element-loading-text="Signing in...">
     <span class="login-arc" aria-hidden="true"></span>
     <main class="login-layout">
-      <img class="login-brand-logo" src="/xpass-logo-inverted.png" alt="XPass" />
+      <img class="login-brand-logo" src="/xpass-logo-inverted.png" alt="XPass HQ" width="140" height="140" />
       <section class="login-brand">
         <div class="login-brand-copy">
-          <div class="login-brand-kicker"><span></span> INTERNAL WORKSPACE.</div>
-          <h1>The event ends.<br /><em>The relationship shouldnâ€™t.</em></h1>
+          <h1>The event ends.<br /><em>The relationship shouldn’t.</em></h1>
           <p>Powering the infrastructure behind seamless event commerce and organizer success.</p>
         </div>
       </section>
@@ -20,26 +19,37 @@
           <form v-if="!mfaChallenge" class="auth-form" @submit.prevent="submit">
             <div class="auth-field">
               <label for="login-username">{{ hideLoginDomain ? $t('emailAccount') : 'Username' }}</label>
-              <el-input
-                id="login-username"
-                v-model="form.email"
-                type="text"
-                :placeholder="hideLoginDomain ? 'name@company.com' : 'your.name'"
-                autocomplete="username"
-                autocapitalize="none"
-                spellcheck="false"
-                @keyup.enter="submit"
-              >
-                <template v-if="!hideLoginDomain" #append>
-                  <div class="domain-picker" @click.stop="openSelect">
-                    <el-select ref="mySelect" v-model="suffix" :placeholder="$t('select')" class="select">
+              <div class="company-account-field" :class="{ 'is-single-domain': !hideLoginDomain && domainList.length <= 1, 'is-full-account': hideLoginDomain }">
+                <span v-if="!hideLoginDomain" class="company-account-prefix" aria-hidden="true">@</span>
+                <input
+                  id="login-username"
+                  v-model="form.email"
+                  class="company-account-input"
+                  type="text"
+                  :placeholder="hideLoginDomain ? 'name@company.com' : 'your.name'"
+                  autocomplete="username"
+                  autocapitalize="none"
+                  spellcheck="false"
+                  @keyup.enter="submit"
+                />
+                <template v-if="!hideLoginDomain && domainList.length === 1">
+                  <span class="company-account-domain is-fixed">{{ domainList[0] }}</span>
+                </template>
+                <template v-else-if="!hideLoginDomain">
+                  <div class="company-account-domain is-picker">
+                    <el-select
+                      ref="mySelect"
+                      v-model="suffix"
+                      class="company-account-select"
+                      :teleported="false"
+                    >
                       <el-option v-for="item in domainList" :key="item" :label="item" :value="item" />
                     </el-select>
-                    <span>{{ suffix }}</span>
-                    <Icon icon="mingcute:down-small-fill" width="16" height="16" />
+                    <span class="company-account-domain-text">{{ suffix }}</span>
+                    <Icon icon="mingcute:down-small-fill" width="14" height="14" />
                   </div>
                 </template>
-              </el-input>
+              </div>
             </div>
             <div class="auth-field">
               <label for="login-password">{{ $t('password') }}</label>
@@ -54,7 +64,7 @@
               />
             </div>
             <el-button class="auth-submit" type="primary" native-type="submit" :loading="loginLoading">
-              {{ loginLoading ? 'Signing inâ€¦' : 'Sign in' }}
+              {{ loginLoading ? 'Signing in…' : 'Sign in' }}
             </el-button>
             <div v-if="oauthProviders.length" class="oauth-list">
               <el-button v-for="p in oauthProviders" :key="p.key" class="oauth-button" @click="oauthLogin(p.key)">
@@ -101,7 +111,7 @@
               <p v-if="mfaError" class="inline-error">{{ mfaError }}</p>
             </div>
             <el-button class="auth-submit" type="primary" native-type="submit" :loading="loginLoading">
-              {{ loginLoading ? 'Verifyingâ€¦' : (mfaMode === 'recovery' ? 'Continue' : 'Verify') }}
+              {{ loginLoading ? 'Verifying…' : (mfaMode === 'recovery' ? 'Continue' : 'Verify') }}
             </el-button>
             <div class="auth-switch">
               <el-button
@@ -130,17 +140,40 @@
     </main>
     <el-dialog class="bind-dialog" v-model="showBindForm" title="Connect your email">
       <div class="bind-container">
-        <el-input v-model="bindForm.email" type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="bind">
-          <template v-if="!hideLoginDomain" #append>
-            <div class="domain-picker" @click.stop="openSelect">
-              <el-select ref="mySelect" v-model="suffix" :placeholder="$t('select')" class="select">
-                <el-option v-for="item in domainList" :key="item" :label="item" :value="item" />
-              </el-select>
-              <span>{{ suffix }}</span>
-              <Icon icon="mingcute:down-small-fill" width="16" height="16" />
-            </div>
-          </template>
-        </el-input>
+        <div class="auth-field">
+          <label for="bind-username">{{ $t('emailAccount') }}</label>
+          <div class="company-account-field" :class="{ 'is-single-domain': !hideLoginDomain && domainList.length <= 1, 'is-full-account': hideLoginDomain }">
+            <span v-if="!hideLoginDomain" class="company-account-prefix" aria-hidden="true">@</span>
+            <input
+              id="bind-username"
+              v-model="bindForm.email"
+              class="company-account-input"
+              type="text"
+              :placeholder="hideLoginDomain ? 'name@company.com' : 'your.name'"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+              @keyup.enter="bind"
+            />
+            <template v-if="!hideLoginDomain && domainList.length === 1">
+              <span class="company-account-domain is-fixed">{{ domainList[0] }}</span>
+            </template>
+            <template v-else-if="!hideLoginDomain">
+              <div class="company-account-domain is-picker">
+                <el-select
+                  ref="bindSelect"
+                  v-model="suffix"
+                  class="company-account-select"
+                  :teleported="false"
+                >
+                  <el-option v-for="item in domainList" :key="item" :label="item" :value="item" />
+                </el-select>
+                <span class="company-account-domain-text">{{ suffix }}</span>
+                <Icon icon="mingcute:down-small-fill" width="14" height="14" />
+              </div>
+            </template>
+          </div>
+        </div>
         <el-input v-if="settingStore.settings.regKey === 0" v-model="bindForm.code" :placeholder="$t('regKey')" type="text" autocomplete="off" @keyup.enter="bind" />
         <el-input v-if="settingStore.settings.regKey === 2" v-model="bindForm.code" :placeholder="$t('regKeyOptional')" type="text" autocomplete="off" @keyup.enter="bind" />
         <el-button class="auth-submit" type="primary" :loading="bindLoading" @click="bind">Connect account</el-button>
@@ -219,6 +252,7 @@ const mfaInput = ref(null)
 const preAuthToken = ref('')
 const emailHint = ref('')
 const mySelect = ref()
+const bindSelect = ref()
 const suffix = ref('')
 // The domain list comes from the server, but the login page must remain usable
 // while the API is unreachable (worker cold start / network hiccup). Fall back
@@ -232,10 +266,6 @@ const domainList = computed(() => {
 if (!suffix.value) suffix.value = domainList.value[0]
 
 const hideLoginDomain = computed(() => settingStore.settings.loginDomain === 1)
-
-const openSelect = () => {
-  mySelect.value.toggleMenu()
-}
 
 const getFullEmail = (email) => {
   return hideLoginDomain.value ? email : email + suffix.value
@@ -667,10 +697,10 @@ function refreshWebsiteConfig() {
 
 .login-brand-logo {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 104px !important;
-  height: 104px !important;
+  top: -12px;
+  left: 24px;
+  width: 280px !important;
+  height: 280px !important;
   border-radius: 0 !important;
   object-fit: contain;
   object-position: left top;
@@ -797,32 +827,106 @@ function refreshWebsiteConfig() {
   color: #8a7d73;
 }
 
-.auth-field :deep(.el-input-group__append) {
-  border: 0;
-  border-left: 1px solid rgba(194, 125, 79, .22);
-  border-radius: 0 10px 10px 0;
-  background: #1c1611;
-  box-shadow: none;
+/* Unified company-account field: one rounded rectangle, one border, one focus
+   ring. The username input and the domain segment live inside the same box so
+   the field reads as your.name@example.com rather than an input next to a
+   separate selector. */
+.company-account-field {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  border-radius: 10px;
+  background: #14100d;
+  box-shadow: 0 0 0 1px rgba(194, 125, 79, .26) inset;
+  transition: box-shadow .15s ease;
+  overflow: hidden;
 }
 
-.domain-picker {
-  position: relative;
+.company-account-field:focus-within {
+  box-shadow: 0 0 0 1px #ff5500 inset, 0 0 0 3px rgba(255, 85, 0, .15);
+}
+
+.company-account-prefix {
+  flex: 0 0 auto;
+  padding-left: 14px;
+  color: #8a7d73;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+}
+
+.company-account-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 46px;
+  padding: 0 6px 0 2px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #f3ece5;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.company-account-field.is-full-account .company-account-input {
+  padding-left: 14px;
+}
+
+.company-account-input::placeholder {
+  color: #8a7d73;
+}
+
+.company-account-domain {
+  flex: 0 0 auto;
   display: flex;
-  min-height: 46px;
   align-items: center;
-  gap: 6px;
-  padding: 0 4px;
+  gap: 4px;
+  height: 100%;
+  padding: 0 14px;
+  border-left: 1px solid rgba(194, 125, 79, .22);
+  background: #1c1611;
   color: #c8bab0;
   font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.company-account-domain.is-fixed {
+  color: #e7ddd5;
+}
+
+.company-account-domain.is-picker {
+  position: relative;
+  min-width: 120px;
+  justify-content: flex-end;
   cursor: pointer;
 }
 
-.domain-picker .select {
+.company-account-domain-text {
+  pointer-events: none;
+}
+
+.company-account-select {
   position: absolute;
   inset: 0;
   width: 100%;
+  height: 100%;
   opacity: 0;
   cursor: pointer;
+}
+
+.company-account-select :deep(.el-select__wrapper) {
+  min-height: 100%;
+  height: 100%;
+  padding: 0;
+  box-shadow: none !important;
+  background: transparent;
+}
+
+.company-account-select :deep(.el-select__selected-item) {
+  display: none;
 }
 
 .auth-submit {
@@ -832,7 +936,7 @@ function refreshWebsiteConfig() {
   border: 1px solid #ff5500;
   border-radius: 10px;
   background: #ff5500;
-  color: #1a0f08;
+  color: #ffffff;
   font-size: 14px;
   font-weight: 700;
   transition: background-color .15s ease, border-color .15s ease;
@@ -842,7 +946,7 @@ function refreshWebsiteConfig() {
 .auth-submit:focus {
   border-color: #ff7a3d;
   background: #ff7a3d;
-  color: #1a0f08;
+  color: #ffffff;
 }
 
 .auth-submit.is-disabled,
@@ -1002,8 +1106,8 @@ function refreshWebsiteConfig() {
 
   .login-brand-logo {
     position: static;
-    width: 64px !important;
-    height: 64px !important;
+    width: 84px !important;
+    height: 84px !important;
     margin-bottom: 20px;
   }
 

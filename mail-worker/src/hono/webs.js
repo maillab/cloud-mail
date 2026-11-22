@@ -53,5 +53,4 @@ import '../api/security-api'
 import '../api/announcements-api'
 import '../api/connections-api'
 import '../api/team-api'
-import '../api/tutorials-api'
 export default app;

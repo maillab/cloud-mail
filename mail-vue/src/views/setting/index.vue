@@ -391,41 +391,6 @@
                   <el-button plain @click="uiStore.showNotice()">{{ $t('viewNotice') }}</el-button>
                 </div>
               </div>
-
-              <!-- TOUR PREFERENCES -->
-              <div class="card-box">
-                <header class="section-header">
-                  <h3>{{ $t('tourPreferences') }}</h3>
-                  <p>{{ $t('tourPreferencesDesc') }}</p>
-                </header>
-                <div class="pref-list">
-                  <div class="pref-row">
-                    <div class="field-info">
-                      <label class="field-label">{{ $t('tourAutoStart') }}</label>
-                      <span class="field-desc">{{ $t('tourAutoStartDesc') }}</span>
-                    </div>
-                    <div class="field-control">
-                      <el-switch v-model="tutorialPrefs.showOnFirstVisit" @change="saveTutorialPrefs" />
-                    </div>
-                  </div>
-                </div>
-                <div class="pref-actions">
-                  <el-button v-for="tour in availableTours" :key="tour.id" plain @click="startTour(tour.id)">
-                    {{ tour.title }}
-                  </el-button>
-                  <el-button plain type="danger" @click="resetAllTours">{{ $t('reset') }}</el-button>
-                </div>
-                <div class="pref-list" style="margin-top: 16px">
-                  <div class="field-info">
-                    <label class="field-label">What I can access</label>
-                    <span class="field-desc">Only the modules your administrator has granted you appear here.</span>
-                  </div>
-                  <div class="access-chips">
-                    <span v-for="mod in myModules" :key="mod.key" class="access-chip">{{ mod.label }}</span>
-                    <span v-if="!myModules.length" class="field-desc">No additional modules yet.</span>
-                  </div>
-                </div>
-              </div>
             </section>
 
             <!-- TAB 6: SECURITY -->
@@ -485,7 +450,6 @@ import HqSecurityPanel from '@/components/hq-security/index.vue'
 import { identityGet, identityUpdate, avatarUpload, avatarRemove, teamList } from '@/request/profile.js'
 import { sanitizeSignatureHtml } from '@/utils/email-html.js'
 import { notificationsPreferencesGet, notificationsPreferencesSet, notificationsPreferencesReset } from '@/request/notifications.js'
-import { useTutorialStore } from '@/store/tutorial.js'
 
 defineOptions({
   name: 'setting'
@@ -572,25 +536,6 @@ async function resetNotifPrefs() {
   } catch {
     // interceptor surfaces the reason
   }
-}
-
-// TOUR PREFERENCES
-const tutorialStore = useTutorialStore()
-const tutorialPrefs = reactive({ showOnFirstVisit: true })
-const availableTours = computed(() => tutorialStore.availableTours)
-const myModules = computed(() => tutorialStore.myModules)
-
-async function saveTutorialPrefs() {
-  await tutorialStore.savePreferences({ showOnFirstVisit: tutorialPrefs.showOnFirstVisit })
-}
-
-function startTour(tourId) {
-  tutorialStore.startTour(tourId)
-}
-
-async function resetAllTours() {
-  await tutorialStore.resetAll()
-  ElMessage({ message: 'Tour progress reset.', type: 'success', plain: true })
 }
 
 // PROFILE TAB
@@ -773,13 +718,11 @@ onMounted(() => {
   loadIdentity()
   loadTeams()
   loadNotifPrefs()
-  tutorialStore.load().then(() => { tutorialPrefs.showOnFirstVisit = tutorialStore.preferences.showOnFirstVisit })
 })
 
 watch(activeTab, (tab) => {
   if (tab === 'notifications') {
     loadNotifPrefs()
-    tutorialStore.load().then(() => { tutorialPrefs.showOnFirstVisit = tutorialStore.preferences.showOnFirstVisit })
   }
 })
 
@@ -1265,26 +1208,6 @@ function deleteConfirm() {
   gap: 8px;
   padding-top: 8px;
   flex-wrap: wrap;
-}
-
-.access-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding-top: 8px;
-}
-
-.access-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--hq-border);
-  border-radius: 999px;
-  background: var(--hq-hover);
-  color: var(--hq-text-secondary);
-  font-size: 12.5px;
-  font-weight: 550;
 }
 
 .accounts-header {

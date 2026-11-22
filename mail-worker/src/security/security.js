@@ -120,7 +120,6 @@ const requirePerms = [
 	'/team',
 	'/announcements',
 	'/connections',
-	'/tutorials',
 	'/invitations'
 	];
 
@@ -544,10 +543,6 @@ function pathToResourcePerm(path, permKeys, suffix) {
 	if (resource === 'invitations') {
 		if (suffix === 'query') return permKeys.includes('user:query') || permKeys.includes('*');
 		return permKeys.includes('user:add') || permKeys.includes('*');
-	}
-	// Tutorial progress is entirely about the signed-in member's own guidance.
-	if (resource === 'tutorials') {
-		return true;
 	}
 	// Appearance settings are configuration, not a separate create/delete pair.
 	if (resource === 'setting' && /^\/setting\/(set|delete)?[Bb]ackground$/.test(path)) {

@@ -70,7 +70,6 @@ const dbInit = {
 		await this.v3_39DB(c);
 		await this.v3_40DB(c);
 		await this.v3_41DB(c);
-		await this.v3_42DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
@@ -99,7 +98,7 @@ const dbInit = {
 	},
 
 	async v3_9DB(c) {
-		// CRM tables â€” additive, user_id tenancy (maps to user.user_id), soft delete via is_del
+		// CRM tables — additive, user_id tenancy (maps to user.user_id), soft delete via is_del
 		await c.env.db.batch([
 			c.env.db.prepare(`CREATE TABLE IF NOT EXISTS crm_contacts (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1559,7 +1558,7 @@ const dbInit = {
 		await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_finance_invoices_user ON finance_invoices(user_id, is_del);`).run();
 		await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_finance_invoices_status ON finance_invoices(status, is_del);`).run();
 
-		// Finance permission seed â€” three-way split (view / edit / approve)
+		// Finance permission seed — three-way split (view / edit / approve)
 		const {permTotal: finPermTotal} = await c.env.db.prepare(`SELECT COUNT(*) as permTotal FROM perm WHERE perm_key LIKE 'finance:%'`).first();
 		if (finPermTotal === 0) {
 			await c.env.db.prepare(`
@@ -1595,7 +1594,7 @@ const dbInit = {
 		)`).run();
 		await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_whatsapp_conversations_user ON whatsapp_conversations(user_id, is_del);`).run();
 
-		// whatsapp_messages: human-send enforcement â€” AI suggests, human must approve
+		// whatsapp_messages: human-send enforcement — AI suggests, human must approve
 		await c.env.db.prepare(`CREATE TABLE IF NOT EXISTS whatsapp_messages (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id INTEGER NOT NULL,
@@ -1922,7 +1921,7 @@ async v3_19DB(c) {
 	},
 
 	async v3_24DB(c) {
-		// Gate 3 â€” two calendars.
+		// Gate 3 — two calendars.
 		// Calendar A (personal/team): extend calendar_events with visibility,
 		// participants, timezone, reminders and related records.
 		const calCols = await c.env.db.prepare(`SELECT name FROM pragma_table_info('calendar_events')`).all();
@@ -2935,7 +2934,7 @@ async v3_19DB(c) {
 	// reference each other through their own foreign keys (a transaction knows
 	// its budget, its debt, its invoice), and those stay: they drive the ledger
 	// arithmetic. This table holds the links that cross module boundaries, or
-	// that have no business meaning inside the ledger â€” an invoice raised for a
+	// that have no business meaning inside the ledger — an invoice raised for a
 	// project, a subscription bought for a team, a payment that settled a request.
 	//
 	// Both ends are (type, id) pairs rather than foreign keys because the types
@@ -3011,8 +3010,8 @@ async v3_19DB(c) {
 		//
 		// This migration establishes the security spine (mandatory authenticator,
 		// sessions, login history, recovery codes), the people/team directory
-		// extensions, company announcements, onboarding invitations, the curated
-		// connections catalogue and per-member tutorial progress.
+		// extensions, company announcements, onboarding invitations, and the
+		// curated connections catalogue.
 		const addUserColumn = async (column, definition) => {
 			try {
 				await c.env.db.prepare(`ALTER TABLE user ADD COLUMN ${column} ${definition};`).run();
@@ -3221,21 +3220,8 @@ async v3_19DB(c) {
 			)
 		`).run();
 
-		// --- Tutorial progress ----------------------------------------------
-		// Tour definitions live in the frontend registry; only progress is stored.
-		await c.env.db.prepare(`
-			CREATE TABLE IF NOT EXISTS tutorial_progress (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				user_id INTEGER NOT NULL,
-				tour_id TEXT NOT NULL,
-				tour_version INTEGER NOT NULL DEFAULT 1,
-				completed_at TEXT,
-				dismissed_at TEXT,
-				create_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-				UNIQUE(user_id, tour_id, tour_version)
-			)
-		`).run();
-		await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_tutorial_progress_user ON tutorial_progress(user_id);`).run();
+		// Tutorial progress table removed: the guided-tour system was retired
+		// and no longer writes to tutorial_progress or member_guide.
 
 		// --- Member-level onboarding metadata -------------------------------
 		// Accounts that exist but have never completed first-login security.
@@ -3375,23 +3361,6 @@ async v3_19DB(c) {
 		`).run();
 		await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_finance_invoice_share_invoice ON finance_invoice_share(invoice_id);`).run();
 		await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_finance_invoice_share_token ON finance_invoice_share(token_hash);`).run();
-	},
-
-	// v3_42: per-member guide state for the personalized XPass HQ Guide. Stores
-	// the effective-access version the member last acknowledged (so we can tell
-	// when an administrator grants or removes access) and whether they have
-	// completed the first-workspace tour. Module-tour completion already lives
-	// in tutorial_progress; this is only the access-version bookkeeping.
-	async v3_42DB(c) {
-		await c.env.db.prepare(`
-			CREATE TABLE IF NOT EXISTS member_guide (
-				user_id INTEGER PRIMARY KEY,
-				ack_access_hash TEXT,
-				ack_perms TEXT,
-				first_tour_completed INTEGER NOT NULL DEFAULT 0,
-				update_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-			)
-		`).run();
 	},
 
 	async v3_29DB(c) {

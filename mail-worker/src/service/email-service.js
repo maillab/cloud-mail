@@ -447,7 +447,7 @@ const emailService = {
 			throw new BizError(t('senderAccountNotExist'));
 		}
 		// Two legitimate senders: your own address, or a shared mailbox you are an
-		// active member of with send rights. Nothing else â€” the sender is derived
+		// active member of with send rights. Nothing else — the sender is derived
 		// from stored membership, never from what the client asks for.
 		const ownsAccount = accountRow.userId === userId;
 		let mailboxAccess = null;
@@ -475,7 +475,7 @@ const emailService = {
 		}
 		// A personal signature belongs to the member's own mailbox only. A shared
 		// company address sends under the mailbox identity, so the personal
-		// signature is never applied there â€” sending "Kind regards, Rodney" from
+		// signature is never applied there — sending "Kind regards, Rodney" from
 		// support@ is exactly the leak this prevents.
 		const sendingFromPersonal = isPersonalSender(accountRow, userRow);
 		const accountHasSignature = sendingFromPersonal

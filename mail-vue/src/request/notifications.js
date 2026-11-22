@@ -33,34 +33,3 @@ export function notificationsPreferencesSet(data) {
 export function notificationsPreferencesReset() {
     return http.post('/notifications/preferences/reset');
 }
-
-// Tutorial progress + preferences (showOnFirstVisit / showGuideButton).
-export function tutorialsGet() {
-    return http.get('/tutorials');
-}
-
-export function tutorialsPreferencesSet(data) {
-    return http.put('/tutorials/preferences', data);
-}
-
-export function tutorialsComplete(tourId, version) {
-    return http.post(`/tutorials/${tourId}/complete`, { version });
-}
-
-export function tutorialsDismiss(tourId, version) {
-    return http.post(`/tutorials/${tourId}/dismiss`, { version });
-}
-
-export function tutorialsReset(tourId) {
-    return http.delete('/tutorials/progress', { params: tourId ? { tourId } : {} });
-}
-
-// Guide state: acknowledge the current effective-access version (so an access
-// change is announced once) and mark the first-workspace tour complete.
-export function tutorialsAccessAck(data) {
-    return http.post('/tutorials/access/ack', data);
-}
-
-export function tutorialsFirstComplete() {
-    return http.post('/tutorials/first-complete', {});
-}

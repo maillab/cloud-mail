@@ -170,32 +170,8 @@ export function revokeInvitation(id) {
 }
 
 // ---------------------------------------------------------------------------
-// Tutorials and notification preferences
+// Notification preferences
 // ---------------------------------------------------------------------------
-
-export function tutorialState() {
-    return http.get('/tutorials')
-}
-
-export function completeTutorial(tourId, version = 1) {
-    return http.post(`/tutorials/${tourId}/complete`, {version})
-}
-
-export function dismissTutorial(tourId, version = 1) {
-    return http.post(`/tutorials/${tourId}/dismiss`, {version})
-}
-
-export function resetTutorialProgress(tourId) {
-    return http.delete('/tutorials/progress', {params: tourId ? {tourId} : {}})
-}
-
-export function tutorialPreferences() {
-    return http.get('/tutorials')
-}
-
-export function saveTutorialPreferences(body) {
-    return http.put('/tutorials/preferences', body)
-}
 
 export function notificationPreferences() {
     return http.get('/notifications/preferences')

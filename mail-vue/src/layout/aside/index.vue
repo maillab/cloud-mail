@@ -374,7 +374,11 @@ onMounted(() => {
   refreshNavigation().catch(error => console.error(error));
   updateDraftCount().catch(error => console.error(error));
   window.addEventListener('mailbox:updated', refreshAfterMailboxUpdate);
-  countRefreshTimer = window.setInterval(refreshAfterMailboxUpdate, 30000);
+  // Mailbox counts are refreshed on the mailbox:updated event (fired when mail
+  // actually arrives or changes). The interval is only a slow fallback for
+  // cases where the event is missed, so it is kept at 5 minutes rather than 30
+  // seconds to avoid a steady stream of D1 reads from every open tab.
+  countRefreshTimer = window.setInterval(refreshAfterMailboxUpdate, 300000);
 });
 
 onUnmounted(() => {
