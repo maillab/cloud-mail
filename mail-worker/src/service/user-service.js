@@ -12,7 +12,6 @@ import dayjs from 'dayjs';
 import permService from './perm-service';
 import scopeService from './scope-service';
 import roleService from './role-service';
-import userContext from '../security/user-context';
 import emailUtils from '../utils/email-utils';
 import saltHashUtils from '../utils/crypto-utils';
 import constant from '../const/constant';
@@ -24,6 +23,7 @@ import oauthService from "./oauth-service";
 import settingService from './setting-service';
 import starService from './star-service';
 import signatureService from './signature-service';
+import userContext from '../security/user-context';
 
 const userService = {
 
@@ -148,6 +148,19 @@ const userService = {
 		}
 		const { salt, hash } = await cryptoUtils.hashPassword(password);
 		await orm(c).update(user).set({ password: hash, salt: salt }).where(eq(user.userId, userId)).run();
+
+		// 个人设置改密：会话列表只留当前 uuid，其它设备下线。管理员改别人密码不走这里。
+		if (userContext.getUserId(c) !== userId) {
+			return;
+		}
+
+		const sessionToken = await userContext.getToken(c);
+		const authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userId, { type: 'json' });
+		if (!authInfo) {
+			return;
+		}
+		authInfo.tokens = sessionToken ? [sessionToken] : [];
+		await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
 	},
 
 	async updateSignature(c, params, userId) {
@@ -481,6 +494,35 @@ const userService = {
 			.set({ type })
 			.where(eq(user.type, curType))
 			.run();
+	},
+
+	async initAdmin(c) {
+		const email = c.env.admin;
+		const password = c.env.password;
+
+		if (!email || !password) {
+			return;
+		}
+
+		const exist = await userService.selectByEmailIncludeDel(c, email);
+		if (exist) {
+			return;
+		}
+
+		const role = await roleService.selectDefaultRole(c);
+		const { salt, hash } = await cryptoUtils.hashPassword(password);
+		const userId = await userService.insert(c, {
+			email,
+			password: hash,
+			salt,
+			type: role?.roleId || 1
+		});
+		await userService.updateUserInfo(c, userId, true);
+		await accountService.insert(c, {
+			userId,
+			email,
+			name: emailUtils.getName(email)
+		});
 	},
 
 	async add(c, params) {

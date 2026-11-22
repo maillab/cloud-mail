@@ -2,6 +2,7 @@ import { S3Client, PutObjectCommand, DeleteObjectsCommand, GetObjectCommand } fr
 import settingService from './setting-service';
 import domainUtils from '../utils/domain-uitls';
 import { settingConst } from '../const/entity-const';
+import { publicFileHeaders } from '../utils/att-headers';
 const s3Service = {
 
 	async putObj(c, key, content, metadata) {
@@ -84,11 +85,10 @@ const s3Service = {
 		}));
 
 		return new Response(result.Body, {
-			headers: {
-				'Content-Type': result.ContentType || 'application/octet-stream',
-				'Content-Disposition': result.ContentDisposition || null,
-				'Cache-Control': result.CacheControl || null
-			}
+			headers: publicFileHeaders({
+				contentType: result.ContentType,
+				contentDisposition: result.ContentDisposition
+			})
 		});
 	},
 

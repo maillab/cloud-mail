@@ -21,6 +21,7 @@ jobs:
       CUSTOM_DOMAIN: ${{ secrets.CUSTOM_DOMAIN || vars.CUSTOM_DOMAIN }}
       DOMAIN: ${{ secrets.DOMAIN || vars.DOMAIN }}
       ADMIN: ${{ secrets.ADMIN || vars.ADMIN }}
+      PASSWORD: ${{ secrets.PASSWORD || vars.PASSWORD }}
       JWT_SECRET: ${{ secrets.JWT_SECRET || vars.JWT_SECRET }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -38,30 +39,30 @@ jobs:
 
 
     steps:
-      - name: 🚚 检出代码仓库 / Checkout repository
+      - name: 🚚 Checkout repository
         uses: actions/checkout@v4
 
-      - name: ⚙ 设置 pnpm / Set up pnpm
+      - name: ⚙ Set up pnpm
         uses: pnpm/action-setup@v4.1.0
         with:
           version: 11
 
-      - name: ⚙ 设置 Node.js / Set up Node.js
+      - name: ⚙ Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "24"
           cache: "pnpm"
           cache-dependency-path: "./mail-worker/pnpm-lock.yaml"
 
-      - name: 📦 安装依赖 / Install dependencies
+      - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: ./mail-worker
 
-      - name: 📡 禁用 Wrangler 遥测 / Disable wrangler telemetry
+      - name: 📡 Disable wrangler telemetry
         working-directory: ./mail-worker
         run: pnpm wrangler telemetry disable
 
-      - name: 🛠️ 设置环境 / Set up environment
+      - name: 🛠️ Set up environment
         working-directory: ./mail-worker
         run: |
           
@@ -122,6 +123,7 @@ jobs:
           sed -i "s|\${CUSTOM_DOMAIN}|${CUSTOM_DOMAIN}|g" "$CONFIG_FILE"
           sed -i "s|\"\${DOMAIN}\"|${DOMAIN}|g" "$CONFIG_FILE"
           sed -i "s|\${ADMIN}|${ADMIN}|g" "$CONFIG_FILE"
+          sed -i "s|\${PASSWORD}|${PASSWORD}|g" "$CONFIG_FILE"
           sed -i "s|\${JWT_SECRET}|${JWT_SECRET}|g" "$CONFIG_FILE"
           sed -i "s|\${R2_BUCKET_NAME}|${R2_BUCKET_NAME}|g" "$CONFIG_FILE"
           sed -i "s|\${PROJECT_LINK}|${PROJECT_LINK}|g" "$CONFIG_FILE"
@@ -133,7 +135,7 @@ jobs:
           
           echo "✅ Environment setup completed."
 
-      - name: ⚡ 设置KV数据库 / Set up KV database
+      - name: ⚡ Set up KV database
         working-directory: ./mail-worker
         run: |
           CONFIG_FILE="wrangler-action.toml"
@@ -144,7 +146,7 @@ jobs:
           sed -i "s|\${KV_NAMESPACE_ID}|${KV_NAMESPACE_ID}|g" "$CONFIG_FILE"
           echo "✅ Using the pre-verified KV namespace."
 
-      - name: 🐬 设置D1数据库 / Set up D1 database
+      - name: 🐬 Set up D1 database
         working-directory: ./mail-worker
         run: |
           CONFIG_FILE="wrangler-action.toml"
@@ -155,7 +157,7 @@ jobs:
           sed -i "s|\${D1_DATABASE_ID}|${D1_DATABASE_ID}|g" "$CONFIG_FILE"
           echo "✅ Using the pre-verified D1 database."
 
-      - name: 🚀 开始部署 / Start deployment
+      - name: 🚀 Start deployment
         id: deploy
         working-directory: ./mail-worker
         run: |

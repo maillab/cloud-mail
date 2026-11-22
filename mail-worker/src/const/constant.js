@@ -9,6 +9,8 @@ const constant = {
 	// verify endpoint never needs the email/password again.
 	PREAUTH_EXPIRE: 60 * 5,
 	PREAUTH_CHALLENGE: 'mfa',
+	// Bump to revoke every active application and WebSocket session.
+	AUTH_GEN: 1,
 	ATTACHMENT_PREFIX: 'attachments/',
 	BACKGROUND_PREFIX: 'static/background/',
 	ADMIN_ROLE: {

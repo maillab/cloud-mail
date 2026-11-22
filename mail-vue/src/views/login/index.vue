@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div id="login-box" class="login-surface" v-loading="oauthLoading" element-loading-text="Signing in...">
     <span class="login-arc" aria-hidden="true"></span>
     <main class="login-layout">

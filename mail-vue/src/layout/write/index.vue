@@ -121,7 +121,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="together">
-                    {{ $t(form.sendType === 'forward' ? 'forward' : 'send') }}
+                    {{ togetherSendLabel }}
                   </el-dropdown-item>
                   <el-dropdown-item command="divide">
                     {{ separateSendLabel }}
@@ -134,7 +134,7 @@
       </div>
     </div>
     <el-dialog top="10vh" v-model="showContacts" @closed="clearSelectContact" :title="t('recentContacts')">
-      <el-table ref="contactsTabRef" row-key="email" :data="contacts" style="height: 445px">
+      <el-table class="contacts-table" ref="contactsTabRef" row-key="email" :data="contacts" style="height: 445px" @row-click="toggleContactRow">
         <el-table-column type="selection" width="32" />
         <el-table-column property="email" :label="t('emailAccount')" >
           <template #default="props">
@@ -213,7 +213,9 @@ const templates = ref([])
 const selectedTemplateId = ref(null)
 const quotedContent = ref('')
 const mySelect = ref()
-let selectStatus = false
+const ccSelectRef = ref()
+const bccSelectRef = ref()
+const suggestOpen = { receive: false, cc: false, bcc: false }
 const backReply = reactive({
   receiveEmail: [],
   subject: '',
@@ -223,6 +225,8 @@ const backReply = reactive({
 const form = reactive({
   sendEmail: '',
   receiveEmail: [],
+  ccEmail: [],
+  bccEmail: [],
   accountId: -1,
   name: '',
   subject: '',
@@ -236,18 +240,40 @@ const form = reactive({
 })
 
 const selectRecipientList = ref([])
+const ccSuggestList = ref([])
+const bccSuggestList = ref([])
+const suggestListMap = { receive: selectRecipientList, cc: ccSuggestList, bcc: bccSuggestList }
+const suggestSelectMap = { receive: mySelect, cc: ccSelectRef, bcc: bccSelectRef }
+const suggestFieldMap = { receive: 'receiveEmail', cc: 'ccEmail', bcc: 'bccEmail' }
 
 const contacts = computed(() => writerStore.sendRecipientRecord.map(item => ({email: item})))
-const separateSendLabel = computed(() => t(form.sendType === 'forward' ? 'separateForward' : 'separateSend'))
-const sendButtonLabel = computed(() => {
-  if (form.manyType === 'divide') return separateSendLabel.value
+const togetherSendLabel = computed(() => {
   if (form.sendType === 'reply') return t('reply')
   if (form.sendType === 'forward') return t('forward')
   return t('send')
 })
+const separateSendLabel = computed(() => {
+  if (form.sendType === 'reply') return t('separateReply')
+  if (form.sendType === 'forward') return t('separateForward')
+  return t('separateSend')
+})
+const sendButtonLabel = computed(() => {
+  if (form.manyType === 'divide') return separateSendLabel.value
+  return togetherSendLabel.value
+})
+
+function clearCcBcc() {
+  form.ccEmail = []
+  form.bccEmail = []
+  showCc.value = false
+  showBcc.value = false
+}
 
 function selectSendMode(mode) {
   form.manyType = mode
+  if (mode === 'divide') {
+    clearCcBcc()
+  }
 }
 
 function escapeHtml(value) {
@@ -410,7 +436,7 @@ function newDraftContent() {
 function openContacts() {
   showContacts.value = true
   nextTick(() => {
-    form.receiveEmail.forEach(item => {
+    form[targetAddressKey()].forEach(item => {
       if (writerStore.sendRecipientRecord.includes(item)) {
         contactsTabRef.value.toggleRowSelection({email: item});
       }
@@ -425,7 +451,8 @@ function deleteContact() {
     type: 'warning'
   }).then(() => {
     const contactList = contactsTabRef.value.getSelectionRows().map(item => item.email);
-    form.receiveEmail = form.receiveEmail.filter(item => !contactList.includes(item));
+    const key = targetAddressKey()
+    form[key] = form[key].filter(item => !contactList.includes(item));
     writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.filter(item => !contactList.includes(item));
   })
 }
@@ -433,13 +460,14 @@ function deleteContact() {
 function chooseContact() {
 
   const contactList = contactsTabRef.value.getSelectionRows().map(item => item.email);
+  const key = targetAddressKey()
   contactList.forEach(item => {
-    if (!form.receiveEmail.includes(item)) {
-      form.receiveEmail.push(item);
+    if (!form[key].includes(item)) {
+      form[key].push(item);
     }
   })
 
-  form.receiveEmail = form.receiveEmail.filter(item => {
+  form[key] = form[key].filter(item => {
     return contactList.includes(item) || !writerStore.sendRecipientRecord.includes(item);
   });
 
@@ -504,51 +532,93 @@ function clearSelectContact() {
   contactsTabRef.value.clearSelection();
 }
 
-function selectChange(value) {
-  form.receiveEmail.push(value)
+function toggleContactRow(row, column) {
+  if (column?.type === 'selection') return
+  contactsTabRef.value.toggleRowSelection(row)
 }
 
-function selectStatusChange(status) {
-  selectStatus = status
+function toggleSuggest(target) {
+  suggestSelectMap[target].value?.toggleMenu()
 }
 
-const openSelect = () => {
-  mySelect.value.toggleMenu()
+function suggestStatusChange(target, status) {
+  suggestOpen[target] = status
 }
 
-function inputChange(value) {
+function suggestChange(target, value) {
+  form[suggestFieldMap[target]].push(value)
+}
 
-  selectRecipientList.value = writerStore.sendRecipientRecord.filter(item => value && !form.receiveEmail.includes(item) && item.startsWith(value)).slice(0, 10);
+function updateSuggest(target, value) {
+  const field = suggestFieldMap[target]
+  const list = writerStore.sendRecipientRecord.filter(item => value && !form[field].includes(item) && item.startsWith(value)).slice(0, 10)
+  suggestListMap[target].value = list
 
-  if (!selectStatus && selectRecipientList.value.length > 0) {
-    openSelect()
+  if (!suggestOpen[target] && list.length > 0) {
+    toggleSuggest(target)
   }
 
-  if (selectStatus && selectRecipientList.value.length === 0) {
-    openSelect()
+  if (suggestOpen[target] && list.length === 0) {
+    toggleSuggest(target)
   }
-
 }
 
-function addTagChange(val) {
+function closeOpenSuggest() {
+  for (const target of ['receive', 'cc', 'bcc']) {
+    if (suggestOpen[target]) toggleSuggest(target)
+  }
+}
 
+function addAddressTag(list, val) {
   const emails = Array.from(new Set(
       val.split(/[,，]/).map(item => item.trim()).filter(item => item)
   ));
 
-  form.receiveEmail.splice(form.receiveEmail.length - 1, 1)
+  list.splice(list.length - 1, 1)
 
   let has = false
   emails.forEach(email => {
-    if (isEmail(email) && !form.receiveEmail.includes(email)) {
-      form.receiveEmail.push(email)
+    if (isEmail(email) && !list.includes(email)) {
+      list.push(email)
       has = true
     }
   })
-  if (selectStatus && has) openSelect()
+  return has
+}
+
+function addTagChange(val) {
+  if (addAddressTag(form.receiveEmail, val) && suggestOpen.receive) toggleSuggest('receive')
+}
+
+function addCcTag(val) {
+  if (addAddressTag(form.ccEmail, val) && suggestOpen.cc) toggleSuggest('cc')
+}
+
+function addBccTag(val) {
+  if (addAddressTag(form.bccEmail, val) && suggestOpen.bcc) toggleSuggest('bcc')
+}
+
+function openCc() {
+  showCc.value = true
+  nextTick(() => ccInputRef.value?.focus?.())
+}
+
+function openBcc() {
+  showBcc.value = true
+  nextTick(() => bccInputRef.value?.focus?.())
+}
+
+function hideEmptyCcBcc() {
+  if (showCc.value && form.ccEmail.length === 0) {
+    showCc.value = false
+  }
+  if (showBcc.value && form.bccEmail.length === 0) {
+    showBcc.value = false
+  }
 }
 
 function clearContent() {
+  hideEmptyCcBcc()
   ElMessageBox.confirm(t('clearContentConfirm'), {
     confirmButtonText: t('confirm'),
     cancelButtonText: t('cancel'),
@@ -564,6 +634,7 @@ function delAtt(index) {
 }
 
 function chooseFile() {
+  hideEmptyCcBcc()
   const doc = document.createElement("input")
   doc.setAttribute("type", "file")
   doc.multiple = true;
@@ -587,6 +658,7 @@ function chooseFile() {
 }
 
 async function sendEmail() {
+  hideEmptyCcBcc()
 
   if (form.receiveEmail.length === 0) {
     ElMessage({
@@ -701,11 +773,20 @@ async function sendEmail() {
 }
 
 function addRecipientRecord() {
+  const seen = new Set()
+  const addresses = []
+  for (const email of [...form.receiveEmail, ...form.ccEmail, ...form.bccEmail]) {
+    const key = String(email).trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    addresses.push(email)
+  }
+
   writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.filter(
-      email => !form.receiveEmail.includes(email)
+      email => !seen.has(String(email).trim().toLowerCase())
   );
 
-  writerStore.sendRecipientRecord.unshift(...form.receiveEmail);
+  writerStore.sendRecipientRecord.unshift(...addresses);
   writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.slice(0, 500);
 }
 
@@ -714,6 +795,10 @@ function resetForm(initialContent = '') {
   window.clearTimeout(draftStatusTimer)
   draftStatus.value = ''
   form.receiveEmail = []
+  form.ccEmail = []
+  form.bccEmail = []
+  showCc.value = false
+  showBcc.value = false
   form.subject = ''
   form.content = ''
   form.text = ''
@@ -786,7 +871,8 @@ function change(content, text) {
 }
 
 function focusChange() {
-  if (selectStatus) openSelect()
+  closeOpenSuggest()
+  hideEmptyCcBcc()
 }
 
 function openForward(email) {
@@ -932,7 +1018,7 @@ onUnmounted(() => {
 
 function close() {
 
-  if (selectStatus) openSelect();
+  closeOpenSuggest();
 
   if (!form.content) {
     form.content = editor.value.getContent();
@@ -945,7 +1031,7 @@ function close() {
     return;
   }
 
-  if (!(form.content || form.subject || form.receiveEmail.length > 0)) {
+  if (!(form.content || form.subject || form.receiveEmail.length > 0 || form.ccEmail.length > 0 || form.bccEmail.length > 0)) {
     show.value = false
     resetForm()
     return;
@@ -1041,8 +1127,6 @@ function close() {
     .title {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 10px;
-
       .title-left {
         align-items: center;
         display: flex;
@@ -1099,7 +1183,63 @@ function close() {
       height: 100%;
       display: grid;
       grid-template-rows: auto auto 1fr auto;
-      gap: 15px;
+      gap: 5px;
+
+      .address-fields {
+        display: grid;
+      }
+
+      :deep(.el-input-tag) {
+        padding-right: 0;
+        padding-left: 0;
+      }
+
+      :deep(.el-input-tag__suffix) {
+        padding-right: 5px;
+      }
+      :deep(.el-input-tag__prefix) {
+        padding-left: 5px;
+      }
+
+      :deep(.el-input__wrapper) {
+        padding-left: 5px;
+        padding-right: 5px;
+      }
+
+      :deep(.el-input-tag),
+      :deep(.el-input__wrapper),
+      :deep(.el-input-tag.is-focused),
+      :deep(.el-input-tag.is-hovering),
+      :deep(.el-input-tag:hover),
+      :deep(.el-input__wrapper.is-focus),
+      :deep(.el-input__wrapper:hover) {
+        box-shadow: none;
+        border-radius: 0;
+        border-bottom: 1px solid var(--el-border-color-lighter);
+      }
+
+      .address-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-right: 3px;
+      }
+
+      .address-toggle {
+        border: none;
+        background: transparent;
+        padding: 0;
+        color: var(--regular-text-color);
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1;
+        cursor: pointer;
+
+        &:hover,
+        &:focus {
+          color: var(--regular-text-color);
+        }
+      }
 
       .subject-row {
         display: flex;
@@ -1197,6 +1337,10 @@ function close() {
   margin-top: 10px;
 }
 
+.contacts-table :deep(.el-table__row) {
+  cursor: pointer;
+}
+
 .add-contact {
   color: var(--regular-text-color)
 }
@@ -1208,10 +1352,6 @@ function close() {
   z-index: 0;
   opacity: 0;
   pointer-events: none;
-}
-
-:deep(.el-input-tag__suffix) {
-  padding-right: 4px;
 }
 
 .icon {

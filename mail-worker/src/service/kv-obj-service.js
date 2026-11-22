@@ -1,3 +1,5 @@
+import { publicFileHeaders } from '../utils/att-headers';
+
 const kvObjService = {
 
 	async putObj(c, key, content, metadata) {
@@ -24,11 +26,10 @@ const kvObjService = {
 		}
 
 		return new Response(obj.value, {
-			headers: {
-				'Content-Type': obj.metadata?.contentType || 'application/octet-stream',
-				'Content-Disposition': obj.metadata?.contentDisposition || null,
-				'Cache-Control': obj.metadata?.cacheControl || null
-			}
+			headers: publicFileHeaders({
+				contentType: obj.metadata?.contentType,
+				contentDisposition: obj.metadata?.contentDisposition
+			})
 		});
 	},
 

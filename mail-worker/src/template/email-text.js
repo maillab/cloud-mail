@@ -1,4 +1,8 @@
 export default function emailTextTemplate(text) {
+	const escapedText = text
+		.replaceAll('&', '&amp;')
+		.replaceAll('<', '&lt;')
+		.replaceAll('>', '&gt;');
 	return `<!DOCTYPE html>
 <html lang='en' >
 <head>
@@ -29,7 +33,7 @@ export default function emailTextTemplate(text) {
     </style>
 </head>
 <body>
-<span>${text}</span>
+<span>${escapedText}</span>
 </body>
 </html>`
 }

@@ -14,6 +14,7 @@ import { isDel, roleConst } from '../const/entity-const';
 import email from '../entity/email';
 import userService from './user-service';
 import KvConst from '../const/kv-const';
+import proxyService from './proxy-service';
 
 const publicService = {
 
@@ -90,7 +91,9 @@ const publicService = {
 			query.orderBy(desc(email.emailId));
 		}
 
-		return query.limit(size).offset(num);
+		const rows = await query.limit(size).offset(num);
+		// 公开邮件列表也把外链图改成 /proxy?url=。
+		return proxyService.rewriteList(c, rows);
 
 	},
 

@@ -1,7 +1,7 @@
 import KvConst from '../const/kv-const';
 import setting from '../entity/setting';
 import orm from '../entity/orm';
-import {verifyRecordType} from '../const/entity-const';
+import {settingConst, verifyRecordType} from '../const/entity-const';
 import fileUtils from '../utils/file-utils';
 import r2Service from './r2-service';
 import constant from '../const/constant';
@@ -81,24 +81,22 @@ async query(c) {
 		}
 
 		setting.projectLink = projectLink;
+		setting.loginVerify ??= settingConst.loginVerify.CLOSE;
+		setting.loginVerifyCount ??= 1;
 
 		setting.emailPrefixFilter = setting.emailPrefixFilter ? setting.emailPrefixFilter.split(",").filter(Boolean) : [];
+		setting.autoRefresh = Number(setting.autoRefresh) === 1 ? 1 : 2;
 
 		c.set?.('setting', setting);
 		return setting;
 	},
 
-	async get(c, showSiteKey = false) {
+	async get(c) {
 
 		const [settingRow, recordList] = await Promise.all([
 			await this.query(c),
 			verifyRecordService.selectListByIP(c)
 		]);
-
-
-		if (!showSiteKey) {
-			settingRow.siteKey = settingRow.siteKey ? `${settingRow.siteKey.slice(0, 6)}******` : null;
-		}
 
 		settingRow.secretKey = settingRow.secretKey ? `${settingRow.secretKey.slice(0, 6)}******` : null;
 
@@ -114,6 +112,7 @@ async query(c) {
 
 		let regVerifyOpen = false
 		let addVerifyOpen = false
+		let loginVerifyOpen = false
 
 		recordList.forEach(row => {
 			if (row.type === verifyRecordType.REG) {
@@ -122,10 +121,14 @@ async query(c) {
 			if (row.type === verifyRecordType.ADD) {
 				addVerifyOpen = row.count >= settingRow.addVerifyCount
 			}
+			if (row.type === verifyRecordType.LOGIN) {
+				loginVerifyOpen = row.count >= settingRow.loginVerifyCount
+			}
 		})
 
 		settingRow.regVerifyOpen = regVerifyOpen
 		settingRow.addVerifyOpen = addVerifyOpen
+		settingRow.loginVerifyOpen = loginVerifyOpen
 
 		settingRow.storageType = await r2Service.storageType(c);
 
@@ -152,6 +155,14 @@ async query(c) {
 		}
 
 		params.resendTokens = JSON.stringify(resendTokens);
+
+		if (params.autoRefresh !== undefined) {
+			params.autoRefresh = Number(params.autoRefresh) === 1 ? 1 : 2;
+		}
+
+		if (params.loginVerifyCount !== undefined && (!Number.isSafeInteger(params.loginVerifyCount) || params.loginVerifyCount < 1)) {
+			params.loginVerifyCount = 1;
+		}
 
 		await orm(c).update(setting).set({ ...params }).returning().get();
 		await this.refresh(c);
@@ -212,7 +223,7 @@ async query(c) {
 
 	async websiteConfig(c) {
 
-		const settingRow = await this.get(c, true);
+		const settingRow = await this.get(c);
 		const token = await userContext.getToken(c);
 
 		return {
@@ -223,6 +234,7 @@ async query(c) {
 			autoRefresh: settingRow.autoRefresh,
 			addEmailVerify: settingRow.addEmailVerify,
 			registerVerify: settingRow.registerVerify,
+			loginVerify: settingRow.loginVerify,
 			send: settingRow.send,
 			r2Domain: settingRow.r2Domain,
 			siteKey: settingRow.siteKey,
@@ -232,6 +244,7 @@ async query(c) {
 			regKey: settingRow.regKey,
 			regVerifyOpen: settingRow.regVerifyOpen,
 			addVerifyOpen: settingRow.addVerifyOpen,
+			loginVerifyOpen: settingRow.loginVerifyOpen,
 			noticeTitle: settingRow.noticeTitle,
 			noticeContent: settingRow.noticeContent,
 			noticeType: settingRow.noticeType,

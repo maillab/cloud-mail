@@ -11,6 +11,15 @@ function encodeMimeWord(value = '') {
 	return `=?UTF-8?B?${btoa(binary)}?=`;
 }
 
+function formatAddressList(list) {
+	return (list || []).map(item => {
+		if (typeof item === 'string') {
+			return item;
+		}
+		return formatMailbox(item.address || item.email, item.name);
+	}).filter(Boolean);
+}
+
 function formatMailbox(address, name) {
 	if (!address) {
 		return '';
@@ -58,15 +67,12 @@ const forwardMime = {
 
 	// 信头 To 用 params.receiveEmail，调用方把已验证地址作为信封收件人传入。
 	build(params) {
-		const recipients = (params.receiveEmail || []).map(item => {
-			if (typeof item === 'string') {
-				return item;
-			}
-			return formatMailbox(item.address || item.email, item.name);
-		}).filter(Boolean);
+		const recipients = formatAddressList(params.receiveEmail);
+		const cc = formatAddressList(params.ccEmail);
 		const headers = [
 			`From: ${formatMailbox(params.accountEmail, params.name)}`,
 			`To: ${recipients.join(', ')}`,
+			...(cc.length > 0 ? [`Cc: ${cc.join(', ')}`] : []),
 			`Subject: ${encodeMimeWord(params.subject || '')}`,
 			'MIME-Version: 1.0'
 		];

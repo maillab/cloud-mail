@@ -411,13 +411,6 @@ function setAllReceive(account) {
     account.allReceive = account.allReceive === AccountAllReceiveEnum.DISABLED ? AccountAllReceiveEnum.ENABLED : AccountAllReceiveEnum.DISABLED;
     if (allReceiveAccount) allReceiveAccount.allReceive = AccountAllReceiveEnum.ENABLED;
   }).then(() => {
-    if (account.allReceive === AccountAllReceiveEnum.ENABLED) {
-      ElMessage({
-        message: t('setSuccess'),
-        type: 'success',
-        plain: true,
-      })
-    }
     changeAccount(account);
     emailStore.emailScroll?.refreshList();
     emailStore.sendScroll?.refreshList();

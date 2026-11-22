@@ -80,7 +80,6 @@ defineOptions({
   name: 'email'
 })
 
-const route = useRoute();
 const emailStore = useEmailStore();
 const accountStore = useAccountStore();
 const settingStore = useSettingStore();
@@ -161,6 +160,14 @@ watch(
   {deep: true}
 )
 
+watch(() => settingStore.settings.autoRefresh, () => {
+  inboxWs.sync()
+})
+
+function onRefreshSuccess() {
+  inboxWs.retryNow()
+}
+
 function jumpContent(email) {
   emailStore.contentData.email = emailStore.toContentEmail(email)
   emailStore.contentData.delType = 'logic'
@@ -175,68 +182,60 @@ function closeReader() {
   emailStore.contentData.showUnread = false
 }
 
-const existIds = new Set();
+// 推送到达：非「全部收取」时忽略其它账号的信。
+function onWsMessage(event) {
+  const allReceive = accountStore.currentAccount.allReceive
+  if (!allReceive && event?.accountId != null && Number(event.accountId) !== Number(accountStore.currentAccountId)) {
+    return
+  }
+  schedulePullLatest()
+}
 
-async function latest() {
-  while (true) {
+// 短时间多条推送合并成一次补拉。
+function schedulePullLatest() {
+  if (pullTimer) {
+    window.clearTimeout(pullTimer)
+  }
+  pullTimer = window.setTimeout(() => {
+    pullTimer = null
+    void pullLatest()
+  }, 150)
+}
 
-    let autoRefresh = settingStore.settings.autoRefresh;
-    await sleep(autoRefresh > 1 ? autoRefresh * 1000 : 3000);
+// 按当前列表最新 id 拉取之后的新邮件并插入。
+async function pullLatest() {
+  const searchParams = emailStore.searchParams
+  if (searchParams.text || searchParams.startDate || searchParams.endDate
+    || searchParams.unreadOnly || searchParams.starredOnly || searchParams.hasAttachments) return
+  if (scroll.value.firstLoad) return
 
-    if (route.name !== 'email') {
-      continue;
-    }
+  const latestId = scroll.value.latestEmail?.emailId
+  const accountId = accountStore.currentAccountId
+  const allReceive = scroll.value.latestEmail?.allReceive
+  if (accountId !== scroll.value.latestEmail?.reqAccountId) return
 
-    const searchParams = emailStore.searchParams
-    if (searchParams.text || searchParams.startDate || searchParams.endDate
-      || searchParams.unreadOnly || searchParams.starredOnly || searchParams.hasAttachments) {
-      continue
-    }
+  try {
+    const list = await emailLatest(latestId, accountId, allReceive)
+    if (accountId !== accountStore.currentAccountId || allReceive !== accountStore.currentAccount.allReceive) return
+    if (!list.length) return
 
-    const latestId = scroll.value.latestEmail?.emailId
-
-    if (!scroll.value.firstLoad && autoRefresh > 1) {
-      try {
-        const accountId = accountStore.currentAccountId
-        const allReceive = scroll.value.latestEmail?.allReceive
-        let list = []
-
-        //确保发起请求时最后一个邮件是当前账号的,或者
-        if (accountId === scroll.value.latestEmail?.reqAccountId) {
-          list = await emailLatest(latestId, accountId, allReceive);
-        }
-
-        //确保请求回来后，账号没有切换，时间排序没有改变，全部邮件类型没变
-        if (accountId === accountStore.currentAccountId && allReceive === accountStore.currentAccount.allReceive) {
-          if (list.length > 0) {
-            emailStore.applyFullList(list)
-
-            for (let email of list) {
-
-              email.reqAccountId = accountId;
-              email.allReceive = allReceive;
-
-              if (!existIds.has(email.emailId)) {
-
-                existIds.add(email.emailId)
-                scroll.value.addItem(email)
-
-                await sleep(50)
-              }
-
-            }
-            window.dispatchEvent(new Event('mailbox:updated'))
-
-          }
-
-        }
-      } catch (e) {
-        if (e.code === 401 || e.code === 403) {
-          settingStore.settings.autoRefresh = 0;
-        }
-        console.error(e)
+    emailStore.applyFullList(list)
+    for (const email of list) {
+      email.reqAccountId = accountId
+      email.allReceive = allReceive
+      if (!existIds.has(email.emailId)) {
+        existIds.add(email.emailId)
+        scroll.value.addItem(email)
+        await sleep(50)
       }
     }
+    window.dispatchEvent(new Event('mailbox:updated'))
+  } catch (e) {
+    if (e.code === 401 || e.code === 403) {
+      settingStore.settings.autoRefresh = 1
+      inboxWs.sync()
+    }
+    console.error(e)
   }
 }
 

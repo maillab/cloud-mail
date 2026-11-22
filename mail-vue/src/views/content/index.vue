@@ -31,7 +31,7 @@
         </div>
         <div class="content">
           <div class="email-info">
-            <div>
+            <div class="address-meta">
               <div class="send"><span class="send-source">{{$t('from')}}</span>
                 <div class="send-name" ref="sendNameRef" :class="{ 'is-wrapped': senderWrapped }">
                   <span class="send-name-title">{{ email.name }}</span>
@@ -46,6 +46,7 @@
                 </div>
               </div>
               <div class="receive"><span class="source">{{$t('recipient')}}</span><span class="receive-email">{{  formateReceive(email.recipient) }}</span></div>
+              <div class="receive" v-if="ccText"><span class="source">{{$t('cc')}}</span><span class="receive-email">{{ ccText }}</span></div>
               <div class="date">
                 <div>{{ formatDetailDate(email.createTime) }}</div>
               </div>
@@ -137,6 +138,8 @@ const email = computed(() => emailStore.contentData.email || {
   text: '',
   recipient: '[]',
 })
+
+const ccText = computed(() => formateReceive(email.value.cc))
 
 const sentViaEmail = computed(() => {
   const raw = String(email.value.senderEmail || '').trim()
@@ -530,10 +533,20 @@ const handleDelete = () => {
         margin-bottom: 15px;
       }
 
-      .send {
-        display: flex;
-        margin-bottom: 6px;
+      .address-meta {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        column-gap: 10px;
+        row-gap: 6px;
+        align-items: baseline;
+      }
 
+      .send,
+      .receive {
+        display: contents;
+      }
+
+      .send {
         .send-name {
           color: var(--regular-text-color);
           display: flex;
@@ -564,8 +577,6 @@ const handleDelete = () => {
       }
 
       .receive {
-        margin-bottom: 6px;
-        display: flex;
         .receive-email {
           max-width: 700px;
           word-break: break-word;
@@ -575,16 +586,15 @@ const handleDelete = () => {
         }
       }
 
-      .send-source {
-        white-space: nowrap;
-        font-weight: bold;
-        padding-right: 10px;
+      .date {
+        grid-column: 1 / -1;
       }
 
+      .send-source,
       .source {
         white-space: nowrap;
         font-weight: bold;
-        padding-right: 10px;
+        text-align: left;
       }
     }
   }

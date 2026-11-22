@@ -534,8 +534,13 @@ function createEmailColumnChart() {
 }
 </style>
 <style scoped lang="scss">
-.analysis-loading {
+.analysis-loading,
+.analysis-scroll {
   height: 100%;
+  background: var(--settings-page-background);
+}
+
+.analysis-loading {
   width: 100%;
   display: flex;
   align-items: center;

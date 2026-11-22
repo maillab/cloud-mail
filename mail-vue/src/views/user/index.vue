@@ -926,7 +926,7 @@ function delUser(user) {
         type: "success",
         plain: true
       })
-      getUserList(true)
+      getUserList(false)
     })
   });
 }
@@ -943,7 +943,7 @@ function delOneUser(user) {
         type: "success",
         plain: true
       })
-      getUserList(true)
+      getUserList(false)
     })
   });
 }
@@ -1089,12 +1089,12 @@ function changeTimeSort() {
 
 function numChange(num) {
   params.num = num
-  getUserList()
+  getUserList(false)
 }
 
 function sizeChange(size) {
   params.size = size
-  getUserList()
+  getUserList(false)
 }
 
 function getUserList(loading = true) {

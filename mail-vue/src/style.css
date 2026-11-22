@@ -274,10 +274,6 @@ button, input, select, textarea {
     --secondary-text-color: #8c847e;
     --message-block-color: rgba(0, 0, 0, 0);
     --loading-hide-transition: all 200ms;
-    --vt-x: 50%;
-    --vt-y: 50%;
-    --vt-duration: 520ms;
-    --vt-easing: ease-out;
 }
 
 html.dark {

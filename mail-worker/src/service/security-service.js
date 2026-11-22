@@ -523,16 +523,6 @@ const securityService = {
 		}
 	},
 
-	async touchSession(c, userId, tokenId) {
-		try {
-			await c.env.db.prepare(
-				`UPDATE user_session SET last_seen_at = CURRENT_TIMESTAMP WHERE token_id = ?`
-			).bind(tokenId).run();
-		} catch (error) {
-			// Non-critical bookkeeping.
-		}
-	},
-
 	// Refuse a security reset that would leave the company with no recovery
 	// administrator. This is a last-line guard, not a policy replacement: the
 	// real check is that the caller holds user:reset-mfa.

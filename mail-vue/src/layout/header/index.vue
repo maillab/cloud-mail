@@ -12,8 +12,8 @@
         title="Compose email"
         @click="openSend"
       >
-        <el-icon :size="21">
-          <Icon icon="material-symbols:edit-outline-sharp"/>
+        <el-icon :size="23">
+          <Icon icon="hugeicons:quill-write-01"/>
         </el-icon>
       </el-button>
     </div>
@@ -32,6 +32,12 @@
       :class="['header-search', { 'account-show': accountPanelShow }]"
       @search="returnToList('send')"
       @reset="returnToList('send')"
+    />
+    <all-email-search
+      v-else-if="showAllMailSearch"
+      :class="{ 'account-show': accountPanelShow }"
+      @search="returnToList('all-email')"
+      @reset="returnToList('all-email')"
     />
     <div class="toolbar">
       <button
@@ -204,6 +210,7 @@ import {useSettingStore} from "@/store/setting.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
 import emailSearch from '@/components/email-search/index.vue'
+import allEmailSearch from '@/components/all-email-search/index.vue'
 import {useEmailStore} from '@/store/email.js'
 import {useSendStore} from '@/store/send.js'
 import {workspaceModules} from '@/modules/registry.js'
@@ -234,13 +241,13 @@ const navigationExpanded = computed(() => isMobileLayout.value ? uiStore.asideSh
 const outsidePointerEvents = ['mousedown', 'pointerup', 'mouseup', 'click', 'pointercancel']
 let blockOutsideClick = false
 const inboxSearchOptions = computed(() => [
-  {label: t('titleDesc'), type: 'subject'},
+  {label: t('subject'), type: 'subject'},
   {label: t('searchSummaryContent'), type: 'content'},
   {label: t('sender'), type: 'sender'},
   {label: t('searchSenderAddress'), type: 'senderAddress'},
 ])
 const sentSearchOptions = computed(() => [
-  {label: t('titleDesc'), type: 'subject'},
+  {label: t('subject'), type: 'subject'},
   {label: t('searchSummaryContent'), type: 'content'},
   {label: t('searchRecipientAddress'), type: 'recipientAddress'},
 ])
@@ -253,6 +260,9 @@ const showInboxSearch = computed(() =>
 )
 const showSentSearch = computed(() =>
   route.meta.name === 'send' || isMailboxDetail('sent')
+)
+const showAllMailSearch = computed(() =>
+  route.meta.name === 'all-email' || isMailboxDetail('all-mail')
 )
 
 const createGroups = computed(() => {
@@ -716,6 +726,7 @@ onBeforeUnmount(() => {
   }
 
   .toolbar {
+    padding-left: 5px;
     flex-shrink: 0;
     margin-left: 0;
   }

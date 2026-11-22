@@ -30,6 +30,7 @@ const zh = {
 	imageAttLimit: '图片不能超过10个',
 	attLimit: '附件不能超过10个',
 	resendRecipientLimit: 'Resend 分开发送最多支持100位收件人',
+	recipientLimit: '收件人、抄送和密送合计不能超过50个',
 	resendSeparateAttachments: 'Resend 分开发送不能携带附件',
 	pwdLengthLimit: '密码长度超出限制',
 	emailLengthLimit: '邮箱长度超出限制',
