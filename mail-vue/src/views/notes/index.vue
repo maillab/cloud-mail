@@ -17,6 +17,9 @@
         <el-select v-model="priority" :placeholder="$t('priority')" clearable style="width: 150px" @change="onFilter">
           <el-option v-for="p in PRIORITIES" :key="p" :label="p" :value="p" />
         </el-select>
+        <el-select v-model="labelFilter" placeholder="Filter by label" clearable style="width: 180px" @change="onFilter">
+          <el-option v-for="label in allLabels" :key="label" :label="label" :value="label" />
+        </el-select>
         <el-select v-model="sort" style="width: 170px" @change="onFilter">
           <el-option :label="$t('sortUpdated')" value="update_time" />
           <el-option :label="$t('sortCreated')" value="create_time" />
@@ -68,7 +71,15 @@
             </el-select>
           </el-form-item>
           <el-form-item :label="$t('labels')">
-            <el-select v-model="form.labels" multiple filterable allow-create default-first-option style="width: 100%" />
+            <el-select v-model="form.labels" multiple filterable allow-create default-first-option style="width: 100%" placeholder="Choose labels or type a new one">
+              <el-option-group label="XPass labels">
+                <el-option v-for="label in DEFAULT_LABELS" :key="label" :label="label" :value="label" />
+              </el-option-group>
+              <el-option-group v-if="customLabels.length" label="My labels">
+                <el-option v-for="label in customLabels" :key="label" :label="label" :value="label" />
+              </el-option-group>
+            </el-select>
+            <div class="note-label-hint">Default labels are ready to use. Type a new label to create your own; it will be available next time.</div>
           </el-form-item>
           <el-form-item :label="$t('reminder')">
             <el-date-picker v-model="form.reminder_at" type="datetime" style="width: 100%" />
@@ -87,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { notesList, notesCreate, notesUpdate, notesDelete, notesPin } from '@/request/notes.js'
 import { useCreateIntent } from '@/composables/useCreateIntent.js'
@@ -96,15 +107,26 @@ import { useConfirm } from '@/composables/use-confirm.js'
 
 const { confirm } = useConfirm()
 const PRIORITIES = ['critical', 'high', 'normal', 'low']
+const DEFAULT_LABELS = ['Decision', 'Follow-up', 'Meeting', 'Research', 'Finance', 'CRM', 'Project', 'Personal', 'Important']
 
 const notes = ref([])
 const search = ref('')
 const priority = ref('')
+const labelFilter = ref('')
 const sort = ref('update_time')
 const dialogVisible = ref(false)
 useCreateIntent(() => openDialog())
 const editingId = ref(null)
 const form = ref({})
+const customLabels = ref([])
+const allLabels = computed(() => [...DEFAULT_LABELS, ...customLabels.value.filter(label => !DEFAULT_LABELS.includes(label))])
+
+function loadCustomLabels() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('xpass-note-labels') || '[]')
+    customLabels.value = Array.isArray(stored) ? stored.filter(Boolean).slice(0, 50) : []
+  } catch { customLabels.value = [] }
+}
 
 function parseLabels(v) {
   try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : [] } catch { return [] }
@@ -119,6 +141,7 @@ async function loadNotes() {
     const params = { page: 1, pageSize: 100, sort: sort.value }
     if (search.value) params.search = search.value
     if (priority.value) params.priority = priority.value
+    if (labelFilter.value) params.label = labelFilter.value
     const resp = await notesList(params)
     notes.value = resp.list || []
   } catch (error) {
@@ -136,6 +159,13 @@ function openDialog(note) {
 
 async function saveNote() {
   try {
+    const labels = Array.isArray(form.value.labels) ? form.value.labels.map(label => String(label).trim()).filter(Boolean) : []
+    const custom = labels.filter(label => !DEFAULT_LABELS.includes(label) && !customLabels.value.includes(label))
+    if (custom.length) {
+      customLabels.value = [...customLabels.value, ...custom].slice(0, 50)
+      localStorage.setItem('xpass-note-labels', JSON.stringify(customLabels.value))
+    }
+    form.value.labels = labels
     if (editingId.value) await notesUpdate(editingId.value, form.value)
     else await notesCreate(form.value)
     dialogVisible.value = false
@@ -164,7 +194,7 @@ async function deleteNote(id) {
   }
 }
 
-onMounted(loadNotes)
+onMounted(() => { loadCustomLabels(); loadNotes() })
 </script>
 
 <style scoped>
@@ -184,6 +214,7 @@ onMounted(loadNotes)
 .note-body { margin: 0; color: var(--hq-text-secondary); font-size: 13px; white-space: pre-wrap; }
 .note-meta { display: flex; flex-wrap: wrap; gap: 4px; }
 .note-date { color: var(--hq-muted); font-size: 11px; }
+.note-label-hint { margin-top: 5px; color: var(--hq-muted); font-size: 11px; line-height: 1.4; }
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; max-width: 540px; margin: 0 auto; padding: 56px 20px; text-align: center; color: var(--hq-text-secondary); }
 .empty-title { color: var(--hq-text); font-size: 15px; font-weight: 650; }
 .empty-state p { margin: 0; font-size: 13px; line-height: 1.55; }
