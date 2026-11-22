@@ -2,7 +2,7 @@
   <div id="login-box" class="login-surface" v-loading="oauthLoading" element-loading-text="Signing in...">
     <span class="login-arc" aria-hidden="true"></span>
     <main class="login-layout">
-      <img class="login-brand-logo" src="/xpass-logo-inverted.png" alt="XPass HQ" width="140" height="140" />
+      <img class="login-brand-logo" src="/xpass-wordmark-inverted.png" alt="XPass HQ" width="188" height="47" />
       <section class="login-brand">
         <div class="login-brand-copy">
           <h1>The event ends.<br /><em>The relationship shouldn’t.</em></h1>
@@ -615,15 +615,14 @@ function refreshWebsiteConfig() {
 
 <style scoped>
 #login-box {
-  position: fixed;
-  inset: 0;
+  position: relative;
   display: grid;
   place-items: center;
   width: 100%;
-  height: 100vh;
-  height: 100svh;
-  min-height: 0;
-  overflow: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
   color: #f3ece5;
   font-family: 'Manrope', Inter, 'Segoe UI', sans-serif;
   background:
@@ -675,12 +674,12 @@ function refreshWebsiteConfig() {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(380px, 460px);
+  grid-template-columns: minmax(360px, 1fr) minmax(380px, 460px);
   align-items: center;
   gap: clamp(48px, 8vw, 120px);
   width: min(1180px, 100%);
-  height: 100%;
-  min-height: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0 auto;
   padding: clamp(28px, 4vw, 64px);
   box-sizing: border-box;
@@ -697,11 +696,11 @@ function refreshWebsiteConfig() {
 
 .login-brand-logo {
   position: absolute;
-  top: -12px;
-  left: 24px;
-  width: 280px !important;
-  height: 280px !important;
-  border-radius: 0 !important;
+  top: clamp(28px, 4vw, 56px);
+  left: clamp(28px, 4vw, 64px);
+  width: 188px !important;
+  height: 47px !important;
+  border-radius: 0;
   object-fit: contain;
   object-position: left top;
 }
@@ -1070,54 +1069,53 @@ function refreshWebsiteConfig() {
   gap: 14px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1080px) {
   .login-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
-    gap: 32px;
-    padding: 28px;
+    display: grid;
+    grid-template-columns: minmax(0, 460px);
+    justify-content: center;
+    align-content: center;
+    gap: 20px;
+    padding: 92px 28px 40px;
+  }
+
+  .login-brand {
+    display: none;
+  }
+
+  .login-brand-logo {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    width: 172px !important;
+    height: 43px !important;
+    transform: translateX(-50%);
   }
 }
 
 @media (max-width: 760px) {
-  #login-box {
-    display: block;
-    overflow: auto;
-  }
-
   .login-arc,
   #login-box::after {
-    opacity: .6;
+    opacity: .35;
   }
 
   .login-layout {
-    display: flex;
-    min-height: 100svh;
-    flex-direction: column;
+    display: grid;
+    min-height: 100dvh;
+    grid-template-columns: minmax(0, 1fr);
     justify-content: center;
-    gap: 28px;
+    align-content: center;
+    gap: 16px;
     width: 100%;
-    padding: 56px 18px 40px;
-  }
-
-  .login-brand {
-    height: auto;
-    justify-content: flex-start;
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 86px 16px 28px;
   }
 
   .login-brand-logo {
-    position: static;
-    width: 84px !important;
-    height: 84px !important;
-    margin-bottom: 20px;
-  }
-
-  .login-brand-copy h1 {
-    font-size: clamp(30px, 8vw, 40px);
-  }
-
-  .login-brand-copy p {
-    margin-top: 16px;
-    font-size: 14px;
+    top: 24px;
+    width: 156px !important;
+    height: 39px !important;
   }
 
   .login-panel {
@@ -1128,12 +1126,31 @@ function refreshWebsiteConfig() {
 
   .login-card {
     max-height: none;
-    padding: 28px 22px;
+    padding: 26px 20px;
     border-radius: 18px;
   }
 
   .login-brand-footer {
     padding: 0 4px;
+    line-height: 1.45;
   }
+
+  .company-account-domain {
+    padding: 0 10px;
+    font-size: 12.5px;
+  }
+}
+
+@media (max-width: 380px) {
+  .login-layout { padding-inline: 12px; }
+  .login-card { padding: 24px 16px; }
+  .company-account-prefix { padding-left: 11px; }
+  .company-account-domain { padding: 0 8px; font-size: 12px; }
+}
+
+@media (max-height: 640px) and (min-width: 761px) {
+  .login-layout { padding-top: 74px; padding-bottom: 24px; }
+  .login-card { padding: 28px 32px; }
+  .auth-form { gap: 14px; margin-top: 20px; }
 }
 </style>

@@ -4,64 +4,91 @@ import {emailConst} from "../const/entity-const";
 
 const dbInit = {
 	async init(c) {
-
 		const secret = c.req.param('secret');
-
-		if (secret !== c.env.jwt_secret) {
+		if (!secret || secret !== c.env.jwt_secret) {
 			return c.text('âŒ JWT secret mismatch');
 		}
-
-		await this.intDB(c);
-		await this.v2_3DB(c);
-		await this.v2_4DB(c);
-		await this.v2_5DB(c);
-		await this.v2_6DB(c);
-		await this.v2_7DB(c);
-		await this.v2_8DB(c);
-		await this.v3_0DB(c);
-		await this.v3_1DB(c);
-		await this.v3_2DB(c);
-		await this.v3_3DB(c);
-		await this.v3_4DB(c);
-		await this.v3_5DB(c);
-		await this.v3_6DB(c);
-		await this.v3_7DB(c);
-		await this.v3_8DB(c);
-		await this.v3_9DB(c);
-		await this.v3_10DB(c);
-		await this.v3_11DB(c);
-		await this.v3_12DB(c);
-		await this.v3_13DB(c);
-		await this.v3_14DB(c);
-		await this.v3_15DB(c);
-		await this.v3_16DB(c);
-		await this.v3_17DB(c);
-		await this.v3_18DB(c);
-		await this.v3_19DB(c);
-		await this.v3_20DB(c);
-		await this.v3_21DB(c);
-		await this.v3_22DB(c);
-		await this.v3_23DB(c);
-		await this.v3_24DB(c);
-		await this.v3_25DB(c);
-		await this.v3_26DB(c);
-	await this.v3_27DB(c);
-	await this.v3_28DB(c);
-	await this.v3_29DB(c);
-	await this.v3_30DB(c);
-	await this.v3_31DB(c);
-		await this.v3_32DB(c);
-		await this.v3_33DB(c);
-		await this.v3_34DB(c);
-		await this.v3_35DB(c);
-		await this.v3_36DB(c);
-		await this.v3_37DB(c);
-		await this.v3_38DB(c);
-		await this.v3_39DB(c);
-		await this.v3_40DB(c);
-		await this.v3_41DB(c);
-		await settingService.refresh(c);
+		await this.migrate(c);
 		return c.text('success');
+	},
+
+	// Schema upgrades used to be replayed blindly whenever /init was called.
+	// That is dangerous for a live mail system: a partial migration can leave a
+	// later retry re-seeding permissions or rebuilding role assignments. Keep a
+	// durable, per-step ledger instead. Every existing database is upgraded in
+	// place; no mailbox, email, account, or attachment is recreated or cleared.
+	async migrate(c) {
+		await c.env.db.prepare(`
+			CREATE TABLE IF NOT EXISTS schema_migration (
+				name TEXT PRIMARY KEY,
+				applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)
+		`).run();
+
+		const steps = [
+			['base', () => this.intDB(c)],
+			['v2_3', () => this.v2_3DB(c)],
+			['v2_4', () => this.v2_4DB(c)],
+			['v2_5', () => this.v2_5DB(c)],
+			['v2_6', () => this.v2_6DB(c)],
+			['v2_7', () => this.v2_7DB(c)],
+			['v2_8', () => this.v2_8DB(c)],
+			['v3_0', () => this.v3_0DB(c)],
+			['v3_1', () => this.v3_1DB(c)],
+			['v3_2', () => this.v3_2DB(c)],
+			['v3_3', () => this.v3_3DB(c)],
+			['v3_4', () => this.v3_4DB(c)],
+			['v3_5', () => this.v3_5DB(c)],
+			['v3_6', () => this.v3_6DB(c)],
+			['v3_7', () => this.v3_7DB(c)],
+			['v3_8', () => this.v3_8DB(c)],
+			['v3_9', () => this.v3_9DB(c)],
+			['v3_10', () => this.v3_10DB(c)],
+			['v3_11', () => this.v3_11DB(c)],
+			['v3_12', () => this.v3_12DB(c)],
+			['v3_13', () => this.v3_13DB(c)],
+			['v3_14', () => this.v3_14DB(c)],
+			['v3_15', () => this.v3_15DB(c)],
+			['v3_16', () => this.v3_16DB(c)],
+			['v3_17', () => this.v3_17DB(c)],
+			['v3_18', () => this.v3_18DB(c)],
+			['v3_19', () => this.v3_19DB(c)],
+			['v3_20', () => this.v3_20DB(c)],
+			['v3_21', () => this.v3_21DB(c)],
+			['v3_22', () => this.v3_22DB(c)],
+			['v3_23', () => this.v3_23DB(c)],
+			['v3_24', () => this.v3_24DB(c)],
+			['v3_25', () => this.v3_25DB(c)],
+			['v3_26', () => this.v3_26DB(c)],
+			['v3_27', () => this.v3_27DB(c)],
+			['v3_28', () => this.v3_28DB(c)],
+			['v3_29', () => this.v3_29DB(c)],
+			['v3_30', () => this.v3_30DB(c)],
+			['v3_31', () => this.v3_31DB(c)],
+			['v3_32', () => this.v3_32DB(c)],
+			['v3_33', () => this.v3_33DB(c)],
+			['v3_34', () => this.v3_34DB(c)],
+			['v3_35', () => this.v3_35DB(c)],
+			['v3_36', () => this.v3_36DB(c)],
+			['v3_37', () => this.v3_37DB(c)],
+			['v3_38', () => this.v3_38DB(c)],
+			['v3_39', () => this.v3_39DB(c)],
+			['v3_40', () => this.v3_40DB(c)],
+			['v3_41', () => this.v3_41DB(c)]
+		];
+
+		for (const [name, apply] of steps) {
+			const recorded = await c.env.db.prepare(
+				`SELECT 1 FROM schema_migration WHERE name = ? LIMIT 1`
+			).bind(name).first();
+			if (recorded) continue;
+			await apply();
+			await c.env.db.prepare(
+				`INSERT INTO schema_migration (name) VALUES (?)`
+			).bind(name).run();
+		}
+
+		await settingService.refresh(c);
 	},
 
 	async v3_8DB(c) {
@@ -1851,53 +1878,10 @@ async v3_19DB(c) {
 	},
 
 	async v3_23DB(c) {
-		// Role-based access: seed real company roles and grant them explicit perms.
-		// Existing role 1 ("User") is left untouched.
-		const common = [
-			'notifications:query', 'notifications:add',
-			'notes:query', 'notes:add', 'notes:edit', 'notes:delete',
-			'calendar:query', 'calendar:add', 'calendar:edit', 'calendar:delete',
-			'people:query',
-			'requests:query', 'requests:add', 'requests:act',
-			'approvals:query', 'approvals:add'
-		];
-		const roles = [
-			{name: 'Administrator', description: 'Full administrative access', perms: null},
-			{name: 'Finance Manager', description: 'Finance operations, approvals and confidential records', perms: [...common, 'finance:view', 'finance:edit', 'finance:approve', 'approvals:approve', 'approvals:edit', 'documents:query', 'documents:add', 'documents:edit', 'activities:query', 'analysis:query']},
-			{name: 'Finance Viewer', description: 'Read-only access to authorized finance records', perms: [...common, 'finance:view', 'analysis:query']},
-			{name: 'Support Agent', description: 'Support conversations, CRM contacts and assigned work', perms: [...common, 'support:query', 'support:add', 'support:edit', 'support:delete', 'whatsapp:query', 'whatsapp:send', 'contacts:query', 'contacts:edit', 'companies:query', 'deals:query', 'activities:query', 'activities:add', 'activities:edit', 'people:add', 'people:edit']},
-			{name: 'Growth', description: 'Leads, opportunities and pipeline management', perms: [...common, 'leads:query', 'leads:add', 'leads:edit', 'leads:delete', 'deals:query', 'deals:add', 'deals:edit', 'deals:delete', 'contacts:query', 'contacts:add', 'contacts:edit', 'companies:query', 'companies:add', 'companies:edit', 'organizations:query', 'organizations:add', 'organizations:edit', 'pipelines:query', 'opportunities:query', 'activities:query', 'activities:add', 'activities:edit', 'tasks:query', 'tasks:add', 'tasks:edit', 'people:add', 'people:edit', 'analysis:query']},
-			{name: 'Engineering', description: 'Projects, tasks and assigned engineering work', perms: [...common, 'projects:query', 'projects:add', 'projects:edit', 'tasks:query', 'tasks:add', 'tasks:edit', 'documents:query', 'people:add', 'people:edit']}
-		];
-
-		let sort = 10;
-		for (const r of roles) {
-			const existing = await c.env.db.prepare(`SELECT role_id FROM role WHERE name = ?`).bind(r.name).first();
-			let roleId;
-			if (existing) {
-				roleId = existing.role_id;
-			} else {
-				const {meta} = await c.env.db.prepare(`INSERT INTO role (name, description, is_default, sort) VALUES (?, ?, 0, ?)`).bind(r.name, r.description, sort).run();
-				roleId = meta.last_row_id;
-			}
-			sort += 10;
-
-			let permKeys = r.perms;
-			if (permKeys === null) {
-				const all = await c.env.db.prepare(`SELECT DISTINCT perm_key FROM perm WHERE perm_key IS NOT NULL AND perm_key <> ''`).all();
-				permKeys = all.results.map(x => x.perm_key);
-			}
-
-			await c.env.db.prepare(`DELETE FROM role_perm WHERE role_id = ?`).bind(roleId).run();
-			for (const key of permKeys) {
-				const row = await c.env.db.prepare(`SELECT MIN(perm_id) as pid FROM perm WHERE perm_key = ?`).bind(key).first();
-				if (row?.pid) {
-					await c.env.db.prepare(`INSERT INTO role_perm (role_id, perm_id) VALUES (?, ?)`).bind(roleId, row.pid).run();
-				}
-			}
-		}
-
-		// Per-user overrides applied on top of role perms (grant/deny).
+		// XPass grants access member by member. Roles remain only as optional
+		// legacy templates; this migration must never manufacture generic jobs
+		// such as "Finance Manager" or "Support Agent" and accidentally grant
+		// access. Per-user overrides are the authoritative access layer.
 		await c.env.db.prepare(`CREATE TABLE IF NOT EXISTS user_perm_override (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id INTEGER NOT NULL,
