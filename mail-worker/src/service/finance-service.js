@@ -987,8 +987,12 @@ export async function listFunding(c, userId) {
 		ORDER BY f.id DESC
 	`).all();
 	const visible = await visibleAccountIds(c, userId, keys);
-	const rows = (results || []).filter(row => visible === null || !row.account_id
-		|| visible.includes(Number(row.account_id)));
+	const rows = (results || []).filter(row => {
+		if (row.account_id) return visible === null || visible.includes(Number(row.account_id));
+		// A funding promise without a destination account is still sensitive.
+		// Outside company scope, only the person who recorded it can see it.
+		return isCompanyScope(keys) || Number(row.created_by) === Number(userId);
+	});
 	return { list: rows, total: rows.length, companyScope: isCompanyScope(keys) };
 }
 
@@ -999,7 +1003,8 @@ export async function getFunding(c, userId, fundingId) {
 	`).bind(fundingId).first();
 	if (!row) throw new BizError('Funding record not found.', 404);
 	const keys = await permKeys(c, userId);
-	if (row.account_id && !(await canViewAccount(c, userId, keys, row.account_id))) {
+	if ((row.account_id && !(await canViewAccount(c, userId, keys, row.account_id)))
+		|| (!row.account_id && !isCompanyScope(keys) && Number(row.created_by) !== Number(userId))) {
 		throw new BizError('Funding record not found.', 404);
 	}
 	const { results } = await db(c).prepare(`
@@ -1205,6 +1210,16 @@ export async function createBudget(c, userId, body = {}) {
 	if (!name) throw new BizError('Budget name is required.', 400);
 	const allocated = cents(body.allocated_cents ?? body.amount);
 	if (allocated < 0) throw new BizError('A budget cannot be negative.', 400);
+	const accountId = intOrNull(body.account_id);
+	if (accountId) await assertAccountUsable(c, userId, keys, accountId);
+	const ownerId = intOrNull(body.owner_id) ?? userId;
+	if (ownerId !== Number(userId)) {
+		assertAnyPerm(keys, ['finance.budgets:assign', 'finance.budgets:manage'], 'Assigning a budget owner');
+	}
+	const startDate = body.start_date || null;
+	const endDate = body.end_date || null;
+	if (startDate && endDate && startDate > endDate) throw new BizError('The budget end date must be after its start date.', 400);
+	const warningThreshold = Math.max(1, Math.min(100, Number(body.warning_threshold) || 80));
 	const { meta } = await db(c).prepare(`
 		INSERT INTO finance_budget
 			(name, period, allocated_cents, currency, owner_id, category, status, description,
@@ -1213,10 +1228,10 @@ export async function createBudget(c, userId, body = {}) {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`).bind(
 		name, text(body.period, 40), allocated, text(body.currency, 8).toUpperCase() || 'KES',
-		intOrNull(body.owner_id) ?? userId, text(body.category, 80), body.status || 'active',
-		text(body.description, 500), body.start_date || null, body.end_date || null,
-		intOrNull(body.team_id), intOrNull(body.account_id),
-		Number(body.warning_threshold) || 80, intOrNull(body.project_id), intOrNull(body.event_id),
+		ownerId, text(body.category, 80), body.status || 'active',
+		text(body.description, 500), startDate, endDate,
+		intOrNull(body.team_id), accountId,
+		warningThreshold, intOrNull(body.project_id), intOrNull(body.event_id),
 		text(body.notes, 1000),
 	).run();
 	const budgetId = meta.last_row_id;
@@ -1234,17 +1249,26 @@ export async function updateBudget(c, userId, budgetId, body = {}) {
 	const patch = [];
 	const args = [];
 	const add = (column, value) => { if (value !== undefined) { patch.push(`${column} = ?`); args.push(value); } };
+	const nextAccountId = body.account_id !== undefined ? intOrNull(body.account_id) : null;
+	if (nextAccountId) await assertAccountUsable(c, userId, keys, nextAccountId);
+	const nextOwnerId = body.owner_id !== undefined ? intOrNull(body.owner_id) : null;
+	if (nextOwnerId && nextOwnerId !== Number(before.owner_id)) {
+		assertAnyPerm(keys, ['finance.budgets:assign', 'finance.budgets:manage'], 'Assigning a budget owner');
+	}
+	const nextStartDate = body.start_date !== undefined ? (body.start_date || null) : before.start_date;
+	const nextEndDate = body.end_date !== undefined ? (body.end_date || null) : before.end_date;
+	if (nextStartDate && nextEndDate && nextStartDate > nextEndDate) throw new BizError('The budget end date must be after its start date.', 400);
 	add('name', body.name !== undefined ? text(body.name, 200) : undefined);
 	add('period', body.period !== undefined ? text(body.period, 40) : undefined);
 	add('status', body.status !== undefined ? text(body.status, 20) : undefined);
 	add('description', body.description !== undefined ? text(body.description, 500) : undefined);
 	add('notes', body.notes !== undefined ? text(body.notes, 1000) : undefined);
-	add('warning_threshold', body.warning_threshold !== undefined ? Number(body.warning_threshold) : undefined);
-	add('account_id', body.account_id !== undefined ? intOrNull(body.account_id) : undefined);
-	add('owner_id', body.owner_id !== undefined ? intOrNull(body.owner_id) : undefined);
+	add('warning_threshold', body.warning_threshold !== undefined ? Math.max(1, Math.min(100, Number(body.warning_threshold) || 80)) : undefined);
+	add('account_id', body.account_id !== undefined ? nextAccountId : undefined);
+	add('owner_id', body.owner_id !== undefined ? nextOwnerId : undefined);
 	add('team_id', body.team_id !== undefined ? intOrNull(body.team_id) : undefined);
-	add('start_date', body.start_date !== undefined ? body.start_date : undefined);
-	add('end_date', body.end_date !== undefined ? body.end_date : undefined);
+	add('start_date', body.start_date !== undefined ? nextStartDate : undefined);
+	add('end_date', body.end_date !== undefined ? nextEndDate : undefined);
 	if (body.allocated_cents !== undefined || body.amount !== undefined) {
 		add('allocated_cents', cents(body.allocated_cents ?? body.amount));
 	}
@@ -1271,6 +1295,8 @@ export async function createCommitment(c, userId, body = {}) {
 	await assertBudgetVisible(c, userId, keys, budgetId);
 	const amount = cents(body.amount_cents ?? body.amount);
 	assertAmount(amount);
+	const accountId = intOrNull(body.account_id);
+	if (accountId) await assertAccountUsable(c, userId, keys, accountId);
 	const status = COMMITMENT_STATUSES.includes(body.status) ? body.status : 'planned';
 	const { meta } = await db(c).prepare(`
 		INSERT INTO finance_commitment
@@ -1280,7 +1306,7 @@ export async function createCommitment(c, userId, body = {}) {
 	`).bind(
 		budgetId, text(body.description, 300), amount,
 		text(body.currency, 8).toUpperCase() || 'KES', status, text(body.counterparty, 200),
-		body.due_date || null, intOrNull(body.account_id), userId, text(body.notes, 500),
+		body.due_date || null, accountId, userId, text(body.notes, 500),
 	).run();
 	const commitmentId = meta.last_row_id;
 	await audit(c, {
@@ -1716,6 +1742,7 @@ export async function listSubscriptions(c, userId, params = {}) {
 	const where = ['1 = 1'];
 	const args = [];
 	if (params.status) { where.push('status = ?'); args.push(params.status); }
+	if (!isCompanyScope(keys)) { where.push('owner_id = ?'); args.push(userId); }
 	const { results } = await db(c).prepare(
 		`SELECT * FROM finance_subscription WHERE ${where.join(' AND ')}
 		 ORDER BY CASE status WHEN 'active' THEN 0 WHEN 'trial' THEN 1 ELSE 2 END,
@@ -1777,6 +1804,9 @@ export async function getSubscription(c, userId, id) {
 	assertPerm(keys, 'finance.subscriptions:view', 'Viewing a subscription');
 	const row = await db(c).prepare(`SELECT * FROM finance_subscription WHERE id = ?`).bind(id).first();
 	if (!row) throw new BizError('Subscription not found.', 404);
+	if (!isCompanyScope(keys) && Number(row.owner_id) !== Number(userId)) {
+		throw new BizError('Subscription not found.', 404);
+	}
 	const { results: payments } = await db(c).prepare(`
 		SELECT p.*, a.name AS account_name FROM finance_payment p
 		LEFT JOIN finance_accounts a ON a.id = p.account_id
@@ -1799,6 +1829,10 @@ export async function createSubscription(c, userId, body = {}) {
 	const offsets = Array.isArray(body.reminder_offsets)
 		? body.reminder_offsets.join(',')
 		: text(body.reminder_offsets, 60) || '7,1,0';
+	const ownerId = intOrNull(body.owner_id) ?? userId;
+	if (ownerId !== Number(userId) && !isCompanyScope(keys)) {
+		throw new BizError('Assigning a subscription to another member requires company-wide Finance access.', 403);
+	}
 
 	const { meta } = await db(c).prepare(`
 		INSERT INTO finance_subscription
@@ -1812,7 +1846,7 @@ export async function createSubscription(c, userId, body = {}) {
 		body.start_date || today(),
 		body.next_billing_date || addCycle(today(), cycle, body.custom_days),
 		text(body.payment_method, 60), text(body.payment_reference, 120),
-		intOrNull(body.owner_id) ?? userId, intOrNull(body.team_id),
+		ownerId, intOrNull(body.team_id),
 		SUBSCRIPTION_STATUSES.includes(body.status) ? body.status : 'active',
 		body.auto_renew === false ? 0 : 1, offsets,
 		text(body.website, 300), text(body.contract_key, 300), text(body.notes, 1000),
@@ -1832,6 +1866,10 @@ export async function updateSubscription(c, userId, id, body = {}) {
 	const patch = [];
 	const args = [];
 	const add = (column, value) => { if (value !== undefined) { patch.push(`${column} = ?`); args.push(value); } };
+	const nextOwnerId = body.owner_id !== undefined ? intOrNull(body.owner_id) : null;
+	if (nextOwnerId && nextOwnerId !== Number(before.owner_id) && !isCompanyScope(keys)) {
+		throw new BizError('Assigning a subscription to another member requires company-wide Finance access.', 403);
+	}
 	add('service', body.service !== undefined ? text(body.service, 200) : undefined);
 	add('vendor', body.vendor !== undefined ? text(body.vendor, 200) : undefined);
 	add('category', body.category !== undefined ? text(body.category, 80) : undefined);
@@ -1841,7 +1879,7 @@ export async function updateSubscription(c, userId, id, body = {}) {
 	add('next_billing_date', body.next_billing_date !== undefined ? body.next_billing_date : undefined);
 	add('payment_method', body.payment_method !== undefined ? text(body.payment_method, 60) : undefined);
 	add('payment_reference', body.payment_reference !== undefined ? text(body.payment_reference, 120) : undefined);
-	add('owner_id', body.owner_id !== undefined ? intOrNull(body.owner_id) : undefined);
+	add('owner_id', body.owner_id !== undefined ? nextOwnerId : undefined);
 	add('team_id', body.team_id !== undefined ? intOrNull(body.team_id) : undefined);
 	add('website', body.website !== undefined ? text(body.website, 300) : undefined);
 	add('notes', body.notes !== undefined ? text(body.notes, 1000) : undefined);
@@ -1946,12 +1984,25 @@ export async function upcomingSubscriptions(c, userId, days = 30) {
 export async function listInvoices(c, userId, params = {}) {
 	const keys = await permKeys(c, userId);
 	assertPerm(keys, 'finance.invoices:view', 'Viewing invoices');
-	const where = ['is_del = 0'];
+	const where = ['i.is_del = 0'];
 	const args = [];
-	if (params.status) { where.push('status = ?'); args.push(params.status); }
-	if (params.direction) { where.push('direction = ?'); args.push(params.direction); }
+	if (params.status) { where.push('i.status = ?'); args.push(params.status); }
+	if (params.direction) { where.push('i.direction = ?'); args.push(params.direction); }
+	const visibleAccounts = await visibleAccountIds(c, userId, keys);
+	if (!isCompanyScope(keys)) {
+		if (visibleAccounts?.length) {
+			where.push(`(i.user_id = ? OR i.account_id IN (${visibleAccounts.map(() => '?').join(', ')}))`);
+			args.push(userId, ...visibleAccounts);
+		} else {
+			where.push('i.user_id = ?');
+			args.push(userId);
+		}
+	} else if (visibleAccounts !== null) {
+		where.push(`(i.account_id IS NULL OR i.account_id IN (${visibleAccounts.length ? visibleAccounts.map(() => '?').join(', ') : 'NULL'}))`);
+		args.push(...visibleAccounts);
+	}
 	const { results } = await db(c).prepare(
-		`SELECT * FROM finance_invoices WHERE ${where.join(' AND ')} ORDER BY id DESC`
+		`SELECT i.* FROM finance_invoices i WHERE ${where.join(' AND ')} ORDER BY i.id DESC`
 	).bind(...args).all();
 	const list = (results || []).map(decorateInvoice);
 	// Receivables and payables are reported separately. Adding them would
@@ -1996,6 +2047,15 @@ export async function getInvoice(c, userId, id) {
 	assertPerm(keys, 'finance.invoices:view', 'Viewing an invoice');
 	const row = await db(c).prepare(`SELECT * FROM finance_invoices WHERE id = ? AND is_del = 0`).bind(id).first();
 	if (!row) throw new BizError('Invoice not found.', 404);
+	const visibleAccounts = await visibleAccountIds(c, userId, keys);
+	if (!isCompanyScope(keys)) {
+		if (Number(row.user_id) !== Number(userId)
+			&& (!row.account_id || (visibleAccounts !== null && !visibleAccounts.includes(Number(row.account_id))))) {
+			throw new BizError('Invoice not found.', 404);
+		}
+	} else if (row.account_id && visibleAccounts !== null && !visibleAccounts.includes(Number(row.account_id))) {
+		throw new BizError('Invoice not found.', 404);
+	}
 	const { results: items } = await db(c).prepare(
 		`SELECT * FROM finance_invoice_item WHERE invoice_id = ? ORDER BY sort ASC, id ASC`
 	).bind(id).all();
@@ -2040,6 +2100,8 @@ export async function createInvoice(c, userId, body = {}) {
 	const invoiceNumber = text(body.invoice_number, 60)
 		|| `${INVOICE_DIRECTIONS.includes(body.direction) && body.direction === 'vendor' ? 'BILL' : 'INV'}-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 	const direction = INVOICE_DIRECTIONS.includes(body.direction) ? body.direction : 'issued';
+	const accountId = intOrNull(body.account_id);
+	if (accountId) await assertAccountUsable(c, userId, keys, accountId);
 
 	const { meta } = await db(c).prepare(`
 		INSERT INTO finance_invoices
@@ -2053,7 +2115,7 @@ export async function createInvoice(c, userId, body = {}) {
 		text(body.currency, 8).toUpperCase() || 'KES',
 		INVOICE_STATUSES.includes(body.status) ? body.status : 'draft',
 		body.issue_date || today(), body.due_date || addCycle(today(), 'monthly'),
-		intOrNull(body.account_id), text(body.notes, 1000), direction,
+		accountId, text(body.notes, 1000), direction,
 	).run();
 	const invoiceId = meta.last_row_id;
 	for (const item of cleanItems) {
@@ -2076,13 +2138,15 @@ export async function updateInvoice(c, userId, id, body = {}) {
 	const patch = [];
 	const args = [];
 	const add = (column, value) => { if (value !== undefined) { patch.push(`${column} = ?`); args.push(value); } };
+	const nextAccountId = body.account_id !== undefined ? intOrNull(body.account_id) : null;
+	if (nextAccountId) await assertAccountUsable(c, userId, keys, nextAccountId);
 	add('client_name', body.client_name !== undefined ? text(body.client_name, 200) : undefined);
 	add('customer_email', body.customer_email !== undefined ? text(body.customer_email, 200) : undefined);
 	add('issue_date', body.issue_date !== undefined ? body.issue_date : undefined);
 	add('due_date', body.due_date !== undefined ? body.due_date : undefined);
 	add('status', body.status !== undefined ? text(body.status, 20) : undefined);
 	add('notes', body.notes !== undefined ? text(body.notes, 1000) : undefined);
-	add('account_id', body.account_id !== undefined ? intOrNull(body.account_id) : undefined);
+	add('account_id', body.account_id !== undefined ? nextAccountId : undefined);
 	if (body.status === 'sent' && !before.sent_at) add('sent_at', nowStamp());
 
 	// Line items are the invoice. Replacing them recomputes the totals from the
@@ -2225,7 +2289,8 @@ export async function listReimbursements(c, userId, params = {}) {
 	const where = ['1 = 1'];
 	const args = [];
 	if (params.status) { where.push('status = ?'); args.push(params.status); }
-	if (!isCompanyScope(keys)) { where.push('member_id = ?'); args.push(userId); }
+	const canReviewClaims = hasPerm(keys, 'finance:approve') || hasPerm(keys, 'finance.budgets:manage');
+	if (!isCompanyScope(keys) && !canReviewClaims) { where.push('member_id = ?'); args.push(userId); }
 	const { results } = await db(c).prepare(
 		`SELECT r.*, u.display_name AS member_name FROM finance_reimbursement r
 		 LEFT JOIN user u ON u.user_id = r.member_id WHERE ${where.join(' AND ')} ORDER BY r.id DESC`
@@ -2240,12 +2305,14 @@ export async function createReimbursement(c, userId, body = {}) {
 	assertAmount(amount);
 	const reason = text(body.reason, 300);
 	if (!reason) throw new BizError('Tell us what the expense was for.', 400);
+	const memberId = intOrNull(body.member_id) ?? userId;
+	if (memberId !== Number(userId)) throw new BizError('Submit a reimbursement from your own account. Finance can review it after submission.', 403);
 	const { meta } = await db(c).prepare(`
 		INSERT INTO finance_reimbursement
 			(member_id, amount_cents, currency, reason, status, notes, document_key, create_time, update_time)
 		VALUES (?, ?, ?, ?, 'submitted', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`).bind(
-		intOrNull(body.member_id) ?? userId, amount,
+		memberId, amount,
 		text(body.currency, 8).toUpperCase() || 'KES', reason, text(body.notes, 1000), text(body.document_key, 300),
 	).run();
 	const id = meta.last_row_id;
