@@ -245,7 +245,10 @@ const accountService = {
 		const { domainList, resendTokens } = await settingService.query(c);
 		const domain = emailUtils.getDomain(row.email);
 		const inboundState = domainList.includes('@' + domain) ? 'connected' : 'inbound_unavailable';
-		const outboundState = (c.env.email || resendTokens?.[domain]) ? 'connected' : 'outbound_unavailable';
+		// The production worker uses Cloudflare's verified-address forward binding
+		// for delivery. Treat it as a real outbound path in mailbox health rather
+		// than telling an administrator that a working shared inbox is unavailable.
+		const outboundState = (c.env.email || c.env.forward || resendTokens?.[domain]) ? 'connected' : 'outbound_unavailable';
 
 		await orm(c).update(account).set({
 			inboundState,

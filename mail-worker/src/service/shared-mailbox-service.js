@@ -22,6 +22,7 @@ export const MAILBOX_ACTIONS = [
 ];
 
 const DEFAULT_PERMISSIONS = 'view,reply,send,assign,reassign,internal_note,manage_tags,resolve,bulk_actions';
+const OWNER_PERMISSIONS = MAILBOX_ACTIONS.join(',');
 
 // 'new' is an inbox that has not been touched yet; 'unassigned' is a conversation
 // with no current handler. Keeping them apart lets the queue show unopened mail
@@ -172,15 +173,23 @@ function isSharedRow(row) {
 	return isSharedMailbox(row?.mailboxType ?? row?.mailbox_type);
 }
 
-// The creator of a shared mailbox administers it. They are not automatically a
-// queue member: administering access and working the queue are different jobs.
+// The creator is the mailbox owner. They must be able to work the inbox as
+// well as configure it; requiring them to add themselves a second time made a
+// new mailbox look broken immediately after setup.
 export async function grantAdminMembership(c, userId, mailboxId) {
 	const existing = await findMembership(c, userId, mailboxId);
-	if (existing) return existing;
+	if (existing) {
+		await database(c).prepare(`
+			UPDATE mailbox_member
+			SET permissions = ?, status = 'active', updated_at = CURRENT_TIMESTAMP
+			WHERE id = ?
+		`).bind(OWNER_PERMISSIONS, existing.id).run();
+		return findMembership(c, userId, mailboxId);
+	}
 	await database(c).prepare(`
 		INSERT OR IGNORE INTO mailbox_member (mailbox_id, user_id, permissions, status, created_by, created_at, updated_at)
-		VALUES (?, ?, 'view', 'active', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`).bind(Number(mailboxId), userId, userId).run();
+		VALUES (?, ?, ?, 'active', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`).bind(Number(mailboxId), userId, OWNER_PERMISSIONS, userId).run();
 	return findMembership(c, userId, mailboxId);
 }
 

@@ -96,6 +96,25 @@ const roleService = {
 		return roleList;
 	},
 
+	// The people-and-access screen used to make one request per baseline and
+	// wait for them serially. That becomes painfully slow as soon as a company
+	// has more than a few baselines. This compact projection provides the whole
+	// directory in one indexed query without exposing credentials or raw keys.
+	async peopleWithAccess(c) {
+		const { results } = await c.env.db.prepare(`
+			SELECT u.user_id, u.email, u.display_name, u.username, u.job_title,
+			       u.type AS role_id, r.name AS role_name,
+			       COALESCE(u.data_scope, r.data_scope, 'own') AS data_scope,
+			       (SELECT COUNT(*) FROM role_perm rp WHERE rp.role_id = u.type) AS baseline_permission_count,
+			       (SELECT COUNT(*) FROM user_perm_override o WHERE o.user_id = u.user_id) AS direct_override_count
+			FROM user u
+			LEFT JOIN role r ON r.role_id = u.type
+			WHERE COALESCE(u.is_del, 0) = 0
+			ORDER BY COALESCE(u.display_name, u.email) COLLATE NOCASE
+		`).all();
+		return results || [];
+	},
+
 	async setRole(c, params) {
 
 		let { name, permIds, roleId, banEmail, availDomain } = params;

@@ -630,6 +630,7 @@ function refreshWebsiteConfig() {
   place-items: center;
   width: 100%;
   min-height: 100vh;
+  min-height: 100svh;
   min-height: 100dvh;
   overflow-x: hidden;
   overflow-y: auto;
@@ -1104,22 +1105,31 @@ function refreshWebsiteConfig() {
 }
 
 @media (max-width: 760px) {
+  #login-box {
+    display: block;
+    min-height: 100svh;
+    min-height: 100dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .login-arc,
   #login-box::after {
-    opacity: .35;
+    display: none;
   }
 
   .login-layout {
     display: grid;
+    min-height: 100svh;
     min-height: 100dvh;
     grid-template-columns: minmax(0, 1fr);
     justify-content: center;
-    align-content: center;
+    align-content: start;
     gap: 16px;
     width: 100%;
     max-width: 460px;
     margin: 0 auto;
-    padding: 86px 16px 28px;
+    padding: max(82px, calc(env(safe-area-inset-top) + 64px)) 16px max(24px, env(safe-area-inset-bottom));
   }
 
   .login-brand-logo {
@@ -1136,8 +1146,9 @@ function refreshWebsiteConfig() {
 
   .login-card {
     max-height: none;
-    padding: 26px 20px;
-    border-radius: 18px;
+    padding: 26px 20px 24px;
+    border-radius: 16px;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255, 173, 128, .06);
   }
 
   .login-brand-footer {
@@ -1149,6 +1160,22 @@ function refreshWebsiteConfig() {
     padding: 0 10px;
     font-size: 12.5px;
   }
+}
+
+@media (max-width: 760px) and (max-height: 620px) {
+  .login-layout {
+    padding-top: max(70px, calc(env(safe-area-inset-top) + 54px));
+  }
+
+  .login-brand-logo {
+    top: max(16px, env(safe-area-inset-top));
+    width: 136px !important;
+    height: 34px !important;
+  }
+
+  .login-card { padding: 20px 18px; }
+  .auth-form { gap: 14px; margin-top: 20px; }
+  .login-card h2 { font-size: 23px; }
 }
 
 @media (max-width: 380px) {

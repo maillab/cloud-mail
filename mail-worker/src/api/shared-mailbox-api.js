@@ -170,6 +170,28 @@ app.get('/shared-mailbox/admin/list', async (c) => {
 	return c.json(result.ok(await sharedMailbox.listSharedMailboxes(c)));
 });
 
+// People who can be added to a shared inbox. This intentionally belongs to
+// mailbox administration rather than the general Members screen: an inbox
+// owner must be able to set up their own queue without also receiving every
+// company-administration right.
+app.get('/shared-mailbox/member-options', async (c) => {
+	const perms = await keys(c);
+	await sharedMailbox.assertRoleMail(c, perms, 'manage');
+	const { results } = await c.env.db.prepare(`
+		SELECT user_id, email, display_name, username, job_title
+		FROM user
+		WHERE COALESCE(is_del, 0) = 0 AND COALESCE(status, 0) = 0
+		ORDER BY COALESCE(display_name, email) COLLATE NOCASE
+	`).all();
+	return c.json(result.ok((results || []).map(row => ({
+		userId: row.user_id,
+		email: row.email,
+		name: row.display_name || row.username || row.email,
+		username: row.username || '',
+		jobTitle: row.job_title || ''
+	}))));
+});
+
 // ----- members ----------------------------------------------------------
 
 app.get('/shared-mailbox/members', async (c) => {

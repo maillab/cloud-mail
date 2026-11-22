@@ -44,6 +44,8 @@ export const sharedMailboxMemberAudit = (mailboxId) => http.get('/shared-mailbox
 // Shared Mailboxes screen.
 export const sharedMailboxAdminList = () => http.get('/shared-mailbox/admin/list')
 
+export const sharedMailboxMemberOptions = () => http.get('/shared-mailbox/member-options')
+
 export const sharedMailboxCreate = (data) => http.post('/account/sharedMailbox', data)
 
 export const sharedMailboxUpdate = (data) => http.put('/account/sharedMailbox', data)

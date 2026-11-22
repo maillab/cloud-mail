@@ -12,6 +12,10 @@ export function roleRoleList() {
     return http.get('/role/list')
 }
 
+export function rolePeople() {
+    return http.get('/role/people')
+}
+
 export function roleSet(params) {
     return http.put('/role/set',params)
 }

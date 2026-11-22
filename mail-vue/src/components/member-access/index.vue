@@ -8,8 +8,8 @@
   >
     <div v-loading="loading" class="ma-body">
       <p class="ma-note">
-        Access is granted by this member's role, then adjusted here. "Inherit" follows the role;
-        "Allow" and "Deny" override it for this person only.
+        This person starts with the access plan shown on their profile. Use the controls below only for a direct exception:
+        <strong>Use baseline</strong> keeps the plan, <strong>Allow</strong> gives this exact capability, and <strong>Block</strong> removes it for this person.
       </p>
 
       <div class="ma-filter">
@@ -24,14 +24,14 @@
         <div class="ma-global-summary">
           <span class="ma-chip ma-chip-allow">{{ summary.allow }} allowed</span>
           <span class="ma-chip ma-chip-deny">{{ summary.deny }} denied</span>
-          <span class="ma-chip">{{ summary.inherit }} inherited</span>
+          <span class="ma-chip">{{ summary.inherit }} using baseline</span>
         </div>
         <div class="ma-global-actions">
-          <span class="ma-global-label">Set everything:</span>
-          <el-button size="small" @click="applyGlobal('view')">View only</el-button>
-          <el-button size="small" @click="applyGlobal('full')">Full</el-button>
-          <el-button size="small" @click="applyGlobal('deny')">None</el-button>
-          <el-button size="small" text @click="applyGlobal('inherit')">Reset</el-button>
+          <span class="ma-global-label">Set all modules:</span>
+          <el-button size="small" @click="applyGlobal('view')">View access</el-button>
+          <el-button size="small" @click="applyGlobal('full')">Can manage</el-button>
+          <el-button size="small" @click="applyGlobal('deny')">No access</el-button>
+          <el-button size="small" text @click="applyGlobal('inherit')">Use baseline</el-button>
         </div>
       </div>
 
@@ -46,9 +46,9 @@
           <div class="ma-module-control">
             <span>Whole module</span>
             <el-select :model-value="modulePreset(group)" size="small" style="width: 170px" @change="value => setModulePreset(group, value)">
-              <el-option label="Inherit from role" value="inherit" />
-              <el-option label="View only" value="view" />
-              <el-option label="Full access" value="full" />
+              <el-option label="Use baseline access" value="inherit" />
+              <el-option label="View access" value="view" />
+              <el-option label="Can manage" value="full" />
               <el-option label="No access" value="deny" />
               <el-option label="Custom" value="custom" disabled />
             </el-select>
@@ -58,9 +58,9 @@
             <div v-for="leaf in group.leaves" :key="leaf.perm_id" class="ma-leaf">
               <span class="ma-leaf-label">{{ leaf.label }}</span>
               <el-select v-model="draft[leaf.perm_key]" size="small" style="width: 128px">
-                <el-option label="Inherit" value="inherit" />
+                <el-option label="Use baseline" value="inherit" />
                 <el-option label="Allow" value="allow" />
-                <el-option label="Deny" value="deny" />
+                <el-option label="Block" value="deny" />
               </el-select>
             </div>
           </div>

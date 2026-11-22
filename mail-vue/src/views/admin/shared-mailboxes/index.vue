@@ -4,12 +4,18 @@
       <div class="sm-head-copy">
         <div class="eyebrow">ADMINISTRATION</div>
         <h1>{{ $t('sharedMailboxes') }}</h1>
-        <p class="sm-sub">{{ $t('sharedMailboxesDesc') }}</p>
+        <p class="sm-sub">Create company inboxes such as support@, add the people who work them, and choose exactly what each person can do.</p>
       </div>
       <el-button v-if="canManage" type="primary" @click="openCreate">
-        {{ $t('createSharedMailbox') }}
+        Set up shared inbox
       </el-button>
     </header>
+
+    <div v-if="loadError" class="sm-load-error" role="alert">
+      <Icon icon="fluent:error-circle-20-regular" width="18" height="18" />
+      <span>{{ loadError }}</span>
+      <el-button size="small" @click="load">Try again</el-button>
+    </div>
 
     <div v-if="!canManage" class="sm-empty">
       <span class="sm-empty-icon"><Icon icon="fluent:lock-closed-20-regular" width="26" height="26" /></span>
@@ -24,9 +30,9 @@
 
     <div v-else-if="!mailboxes.length" class="sm-empty">
       <span class="sm-empty-icon"><Icon icon="fluent:mail-inbox-all-20-regular" width="26" height="26" /></span>
-      <p class="sm-empty-title">{{ $t('sharedMailboxesEmptyTitle') }}</p>
-      <p class="sm-empty-hint">{{ $t('sharedMailboxesEmptyHint') }}</p>
-      <el-button type="primary" @click="openCreate">{{ $t('createSharedMailbox') }}</el-button>
+      <p class="sm-empty-title">Set up your first shared inbox</p>
+      <p class="sm-empty-hint">Start with an address such as support@getxpass.net. You become its owner, then add the team who can view, reply, assign, and manage it.</p>
+      <el-button type="primary" @click="openCreate">Set up shared inbox</el-button>
     </div>
 
     <div v-else class="sm-grid">
@@ -70,18 +76,27 @@
     <el-dialog v-model="createVisible" :title="$t('createSharedMailbox')" width="440px">
       <div class="sm-form">
         <label class="sm-field">
-          <span class="sm-field-label">{{ $t('sharedMailboxAddress') }}</span>
-          <el-input v-model="createForm.email" placeholder="support@company.com" maxlength="120" />
-          <span v-if="domainHint" class="sm-field-hint">{{ $t('sharedMailboxDomainHint') }}: {{ domainHint }}</span>
+          <span class="sm-field-label">Shared inbox address</span>
+          <div class="sm-address-field">
+            <el-input v-model="createForm.localPart" placeholder="support" maxlength="64" />
+            <el-select v-model="createForm.domain" class="sm-domain-select" :disabled="!domains.length">
+              <el-option v-for="domain in domains" :key="domain" :label="'@' + domain" :value="domain" />
+            </el-select>
+          </div>
+          <span class="sm-field-hint">Use an address on this workspace's configured domain. It becomes a company inbox, not a new employee account.</span>
         </label>
         <label class="sm-field">
           <span class="sm-field-label">{{ $t('sharedMailboxDisplayName') }}</span>
           <el-input v-model="createForm.displayName" :placeholder="$t('sharedMailboxDisplayNamePlaceholder')" maxlength="60" />
         </label>
+        <div class="sm-setup-note">
+          <Icon icon="fluent:shield-checkmark-20-regular" width="18" height="18" />
+          <span>You will receive full owner access automatically. After creating it, add members and choose what each person can do in the inbox.</span>
+        </div>
       </div>
       <template #footer>
         <el-button @click="createVisible = false">{{ $t('cancel') }}</el-button>
-        <el-button type="primary" :loading="creating" :disabled="!createForm.email.trim()" @click="submitCreate">
+        <el-button type="primary" :loading="creating" :disabled="!sharedAddress" @click="submitCreate">
           {{ $t('create') }}
         </el-button>
       </template>
@@ -197,12 +212,12 @@ import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus'
 import { hasPerm } from '@/perm/perm.js'
 import { useSettingStore } from '@/store/setting.js'
-import { userList } from '@/request/user.js'
 import {
   sharedMailboxAdminList,
   sharedMailboxCreate,
   sharedMailboxUpdate,
   sharedMailboxMembers,
+  sharedMailboxMemberOptions,
   sharedMailboxMemberAdd,
   sharedMailboxMemberUpdate,
   sharedMailboxMemberRemove,
@@ -228,19 +243,24 @@ const settingStore = useSettingStore()
 const canManage = computed(() => hasPerm('mailbox:manage'))
 const mailboxes = ref([])
 const loading = ref(false)
+const loadError = ref('')
 
-const domainHint = computed(() => {
-  const list = settingStore.domainList || []
-  return list.join(', ')
-})
+const domains = computed(() => (settingStore.domainList || [])
+  .map(value => String(value || '').trim().replace(/^@+/, ''))
+  .filter(Boolean))
 
 // ----- create -----------------------------------------------------------
 const createVisible = ref(false)
 const creating = ref(false)
-const createForm = ref({ email: '', displayName: '' })
+const createForm = ref({ localPart: '', domain: '', displayName: '' })
+const sharedAddress = computed(() => {
+  const localPart = String(createForm.value.localPart || '').trim().replace(/@/g, '')
+  const domain = String(createForm.value.domain || '').trim().replace(/^@+/, '')
+  return localPart && domain ? `${localPart}@${domain}` : ''
+})
 
 function openCreate() {
-  createForm.value = { email: '', displayName: '' }
+  createForm.value = { localPart: '', domain: domains.value[0] || '', displayName: '' }
   createVisible.value = true
 }
 
@@ -249,12 +269,13 @@ async function submitCreate() {
   creating.value = true
   try {
     const row = await sharedMailboxCreate({
-      email: createForm.value.email.trim(),
+      email: sharedAddress.value,
       displayName: createForm.value.displayName.trim(),
     })
     ElMessage({ message: 'Shared mailbox created.', type: 'success', plain: true })
     createVisible.value = false
     await load()
+    window.dispatchEvent(new Event('mailbox:shared-updated'))
     if (row && row.accountId) openMembers({ account_id: row.accountId, email: row.email })
   } catch {
     // The interceptor already surfaced the backend reason.
@@ -324,11 +345,11 @@ async function loadUsers() {
   if (usersLoading.value) return
   usersLoading.value = true
   try {
-    const res = await userList({ num: 1, size: 50 })
-    const list = Array.isArray(res) ? res : (res?.list || [])
-    users.value = list
-  } catch {
+    const list = await sharedMailboxMemberOptions()
+    users.value = Array.isArray(list) ? list : []
+  } catch (error) {
     users.value = []
+    ElMessage({ message: error.message || 'Could not load team members for this inbox.', type: 'error', plain: true })
   } finally {
     usersLoading.value = false
   }
@@ -350,8 +371,9 @@ async function loadMembers() {
   try {
     const rows = await sharedMailboxMembers(membersMailbox.value.account_id)
     members.value = Array.isArray(rows) ? rows : []
-  } catch {
+  } catch (error) {
     members.value = []
+    ElMessage({ message: error.message || 'Could not load inbox members.', type: 'error', plain: true })
   } finally {
     membersLoading.value = false
   }
@@ -426,11 +448,13 @@ async function submitRemoveMember(m) {
 async function load() {
   if (loading.value) return
   loading.value = true
+  loadError.value = ''
   try {
     const rows = await sharedMailboxAdminList()
     mailboxes.value = Array.isArray(rows) ? rows : []
-  } catch {
+  } catch (error) {
     mailboxes.value = []
+    loadError.value = error.message || 'Shared inboxes could not be loaded. Please try again.'
   } finally {
     loading.value = false
   }
@@ -478,6 +502,21 @@ onMounted(() => {
   font-size: 13px;
   line-height: 1.5;
 }
+
+.sm-load-error {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--hq-danger) 45%, var(--hq-border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--hq-danger) 8%, transparent);
+  color: var(--hq-danger);
+  font-size: 12.5px;
+}
+
+.sm-load-error span { flex: 1; }
 
 .sm-empty {
   display: flex;
@@ -627,6 +666,42 @@ onMounted(() => {
 .sm-field-hint {
   color: var(--hq-muted);
   font-size: 11.5px;
+}
+
+.sm-address-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 148px;
+  overflow: hidden;
+  border: 1px solid var(--hq-border);
+  border-radius: 8px;
+  background: var(--el-fill-color-blank);
+}
+
+.sm-address-field :deep(.el-input__wrapper),
+.sm-address-field :deep(.el-select__wrapper) {
+  box-shadow: none !important;
+  background: transparent;
+}
+
+.sm-domain-select {
+  border-left: 1px solid var(--hq-border);
+}
+
+.sm-setup-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 11px;
+  border-radius: 8px;
+  background: var(--hq-selected);
+  color: var(--hq-text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sm-setup-note :deep(svg) {
+  flex: 0 0 auto;
+  color: var(--hq-accent-strong);
 }
 
 .sm-rename-address {
@@ -792,5 +867,12 @@ onMounted(() => {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 10px;
+}
+
+@media (max-width: 600px) {
+  .sm-page { padding: 18px 16px 32px; }
+  .sm-head { flex-direction: column; }
+  .sm-address-field { grid-template-columns: minmax(0, 1fr) 128px; }
+  .sm-perm-grid { grid-template-columns: 1fr; }
 }
 </style>

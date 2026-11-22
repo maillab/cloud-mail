@@ -58,6 +58,7 @@ const requirePerms = [
 	'/analysis/echarts',
 	'/role/add',
 	'/role/list',
+	'/role/people',
 	'/role/delete',
 	'/role/tree',
 	'/role/selectUse',
@@ -267,14 +268,42 @@ app.use('*', async (c, next) => {
 
 	const { userId, token } = result;
 	const authInfoRaw = await c.env.kv.get(KvConst.AUTH_INFO + userId);
-	const authInfo = authInfoRaw ? JSON.parse(authInfoRaw) : null;
+	let authInfo = authInfoRaw ? JSON.parse(authInfoRaw) : null;
 
-	if (!authInfo) {
-		throw new BizError(t('authExpired'), 401);
-	}
+	// KV is eventually consistent across Cloudflare locations. A phone can sign
+	// in through one location and immediately make its first authenticated call
+	// through another, where the just-issued token has not reached KV yet. The
+	// session row is the durable authority for that narrow window. Falling back
+	// to it only after JWT verification preserves the normal fast KV path while
+	// stopping a legitimate new session from being called "expired".
+	if (!authInfo || !Array.isArray(authInfo.tokens) || !authInfo.tokens.includes(token)) {
+		const session = await c.env.db.prepare(
+			`SELECT id FROM user_session WHERE user_id = ? AND token_id = ? AND revoked_at IS NULL LIMIT 1`
+		).bind(userId, token).first();
+		if (!session) {
+			throw new BizError(t('authExpired'), 401);
+		}
 
-	if (!authInfo.tokens.includes(token)) {
-		throw new BizError(t('authExpired'), 401);
+		const liveUser = await userService.selectById(c, userId);
+		if (!liveUser || liveUser.isDel) {
+			throw new BizError(t('authExpired'), 401);
+		}
+
+		const onboardingComplete = Boolean(liveUser.onboardingCompletedAt);
+		authInfo = {
+			tokens: [token],
+			user: liveUser,
+			scope: onboardingComplete ? 'full' : 'onboarding',
+			refreshTime: dayjs().toISOString(),
+			lastLoginAt: dayjs().toISOString()
+		};
+		// Restore the fast path for subsequent requests. This write is best effort:
+		// the durable session above is already enough to authenticate this request.
+		c.executionCtx.waitUntil(c.env.kv.put(
+			KvConst.AUTH_INFO + userId,
+			JSON.stringify(authInfo),
+			{ expirationTtl: constant.TOKEN_EXPIRE }
+		));
 	}
 
 	// A session explicitly revoked (password change, MFA reset, admin action)
@@ -287,7 +316,22 @@ app.use('*', async (c, next) => {
 	// A session issued before onboarding completed can only reach the onboarding
 	// endpoints. Enforced here rather than per-route, so a newly added business
 	// route cannot accidentally leak data to an unverified account.
-	const scope = authInfo.scope || 'full';
+	// A completed onboarding can be reflected in D1 a moment before KV's scope
+	// update arrives. Upgrade the current request from the durable user state so
+	// a member is never bounced back to setup after successfully finishing it.
+	let scope = authInfo.scope || 'full';
+	if (scope === 'onboarding') {
+		const currentUser = await userService.selectById(c, userId);
+		if (currentUser?.onboardingCompletedAt) {
+			scope = 'full';
+			authInfo.scope = 'full';
+			c.executionCtx.waitUntil(c.env.kv.put(
+				KvConst.AUTH_INFO + userId,
+				JSON.stringify(authInfo),
+				{ expirationTtl: constant.TOKEN_EXPIRE }
+			));
+		}
+	}
 	if (scope === 'onboarding') {
 		const allowed = onboardingAllowed.some(item => path.startsWith(item));
 		if (!allowed && path !== '/logout') {

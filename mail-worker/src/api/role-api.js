@@ -35,6 +35,13 @@ app.get('/role/list', async (c) => {
 	return c.json(result.ok(roleList));
 });
 
+// One fast directory payload for the People & access screen. Keep this
+// separate from role/list: baselines and people are different projections and
+// neither screen should trigger N+1 member requests for the other.
+app.get('/role/people', async (c) => {
+	return c.json(result.ok(await roleService.peopleWithAccess(c)));
+});
+
 // Access history and membership back the role builder's History and Members tabs.
 app.get('/role/history', async (c) => {
 	const roleId = Number(c.req.query('roleId')) || 0;

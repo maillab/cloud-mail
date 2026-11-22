@@ -6,7 +6,7 @@
           <div class="access-eyebrow">XPASS HQ / ACCESS</div>
           <h1>Access control</h1>
           <p class="access-sub">
-            See what everyone can do, and fine-tune each person's access. A baseline provides a reusable starting point; direct access lets you grant or deny specific permissions for each individual.
+            Build a reusable access plan, then make precise person-by-person exceptions when needed. Every choice below maps to a real capability in XPass HQ.
           </p>
         </div>
         <div class="access-actions">
@@ -55,7 +55,7 @@
             <el-table-column label="Access" width="240" fixed="right">
               <template #default="scope">
                 <el-button v-perm="'role:query'" type="text" size="small" @click="openAccessView(scope.row)">View access</el-button>
-                <el-button v-perm="'role:set'" type="text" size="small" @click="openMemberAccess(scope.row)">Edit permissions</el-button>
+              <el-button v-perm="'role:set'" type="text" size="small" @click="openMemberAccess(scope.row)">Manage access</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -66,8 +66,12 @@
 
         <el-tab-pane :label="`Baselines`" name="overview">
           <el-card>
+            <div class="baseline-guide">
+              <strong>How access works</strong>
+              <span>An access plan is the default for a group of people. Direct access is an intentional exception for one person. Record scope controls whose records they can see after they have been given a capability.</span>
+            </div>
             <el-table v-if="roles.length" v-loading="loading" :data="roles" style="width: 100%">
-              <el-table-column label="Access baseline" min-width="200">
+              <el-table-column label="Access plan" min-width="200">
                 <template #default="scope">
                   <div class="role-name">
                     <span>{{ scope.row.name }}</span>
@@ -94,12 +98,12 @@
               <el-table-column label="Members" width="110" align="right">
                 <template #default="scope">{{ scope.row.memberCount ?? 0 }}</template>
               </el-table-column>
-              <el-table-column label="Permissions" width="120" align="right">
+              <el-table-column label="Capabilities" width="120" align="right">
                 <template #default="scope">{{ (scope.row.permIds || []).length }}</template>
               </el-table-column>
               <el-table-column label="Actions" fixed="right" min-width="200">
                 <template #default="scope">
-                  <el-button v-perm="'role:set'" type="text" size="small" @click="openPermissions(scope.row)">Permissions</el-button>
+                  <el-button v-perm="'role:set'" type="text" size="small" @click="openPermissions(scope.row)">Set capabilities</el-button>
                   <el-button v-perm="'role:query'" type="text" size="small" @click="openMembers(scope.row)">Members</el-button>
                   <el-button v-perm="'role:query'" type="text" size="small" @click="openPreview(scope.row)">Preview</el-button>
                   <el-button
@@ -131,7 +135,7 @@
             <div class="perm-head">
               <div>
                 <div class="perm-title">{{ editingRole.name }}</div>
-                <div class="perm-sub">Editing this baseline. Changes apply to everyone assigned to it unless you give them direct access.</div>
+                <div class="perm-sub">This is the default access plan. Give a person a direct exception only when their access should differ from the plan.</div>
               </div>
               <div class="perm-head-actions">
                 <el-input v-model="filterText" placeholder="Filter permissions" clearable style="width: 220px" />
@@ -148,6 +152,11 @@
                     @change="value => toggleGroup(group, value)"
                   >{{ group.label }}</el-checkbox>
                   <span class="perm-group-count">{{ groupCount(group) }}</span>
+                  <div class="perm-group-presets">
+                    <el-button size="small" @click="setRoleModulePreset(group, 'view')">View access</el-button>
+                    <el-button size="small" @click="setRoleModulePreset(group, 'manage')">Can manage</el-button>
+                    <el-button size="small" text @click="setRoleModulePreset(group, 'none')">No access</el-button>
+                  </div>
                 </div>
                 <div class="perm-options">
                   <el-checkbox
@@ -260,7 +269,7 @@
               <div>
                 <div class="perm-title">What this role can do</div>
                 <div class="perm-sub">
-                  Generated from the role's stored permissions and record scope. Nothing is assumed.
+                  Generated from the stored access plan and record scope. This is what members receive before any direct exceptions.
                 </div>
               </div>
               <el-select v-model="previewRoleId" placeholder="Choose a role" style="width: 220px" @change="loadPreview">
@@ -378,6 +387,7 @@ import {
   roleHistory,
   roleMembers,
   rolePermTree,
+  rolePeople,
   roleRoleList,
   roleSet,
   roleSetDef
@@ -476,30 +486,19 @@ async function openAccessView(member) {
 async function loadPeople() {
   peopleLoading.value = true
   try {
-    const roleList = await roleRoleList()
+    const [roleList, rows] = await Promise.all([roleRoleList(), rolePeople()])
     roles.value = roleList || []
-    const rows = []
-    for (const role of roleList || []) {
-      let members = []
-      try {
-        members = await roleMembers(role.roleId) || []
-      } catch {
-        members = []
-      }
-      for (const member of members) {
-        rows.push({
-          userId: member.userId ?? member.user_id,
-          displayName: member.displayName,
-          username: member.username,
-          email: member.email,
-          roleId: role.roleId,
-          roleName: role.name,
-          dataScope: role.dataScope || 'own',
-          permIds: role.permIds || []
-        })
-      }
-    }
-    people.value = rows
+    people.value = (rows || []).map((member) => ({
+      userId: member.userId ?? member.user_id,
+      displayName: member.displayName ?? member.display_name ?? member.email,
+      username: member.username || '',
+      email: member.email,
+      roleId: member.roleId ?? member.role_id,
+      roleName: member.roleName ?? member.role_name ?? 'No access plan',
+      dataScope: member.dataScope ?? member.data_scope ?? 'own',
+      permIds: Array(Number(member.baselinePermissionCount ?? member.baseline_permission_count) || 0),
+      directOverrideCount: Number(member.directOverrideCount ?? member.direct_override_count) || 0
+    }))
   } catch (error) {
     ElMessage({ message: error.message || 'Failed to load people.', type: 'error', plain: true })
   } finally {
@@ -575,6 +574,26 @@ function groupCount(group) {
   const leaves = leavesOf(group)
   const checked = leaves.filter((leaf) => draftPerms.value.includes(leaf.perm_id)).length
   return `${checked}/${leaves.length}`
+}
+
+function isViewPermission(permKey) {
+  const action = String(permKey || '').split(':')[1] || ''
+  return ['query', 'view', 'read'].includes(action)
+}
+
+function setRoleModulePreset(group, preset) {
+  const ids = leavesOf(group).map((leaf) => leaf.perm_id)
+  if (preset === 'none') {
+    draftPerms.value = draftPerms.value.filter((id) => !ids.includes(id))
+    return
+  }
+  const wanted = preset === 'manage'
+    ? ids
+    : leavesOf(group).filter((leaf) => isViewPermission(leaf.perm_key)).map((leaf) => leaf.perm_id)
+  draftPerms.value = [...new Set([
+    ...draftPerms.value.filter((id) => !ids.includes(id)),
+    ...wanted
+  ])]
 }
 
 function toggleLeaf(leaf, value) {
@@ -841,6 +860,21 @@ onMounted(refresh)
   font-size: 12px;
 }
 
+.baseline-guide {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--hq-accent);
+  border-radius: 8px;
+  background: var(--hq-selected);
+  color: var(--hq-text-secondary);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.baseline-guide strong { color: var(--hq-text); }
+
 .danger-text {
   color: var(--el-color-danger);
 }
@@ -888,6 +922,14 @@ onMounted(refresh)
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.perm-group-presets {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .perm-group-count {
@@ -1080,5 +1122,14 @@ onMounted(refresh)
   font-size: 13px;
   font-weight: 550;
   color: var(--hq-text);
+}
+
+@media (max-width: 680px) {
+  .access-container { padding: 20px 16px 30px; }
+  .access-header, .perm-head { flex-direction: column; }
+  .access-actions, .perm-head-actions { width: 100%; }
+  .perm-head-actions :deep(.el-input) { flex: 1; }
+  .perm-group-head { align-items: flex-start; flex-wrap: wrap; }
+  .perm-group-presets { width: 100%; justify-content: flex-start; }
 }
 </style>
