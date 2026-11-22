@@ -1,126 +1,88 @@
 <template>
-  <div v-if="analysisLoading" class="analysis-loading">
+  <div v-if="analysisError" class="analysis-empty">
+    <HqEmptyState
+      icon="fluent:cloud-error-20-regular"
+      title="Analytics unavailable"
+      description="Mail activity data could not be loaded. Please try again later."
+      action-label="Retry"
+      @action="loadAnalysis"
+    />
+  </div>
+  <div v-else-if="analysisLoading" class="analysis-loading">
     <loading/>
   </div>
-  <el-scrollbar v-else style="height: 100%;">
-    <div class="analysis" :key="boxKey">
-      <div class="number">
-        <div class="number-item">
-          <div class="top">
-            <div class="left">
-              <div>{{ $t('totalReceived') }}</div>
-              <div>
-                <el-statistic :formatter="value => Math.round(value)" :value="receiveData"/>
-              </div>
-            </div>
-            <div class="right">
-              <div class="count-icon">
-                <Icon icon="hugeicons:mailbox-01" width="25" height="25"></Icon>
-              </div>
-            </div>
+  <div v-else class="analysis-page">
+    <el-scrollbar style="height: 100%;">
+      <div class="analysis">
+        <header class="analysis-header">
+          <div>
+            <div class="analysis-eyebrow">XPASS HQ / ANALYTICS</div>
+            <h1 class="analysis-title">Mail activity</h1>
+            <p class="analysis-desc">Received, sent, and mailbox activity over time.</p>
           </div>
-          <div class="delete-ratio">
-            <div>{{ $t('active') }} <span class="normal">{{ numberCount.normalReceiveTotal }}</span></div>
-            <div>{{ $t('deleted') }} <span class="deleted">{{ numberCount.delReceiveTotal }}</span></div>
-          </div>
-        </div>
-        <div class="number-item">
-          <div class="top">
-            <div class="left">
-              <div>{{ $t('totalSent') }}</div>
-              <div>
-                <el-statistic :formatter="value => Math.round(value)" :value="sendData"/>
-              </div>
-            </div>
-            <div class="right">
-              <div class="count-icon">
-                <Icon icon="cil:send" width="25" height="25"></Icon>
-              </div>
-            </div>
-          </div>
-          <div class="delete-ratio">
-            <div>{{ $t('active') }} <span class="normal">{{ numberCount.normalSendTotal }}</span></div>
-            <div>{{ $t('deleted') }} <span class="deleted">{{ numberCount.delSendTotal }}</span></div>
-          </div>
-        </div>
-        <div class="number-item">
-          <div class="top">
-            <div class="left">
-              <div>{{ $t('totalMailboxes') }}</div>
-              <div>
-                <el-statistic :formatter="value => Math.round(value)" :value="accountData"/>
-              </div>
-            </div>
-            <div class="right">
-              <div class="count-icon">
-                <Icon icon="lets-icons:e-mail" width="23" height="23"></Icon>
-              </div>
-            </div>
-          </div>
-          <div class="delete-ratio">
-            <div>{{ $t('active') }} <span class="normal">{{ numberCount.normalAccountTotal }}</span></div>
-            <div>{{ $t('deleted') }} <span class="deleted">{{ numberCount.delAccountTotal }}</span></div>
-          </div>
-        </div>
-        <div class="number-item">
-          <div class="top">
-            <div class="left">
-              <div>{{ $t('totalUsers') }}</div>
-              <div>
-                <el-statistic :formatter="value => Math.round(value)" :value="userData"/>
-              </div>
-            </div>
-            <div class="right">
-              <div class="count-icon">
-                <Icon icon="iconoir:user" width="25" height="25"></Icon>
-              </div>
-            </div>
-          </div>
-          <div class="delete-ratio">
-            <div>{{ $t('active') }} <span class="normal">{{ numberCount.normalUserTotal }}</span></div>
-            <div>{{ $t('deleted') }} <span class="deleted">{{ numberCount.delUserTotal }}</span></div>
-          </div>
-        </div>
-      </div>
-      <div class="picture">
-        <div class="picture-item">
-          <div class="title" style="display: flex;justify-content: space-between;">
-            <span>{{ $t('emailSource') }}</span>
-            <span class="source-button" v-if="false">
-              <el-radio-group v-model="checkedSourceType">
-                <el-radio-button label="Sender" value="sender"/>
-                <el-radio-button label="Email" value="email"/>
-              </el-radio-group>
-            </span>
-          </div>
-          <div class="sender-pie">
+        </header>
 
+        <div class="metrics">
+          <div class="metric-card">
+            <div class="metric-label">{{ $t('totalReceived') }}</div>
+            <div class="metric-value">{{ Math.round(receiveTotal) }}</div>
+            <div class="metric-sub">
+              <span class="metric-normal">{{ $t('active') }}: {{ numberCount.normalReceiveTotal }}</span>
+              <span class="metric-deleted">{{ $t('deleted') }}: {{ numberCount.delReceiveTotal }}</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">{{ $t('totalSent') }}</div>
+            <div class="metric-value">{{ Math.round(sendTotal) }}</div>
+            <div class="metric-sub">
+              <span class="metric-normal">{{ $t('active') }}: {{ numberCount.normalSendTotal }}</span>
+              <span class="metric-deleted">{{ $t('deleted') }}: {{ numberCount.delSendTotal }}</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">{{ $t('totalMailboxes') }}</div>
+            <div class="metric-value">{{ Math.round(accountTotal) }}</div>
+            <div class="metric-sub">
+              <span class="metric-normal">{{ $t('active') }}: {{ numberCount.normalAccountTotal }}</span>
+              <span class="metric-deleted">{{ $t('deleted') }}: {{ numberCount.delAccountTotal }}</span>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">{{ $t('totalUsers') }}</div>
+            <div class="metric-value">{{ Math.round(userTotal) }}</div>
+            <div class="metric-sub">
+              <span class="metric-normal">{{ $t('active') }}: {{ numberCount.normalUserTotal }}</span>
+              <span class="metric-deleted">{{ $t('deleted') }}: {{ numberCount.delUserTotal }}</span>
+            </div>
           </div>
         </div>
-        <div class="picture-item">
-          <div class="title">{{ $t('userGrowth') }}</div>
-          <div class="increase-line">
 
+        <div class="chart-row">
+          <div class="chart-panel">
+            <div class="chart-title">{{ $t('userGrowth') }}</div>
+            <div class="chart-wrap">
+              <div class="increase-line"></div>
+            </div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-title">{{ $t('emailGrowth') }}</div>
+            <div class="chart-wrap">
+              <div class="email-column"></div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="picture-cs">
-        <div class="picture-cs-item">
-          <div class="title">{{ $t('emailGrowth') }}</div>
-          <div class="email-column"></div>
-        </div>
-        <div class="picture-cs-item">
-          <div class="title">{{ $t('sentToday') }}</div>
-          <div class="send-count"></div>
+
+        <div class="summary-note">
+          <strong>{{ $t('sentToday') }}:</strong>
+          <span class="summary-number">{{ daySendTotal }}</span>
+          <span class="summary-text">{{ $t('total') }}</span>
         </div>
       </div>
-    </div>
-  </el-scrollbar>
+    </el-scrollbar>
+  </div>
 </template>
 
 <script setup>
-import {Icon} from "@iconify/vue";
-import {useTransition} from "@vueuse/core";
 import {defineOptions, onActivated, onDeactivated, onMounted, reactive, ref, watch, computed} from "vue";
 import echarts from "@/echarts/index.js";
 import dayjs from "dayjs";
@@ -128,6 +90,7 @@ import {analysisEcharts} from "@/request/analysis.js";
 import {useUiStore} from "@/store/ui.js";
 import {debounce} from "lodash-es";
 import loading from "@/components/loading/index.vue";
+import HqEmptyState from "@/components/hq-empty-state/index.vue";
 import {useRoute} from "vue-router";
 import {useI18n} from 'vue-i18n';
 
@@ -138,12 +101,12 @@ defineOptions({
 const {t} = useI18n();
 const route = useRoute();
 const uiStore = useUiStore()
-const checkedSourceType = ref('sender')
 const receiveTotal = ref(0)
 const sendTotal = ref(0)
 const accountTotal = ref(0)
 const userTotal = ref(0)
 const analysisLoading = ref(true)
+const analysisError = ref(false)
 
 const numberCount = reactive({
   normalReceiveTotal: 0,
@@ -157,23 +120,6 @@ const numberCount = reactive({
 })
 
 
-const receiveData = useTransition(receiveTotal, {
-  duration: 1500,
-})
-
-const sendData = useTransition(sendTotal, {
-  duration: 1500,
-})
-
-const accountData = useTransition(accountTotal, {
-  duration: 1500,
-})
-
-const userData = useTransition(userTotal, {
-  duration: 1500,
-})
-
-const senderData = ref(null)
 const userLineData = reactive({
   xdata: [],
   sdata: []
@@ -186,31 +132,28 @@ const emailColumnData = {
 }
 
 const topic = computed(() => ({
-  color: uiStore.dark ? '#E5EAF3' : '#303133',
-  background: uiStore.dark ? '#141414' : '#FFFFFF',
-  borderColor: uiStore.dark ? '#141414' : '#FFFFFF',
-  scaleLineColor: uiStore.dark ? '#636466' : '#CDD0D6',
-  crossColor: uiStore.dark ? '#8D9095' : '#A8ABB2',
-  axisColor: uiStore.dark ? '#A3A6AD' : '#909399',
-  splitLineColor: uiStore.dark ? '#58585B' : '#D4D7DE',
-  gaugeSplitLine: uiStore.dark ? '#CFD3DC' : '#606266',
-  containerBackground: uiStore.dark ? '#6C6E72' : '#E6EBF8'
+  color: uiStore.dark ? 'var(--hq-text)' : 'var(--hq-text)',
+  background: uiStore.dark ? 'var(--hq-surface)' : 'var(--hq-surface)',
+  borderColor: uiStore.dark ? 'var(--hq-border)' : 'var(--hq-border)',
+  scaleLineColor: uiStore.dark ? 'var(--hq-border)' : 'var(--hq-border)',
+  crossColor: uiStore.dark ? 'var(--hq-muted)' : 'var(--hq-muted)',
+  axisColor: uiStore.dark ? 'var(--hq-text-secondary)' : 'var(--hq-text-secondary)',
+  splitLineColor: uiStore.dark ? 'var(--hq-border)' : 'var(--hq-border)',
+  gaugeSplitLine: uiStore.dark ? 'var(--hq-text-secondary)' : 'var(--hq-text-secondary)',
+  containerBackground: uiStore.dark ? 'var(--hq-hover)' : 'var(--hq-hover)'
 }))
 let daySendTotal = 0
 let leaveWidth = 0
-let senderPie = null
 let increaseLine = null
 let emailColumn = null
-let sendGauge = null
 let first = true
-let boxKey = ref(0)
-let senderPieLeft = window.innerWidth < 500 ? `${window.innerWidth - 110}` : '72%'
-let analysisDark = uiStore.dark
 
-onMounted(() => {
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-  analysisEcharts(timeZone).then(data => {
+async function loadAnalysis() {
+  analysisLoading.value = true
+  analysisError.value = false
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  try {
+    const data = await analysisEcharts(timeZone)
     receiveTotal.value = data.numberCount.receiveTotal
     sendTotal.value = data.numberCount.sendTotal
     accountTotal.value = data.numberCount.accountTotal
@@ -223,25 +166,25 @@ onMounted(() => {
     numberCount.delSendTotal = data.numberCount.delSendTotal
     numberCount.delAccountTotal = data.numberCount.delAccountTotal
     numberCount.delUserTotal = data.numberCount.delUserTotal
-    senderData.value = data.receiveRatio.nameRatio.map(item => {
-      return {
-        name: item.name || ' ',
-        value: item.total
-      }
-    })
 
-    userLineData.xdata = data.userDayCount.map(item => dayjs(item.date).format("M.D"));
+    userLineData.xdata = data.userDayCount.map(item => dayjs(item.date).format("M.D"))
     userLineData.sdata = data.userDayCount.map(item => item.total)
 
     emailColumnData.daysData = data.emailDayCount.receiveDayCount.map(item => dayjs(item.date).format("M.D"))
     emailColumnData.receiveData = data.emailDayCount.receiveDayCount.map(item => item.total)
     emailColumnData.sendData = data.emailDayCount.sendDayCount.map(item => item.total)
     daySendTotal = data.daySendTotal
+    initPicture()
+  } catch (error) {
+    console.error('Could not load analytics data:', error)
+    analysisError.value = true
+  } finally {
     analysisLoading.value = false
-    initPicture();
-    first = false
-  })
+  }
+}
 
+onMounted(() => {
+  loadAnalysis()
 })
 
 const widthChange = debounce(initPicture, 500, {
@@ -260,11 +203,8 @@ onActivated(() => {
   if (first) return
   if (window.innerWidth !== leaveWidth && leaveWidth !== 0) {
     widthChange()
-  } else if (!senderPie) {
+  } else if (!increaseLine) {
     widthChange()
-  } else if (analysisDark !== uiStore.dark) {
-    initPicture()
-    analysisDark = uiStore.dark
   }
 })
 
@@ -279,23 +219,18 @@ window.onresize = () => {
 
 watch(() => uiStore.dark, () => {
   if (route.name !== 'analysis') return
-  analysisDark = uiStore.dark
   initPicture()
 })
 
 function initPicture() {
   if (route.name !== 'analysis') return
-  boxKey.value++
   setTimeout(() => {
-    createSenderPie()
     createIncreaseLine()
-    createEmailColumnChart();
-    createSendGauge();
+    createEmailColumnChart()
   })
 }
 
 function setStyle() {
-  senderPieLeft = window.innerWidth < 500 ? `${window.innerWidth - 110}` : '72%'
   emailColumnData.barWidth = window.innerWidth > 767 ? '40%' : '60%'
 }
 
@@ -315,72 +250,6 @@ function truncateTextByWidth(text, maxWidth = 140) {
     }
   }
   return text;
-}
-
-function createSenderPie() {
-
-  if (senderPie) {
-    senderPie.dispose()
-  }
-  senderPie = echarts.init(document.querySelector(".sender-pie"))
-  let option = {
-    tooltip: {
-      trigger: 'item',
-      textStyle: {
-        color: topic.value.color
-      },
-      backgroundColor: topic.value.background,
-      formatter: params => {
-        return `${params.marker} ${params.name}： ${params.value} (${params.percent}%)`;
-      }
-    },
-    legend: {
-      type: 'scroll',
-      orient: 'vertical',
-      left: '10',
-      top: '20',
-      textStyle: {
-        color: topic.value.color
-      },
-      formatter: function (name) {
-        return truncateTextByWidth(name)
-      }
-    },
-    series: [
-      {
-        data: senderData.value,
-        name: '',
-        type: 'pie',
-        radius: ['40%', '65%'],
-        center: [senderPieLeft, '45%'],
-        avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 4,
-          borderColor: topic.value.borderColor,
-          borderWidth: 2
-        },
-        label: {
-          show: false,
-          position: 'outside', // 标签显示在外部
-          formatter: '{d}%',  // 显示名称和占比
-          color: '#333',
-          fontSize: 14  // 设置字体大小
-        },
-        emphasis: {
-          label: {
-            show: false,
-            fontSize: 40,
-            fontWeight: 'bold'
-          }
-        },
-        labelLine: {
-          show: true
-        },
-        color: ['#3CB2FF', '#13DEB9', '#FBBF24', '#FF7F50', '#BAE6FD', '#C084FC'] // 添加符合主题的配色
-      }
-    ]
-  }
-  senderPie.setOption(option)
 }
 
 function createIncreaseLine() {
@@ -503,22 +372,22 @@ function createIncreaseLine() {
         smooth: 0.1,
         symbol: 'none',
         lineStyle: {
-          color: '#1D84FF',
+          color: 'var(--hq-accent)',
           width: 2.5
         },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             {
               offset: 0,
-              color: 'rgba(29, 132, 255, 0.3)'
+              color: 'rgba(255, 85, 0, 0.3)'
             },
             {
               offset: 1,
-              color: 'rgba(29, 132, 255, 0.03)'
+              color: 'rgba(255, 85, 0, 0.03)'
             }
           ])
         },
-        color: ['#1D84FF'],
+        color: ['var(--hq-accent)'],
       }
     ]
   };
@@ -626,7 +495,7 @@ function createEmailColumnChart() {
         },
         data: emailColumnData.receiveData,
         itemStyle: {
-          color: '#3CB2FF',
+          color: 'var(--hq-accent)',
         }
       },
       {
@@ -641,7 +510,7 @@ function createEmailColumnChart() {
         },
         data: emailColumnData.sendData,
         itemStyle: {
-          color: '#13deb9',
+          color: 'var(--hq-accent-hover)',
         }
       }
     ]
@@ -649,78 +518,6 @@ function createEmailColumnChart() {
 
   emailColumn.setOption(option);
 }
-
-function createSendGauge() {
-  if (sendGauge) {
-    sendGauge.dispose()
-  }
-  sendGauge = echarts.init(document.querySelector(".send-count"));
-  let option = {
-    tooltip: {
-      textStyle: {
-        color: topic.value.color
-      },
-      backgroundColor: topic.value.background
-    },
-    series: [{
-      name: t('sentToday'),
-      type: 'gauge',
-      max: daySendTotal >= 1000 ? 10000 : daySendTotal >= 100 ? 1000 : 100,
-      // 进度条颜色（新增）
-      progress: {
-        show: true,
-        roundCap: true,
-        itemStyle: {
-          color: '#3CB2FF'
-        }
-      },
-      // 指针颜色（新增）
-      pointer: {
-        itemStyle: {
-          color: '#3CB2FF'
-        }
-      },
-      axisLabel: {
-        color: topic.value.gaugeSplitLine,
-      },
-      // 轴线背景色（新增）
-      axisLine: {
-        roundCap: true,
-        lineStyle: {
-          color: [[1, topic.value.containerBackground]]
-        }
-      },
-      splitLine: {
-        lineStyle: {
-          color: topic.value.gaugeSplitLine, // 大刻度线颜色
-        }
-      },
-      // 刻度颜色（新增）
-      axisTick: {
-        lineStyle: {
-          color: topic.value.axisColor
-        }
-      },
-      // 中心文字颜色（新增）
-      detail: {
-        valueAnimation: true,
-        formatter: '{value}',
-        color: topic.value.color // 黑色文字
-      },
-      data: [{
-        value: daySendTotal,
-        name: t('total'),
-        // 名称标签颜色（新增）
-        title: {
-          color: topic.value.color  // 灰色标签
-        }
-      }]
-    }],
-    color: ['#3CB2FF']
-  };
-  sendGauge.setOption(option);
-}
-
 
 </script>
 <style>
@@ -745,185 +542,179 @@ function createSendGauge() {
   justify-content: center;
 }
 
+.analysis-empty {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
 .analysis {
   height: 100%;
-  padding: 20px 20px 30px;
-  gap: 20px;
-  background: var(--extra-light-fill);
+  padding: 28px 24px 40px;
+  gap: 24px;
+  background: var(--hq-page);
   display: grid;
   grid-auto-rows: min-content;
+
   @media (max-width: 1024px) {
-    padding: 15px 15px 30px;
-    gap: 15px
+    padding: 20px 16px 32px;
+    gap: 18px;
   }
 
-  .title {
-    margin-top: 10px;
-    margin-left: 15px;
-    font-size: 18px;
-    font-weight: 500;
-  }
+  .analysis-header {
+    margin-bottom: 6px;
 
-  .number {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 20px;
-    @media (max-width: 1366px) {
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
+    .analysis-eyebrow {
+      color: var(--hq-muted);
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
     }
+
+    .analysis-title {
+      font-family: var(--hq-font-heading);
+      font-size: clamp(20px, 2vw, 24px);
+      font-weight: 650;
+      letter-spacing: -.02em;
+      color: var(--hq-text);
+      margin: 0 0 4px;
+      line-height: 1.25;
+    }
+
+    .analysis-desc {
+      color: var(--hq-text-secondary);
+      font-size: 13px;
+      margin: 0;
+    }
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 2px;
+
+    @media (max-width: 1366px) {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
     @media (max-width: 767px) {
       grid-template-columns: 1fr;
-    }
-
-    .number-item {
-      background: var(--el-bg-color);
-      border-radius: 8px;
-      border: 1px solid var(--el-border-color);
-      padding: 21px 20px;
-
-      .top {
-        display: grid;
-        justify-content: space-between;
-        align-content: center;
-        grid-template-columns: auto auto;
-
-        .left {
-          display: grid;
-          gap: 5px;
-          grid-auto-rows: min-content;
-
-          > div:first-child {
-            font-size: 15px;
-          }
-
-          > div:last-child {
-            font-size: 13px;
-          }
-
-          :deep(.el-statistic__number) {
-            font-size: 26px;
-          }
-        }
-
-        .right {
-          display: grid;
-          align-items: center;
-
-          .count-icon {
-            top: 3px;
-            position: relative;
-            display: grid;
-            align-items: center;
-            padding: 14px;
-            border-radius: 8px;
-            background: var(--el-color-primary-light-9);
-            color: var(--el-color-primary);
-          }
-        }
-
-      }
-
-      .delete-ratio {
-        width: 100%;
-        display: grid;
-        grid-template-columns:  auto auto;
-        justify-content: start;
-        gap: 20px;
-        padding-top: 5px;
-        font-size: 14px;
-
-        .normal {
-          width: fit-content;
-          color: var(--el-color-success);
-          font-weight: bold;;
-          margin-left: 3px;
-        }
-
-        .deleted {
-          width: fit-content;
-          color: var(--el-color-danger);
-          font-weight: bold;;
-          margin-left: 3px;
-        }
-      }
-
+      gap: 12px;
     }
   }
 
-  .picture {
-    display: grid;
-    grid-template-columns: 500px 1fr;
-    gap: 20px;
-    @media (max-width: 1620px) {
-      grid-template-columns: 1fr;
+  .metric-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 18px 16px;
+    border-radius: var(--hq-radius-md);
+    border: 1px solid var(--hq-border);
+    background: var(--hq-surface);
+  }
+
+  .metric-label {
+    color: var(--hq-text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+  }
+
+  .metric-value {
+    color: var(--hq-text);
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+    font-family: var(--hq-font-heading);
+  }
+
+  .metric-sub {
+    display: flex;
+    gap: 14px;
+    font-size: 12px;
+
+    .metric-normal {
+      color: var(--hq-text-secondary);
+      font-weight: 600;
     }
+
+    .metric-deleted {
+      color: var(--hq-muted);
+    }
+  }
+
+  .chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 4px;
+
     @media (max-width: 1024px) {
-      gap: 15px;
-    }
-
-    .picture-item {
-      background: var(--el-bg-color);
-      border-radius: 8px;
-      border: 1px solid var(--el-border-color);
-
-      .source-button {
-        padding-right: 15px;
-        display: flex;
-        align-items: start;
-
-        :deep(.el-radio-button__inner) {
-          padding: 6px 10px;
-        }
-      }
-
-      .sender-pie {
-        height: 330px;
-        @media (max-width: 767px) {
-          height: 200px;
-        }
-      }
-
-      .increase-line {
-        height: 330px;
-        @media (max-width: 767px) {
-          height: 280px;
-        }
-      }
+      grid-template-columns: 1fr;
+      gap: 14px;
     }
   }
 
-  .picture-cs {
-    display: grid;
-    grid-template-columns: 1fr 500px;
-    gap: 20px;
-    @media (max-width: 1620px) {
-      grid-template-columns: 1fr;
-      gap: 15px;
+  .chart-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px 16px;
+    border-radius: var(--hq-radius-md);
+    border: 1px solid var(--hq-border);
+    background: var(--hq-surface);
+    min-height: 300px;
+  }
+
+  .chart-title {
+    color: var(--hq-text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  .chart-wrap {
+    flex: 1;
+    min-height: 220px;
+    position: relative;
+    width: 100%;
+  }
+
+  .summary-note {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: var(--hq-radius-md);
+    border: 1px solid var(--hq-border);
+    background: var(--hq-surface);
+    color: var(--hq-text-secondary);
+    font-size: 13px;
+
+    .summary-number {
+      color: var(--hq-text);
+      font-size: 20px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
     }
 
-    .picture-cs-item {
-      background: var(--el-bg-color);
-      border-radius: 8px;
-      border: 1px solid var(--el-border-color);
-
-      .send-count {
-        height: 330px;
-        @media (max-width: 767px) {
-          height: 320px;
-        }
-      }
-
-      .email-column {
-        height: 330px;
-        @media (max-width: 767px) {
-          height: 250px;
-        }
-      }
+    .summary-text {
+      color: var(--hq-muted);
+      font-size: 12px;
     }
   }
 }
-
 </style>
 
 

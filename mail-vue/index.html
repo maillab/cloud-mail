@@ -4,15 +4,15 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <meta name="theme-color" content="#050403" id="theme-color-meta">
-  <meta name="description" content="XPass secure email for your team.">
-  <title>XPass Mail</title>
+  <meta name="description" content="XPass HQ — the internal operating system for XPass: mail, CRM, WhatsApp, finance, documents, projects and decisions.">
+  <title>XPass HQ</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32">
-  <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" href="/xpass-favicon.png?v=xpass1" sizes="any">
+  <link rel="icon" href="/xpass-favicon.png?v=xpass1" type="image/png" sizes="32x32">
+  <link rel="icon" href="/xpass-favicon.png?v=xpass1" type="image/png" sizes="16x16">
+  <link rel="apple-touch-icon" href="/xpass-favicon.png?v=xpass1">
   <link rel="manifest" href="/site.webmanifest">
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <script>
@@ -58,18 +58,32 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
+    gap: 14px;
   }
 
   .loading-image {
-    width: 70px;
-    height: 70px;
+    width: 200px;
+    height: auto;
+    max-height: 52px;
     object-fit: contain;
+    object-position: center;
+  }
+
+  .loading-logo-dark {
+    display: none;
+  }
+
+  html.dark .loading-logo-light {
+    display: none;
+  }
+
+  html.dark .loading-logo-dark {
+    display: block;
   }
 
   .loading-progress {
     position: relative;
-    width: 64px;
+    width: 200px;
     height: 4px;
     overflow: hidden;
     border-radius: 999px;
@@ -136,11 +150,25 @@
 <body>
 <div id="loading-first" >
   <div class="loading-icon">
-    <img class="loading-image" src="/xpass-logo.png" alt="XPass">
+    <img class="loading-image loading-logo-light" src="/xpass-wordmark.png" alt="XPass">
+    <img class="loading-image loading-logo-dark" src="/xpass-wordmark-inverted.png" alt="XPass">
     <div class="loading-progress" aria-hidden="true"></div>
   </div>
 </div>
 <div id="app"></div>
+<script>
+  // The splash is removed by the router after the first navigation. This is the
+  // guarantee that it can never stay forever: if the bundle fails to load, the
+  // bootstrap hangs, or the router never resolves, the page still ends up showing
+  // the app root (which then renders sign-in or an explicit error).
+  window.setTimeout(function () {
+    var splash = document.getElementById('loading-first');
+    if (splash) {
+      splash.classList.add('loading-complete');
+      splash.remove();
+    }
+  }, 10000);
+</script>
 <script type="module" src="/src/main.js"></script>
 </body>
 </html>

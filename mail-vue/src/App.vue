@@ -1,18 +1,24 @@
 <template>
   <el-config-provider>
     <router-view />
+    <TutorialCoachmark />
   </el-config-provider>
 </template>
 <script setup>
 import { useI18n } from "vue-i18n";
 import { onMounted, onUnmounted, watch } from "vue";
 import {useUiStore} from "@/store/ui.js";
+import { usePresence } from "@/composables/use-presence.js";
+import { useTutorialStore } from "@/store/tutorial.js";
+import TutorialCoachmark from "@/components/tutorial-coachmark/index.vue";
 const uiStore = useUiStore()
+const tutorialStore = useTutorialStore()
 import('@/icons/index.js')
 const { locale } = useI18n()
 locale.value = 'en'
 
 uiStore.applyTheme();
+usePresence();
 
 watch(() => [uiStore.theme, uiStore.isDark], () => {
   uiStore.applyTheme();
@@ -25,7 +31,7 @@ const handleSystemThemeChange = () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   if (window.matchMedia) {
     mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     if (mediaQuery.addEventListener) {
@@ -33,6 +39,11 @@ onMounted(() => {
     } else if (mediaQuery.addListener) {
       mediaQuery.addListener(handleSystemThemeChange);
     }
+  }
+  // Auto-start the welcome tour on first visit (after the shell renders).
+  await tutorialStore.load();
+  if (tutorialStore.shouldAutoStart('welcome', 1)) {
+    setTimeout(() => tutorialStore.startTour('welcome'), 800);
   }
 });
 
@@ -62,7 +73,7 @@ onUnmounted(() => {
   --xpass-accent: #ff5500;
 }
 
-.dark {
+html.dark {
   --xpass-shell: #050403;
   --xpass-surface: #100e0c;
   --xpass-raised: #18110d;

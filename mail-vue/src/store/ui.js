@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import {hasPerm} from "@/perm/perm.js";
 
 export const useUiStore = defineStore('ui', {
     state: () => ({
@@ -11,8 +12,8 @@ export const useUiStore = defineStore('ui', {
         changePreview: 0,
         previewData: {},
         key: 0,
-        theme: 'system',
-        dark: false,
+        theme: 'dark',
+        dark: true,
         asideCount: {
             email: 0,
             send: 0,
@@ -20,13 +21,8 @@ export const useUiStore = defineStore('ui', {
         }
     }),
     getters: {
-        isDark(state) {
-            if (state.theme === 'dark') return true;
-            if (state.theme === 'light') return false;
-            if (typeof window !== 'undefined' && window.matchMedia) {
-                return window.matchMedia('(prefers-color-scheme: dark)').matches;
-            }
-            return false;
+        isDark() {
+            return true;
         }
     },
     actions: {
@@ -48,6 +44,15 @@ export const useUiStore = defineStore('ui', {
         },
         showNotice() {
             this.changeNotice ++
+        },
+        // Every way of starting a message (the sidebar button, the header, the
+        // keyboard shortcut) goes through here, so the permission gate and the
+        // writer reference live in exactly one place.
+        openCompose() {
+            if (!hasPerm('email:send')) return false
+            if (!this.writerRef?.open) return false
+            this.writerRef.open()
+            return true
         },
         previewNotice(data) {
             this.previewData = data

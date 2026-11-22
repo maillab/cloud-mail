@@ -114,6 +114,7 @@
                     width="22" height="22"/>
             </div>
           </div>
+          <span v-if="draftStatus" class="draft-status" role="status">{{ draftStatus }}</span>
           <div>
             <el-dropdown split-button type="primary" trigger="click" @click="sendEmail" @command="selectSendMode">
               {{ sendButtonLabel }}
@@ -157,12 +158,13 @@
 </template>
 <script setup>
 import tinyEditor from '@/components/tiny-editor/index.vue'
-import {h, nextTick, onMounted, onUnmounted, reactive, ref, toRaw, computed} from "vue";
+import {h, nextTick, onMounted, onUnmounted, reactive, ref, toRaw, computed, watch} from "vue";
 import {Icon} from "@iconify/vue";
 import {useUserStore} from "@/store/user.js";
 import {emailSend} from "@/request/email.js";
 import {isEmail} from "@/utils/verify-utils.js";
 import {useAccountStore} from "@/store/account.js";
+import {useMailboxStore} from "@/store/mailbox.js";
 import {useEmailStore} from "@/store/email.js";
 import {fileToBase64, formatBytes} from "@/utils/file-utils.js";
 import {getIconByName} from "@/utils/icon-utils.js";
@@ -179,7 +181,6 @@ import router from "@/router/index.js";
 import {ElMessageBox} from "element-plus";
 import {ElMessage} from "element-plus";
 import {mailboxTemplates, mailboxTemplateSave} from "@/request/mailbox.js";
-import {accountList} from "@/request/account.js";
 import {sanitizeSignatureHtml} from "@/utils/email-html.js";
 
 defineExpose({
@@ -195,6 +196,7 @@ const draftStore = userDraftStore()
 const settingStore = useSettingStore()
 const emailStore = useEmailStore();
 const accountStore = useAccountStore()
+const mailboxStore = useMailboxStore()
 const editor = ref({})
 const userStore = useUserStore();
 const show = ref(false);
@@ -203,6 +205,9 @@ let percentMessage = null
 let sending = false
 const defValue = ref('')
 const contactsTabRef = ref({})
+const draftStatus = ref('')
+let draftSaveTimer = null
+let draftStatusTimer = null
 const showContacts = ref(false)
 const templates = ref([])
 const selectedTemplateId = ref(null)
@@ -261,10 +266,33 @@ const activeSignatureLabel = computed(() => {
   return currentSignatureChoice.value === 'none' ? 'No signature' : 'Signature: On'
 })
 
-function loadSenderAccounts() {
-  accountList(null, 50).then(res => {
-    senderAccounts.value = Array.isArray(res) ? res : (res?.list || [])
-  }).catch(() => {})
+// The From list is the set of addresses this member may actually send from:
+// their own mailbox plus every shared inbox they hold send rights in. It is
+// read from stored membership, so an address the member has no access to can
+// never appear here or be chosen.
+function loadSenderAccounts(force = false) {
+  return mailboxStore.load(force).then(() => {
+    senderAccounts.value = mailboxStore.sendableMailboxes.map(box => {
+      const isPersonal = box.mailbox_type === 'personal'
+      // A shared address sends as the company: a member's personal sign-off
+      // must never travel with it. Only the personal mailbox carries a signature.
+      const local = isPersonal ? (accountStore.currentAccount || {}) : {}
+      return {
+        ...local,
+        accountId: box.account_id,
+        email: box.email,
+        name: box.display_name || box.email,
+        mailboxType: box.mailbox_type,
+        signature: isPersonal ? local.signature : '',
+        signatureText: isPersonal ? local.signatureText : '',
+        signatureEnabled: isPersonal ? local.signatureEnabled : 0,
+      }
+    })
+    return senderAccounts.value
+  }).catch(error => {
+    console.error('Sender accounts failed:', error)
+    return senderAccounts.value
+  })
 }
 
 function handleSenderChange(accountId) {
@@ -682,6 +710,9 @@ function addRecipientRecord() {
 }
 
 function resetForm(initialContent = '') {
+  window.clearTimeout(draftSaveTimer)
+  window.clearTimeout(draftStatusTimer)
+  draftStatus.value = ''
   form.receiveEmail = []
   form.subject = ''
   form.content = ''
@@ -700,6 +731,54 @@ function resetForm(initialContent = '') {
   backReply.sendType = ''
   editor.value.setContent(initialContent)
 }
+
+function hasDraftContent() {
+  const body = form.content || editor.value?.getContent?.() || ''
+  return Boolean(body || form.subject || (form.receiveEmail && form.receiveEmail.length))
+}
+
+async function persistDraft() {
+  if (!show.value || !hasDraftContent() || !db.value?.draft) return
+  draftStatus.value = t('draftSaving')
+  try {
+    if (!form.content && editor.value?.getContent) {
+      form.content = editor.value.getContent()
+    }
+    const payload = {...toRaw(form)}
+    delete payload.attachments
+    if (form.draftId) {
+      await db.value.draft.update(form.draftId, payload)
+    } else {
+      const createPayload = {...payload}
+      delete createPayload.draftId
+      createPayload.createTime = dayjs().utc().format('YYYY-MM-DD HH:mm:ss')
+      form.draftId = await db.value.draft.add(createPayload)
+      await db.value.att.add({draftId: form.draftId, attachments: toRaw(form.attachments || [])})
+      draftStore.refreshList++
+    }
+    draftStatus.value = t('draftSaved')
+  } catch (error) {
+    console.error('Draft autosave failed:', error)
+    draftStatus.value = t('draftSaveFailed')
+  } finally {
+    window.clearTimeout(draftStatusTimer)
+    draftStatusTimer = window.setTimeout(() => { draftStatus.value = '' }, 2500)
+  }
+}
+
+function scheduleDraftSave() {
+  if (!show.value) return
+  window.clearTimeout(draftSaveTimer)
+  draftSaveTimer = window.setTimeout(persistDraft, 1500)
+}
+
+watch(
+  () => [form.subject, form.content, form.receiveEmail, form.accountId],
+  () => {
+    if (show.value) scheduleDraftSave()
+  },
+  {deep: true}
+)
 
 function change(content, text) {
   form.content = content;
@@ -781,24 +860,41 @@ function formatImage(content) {
   return content.replace(/{{domain}}/g, ossDomain ? ossDomain + '/' : '/oss/');
 }
 
-function open() {
-  loadSenderAccounts()
+async function open(options = {}) {
+  // Always re-read the list: a shared inbox granted after the page loaded has
+  // to be selectable as From without a reload.
+  await loadSenderAccounts(true)
   if (!form.sendType) {
     resetForm(newDraftContent())
   }
   mailboxTemplates()
     .then(templateRows => templates.value = templateRows)
     .catch(error => console.error(error))
-  if (!accountStore.currentAccount?.email) {
-    form.sendEmail = userStore.user.email;
-    form.accountId = userStore.user.account?.accountId || -1;
-    form.name = userStore.user.name;
-  } else {
-    form.sendEmail = accountStore.currentAccount.email;
-    form.accountId = accountStore.currentAccount.accountId;
-    form.name = accountStore.currentAccount.name;
+  // The sender defaults to the mailbox the member opened the composer from,
+  // and to their own mailbox everywhere else. It is always visible before send.
+  const preferredId = Number(options.mailboxId) || 0
+  let chosen = preferredId
+    ? senderAccounts.value.find(item => Number(item.accountId) === preferredId)
+    : null
+  if (!chosen) chosen = senderAccounts.value.find(item => item.mailboxType === 'personal')
+  if (!chosen && senderAccounts.value.length) chosen = senderAccounts.value[0]
+  if (!chosen && accountStore.currentAccount?.email) {
+    chosen = {
+      accountId: accountStore.currentAccount.accountId,
+      email: accountStore.currentAccount.email,
+      name: accountStore.currentAccount.name,
+    }
   }
-  show.value = true;
+  if (chosen) {
+    form.sendEmail = chosen.email
+    form.accountId = chosen.accountId
+    form.name = chosen.name || userStore.user.name || ''
+  } else {
+    form.sendEmail = userStore.user.email
+    form.accountId = userStore.user.account?.accountId || -1
+    form.name = userStore.user.name
+  }
+  show.value = true
   editor.value?.focus?.()
 }
 
@@ -1026,10 +1122,17 @@ function close() {
       .item-title {
       }
 
-      .button-item {
-        display: grid;
-        grid-template-columns: auto auto 1fr auto;
+.button-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 
+  .draft-status {
+    margin-left: auto;
+    color: var(--hq-muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
         .att-add {
           cursor: pointer;
         }

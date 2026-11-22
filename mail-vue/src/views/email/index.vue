@@ -2,22 +2,33 @@
   <div class="inbox-workspace">
     <section class="message-column" aria-label="Message list">
       <header class="inbox-heading">
-        <div>
+        <div class="inbox-title">
           <div class="eyebrow">MAILBOX</div>
           <h1>Inbox</h1>
+          <div v-if="unreadCount" class="inbox-subtitle">{{ unreadCount }} unread</div>
         </div>
-        <span class="account-label">{{ accountStore.currentAccount?.email || '' }}</span>
+        <el-dropdown trigger="click" @command="toggleFilter">
+          <button type="button" class="filter-btn" :class="{ active: hasActiveFilter }" aria-label="Filter messages">
+            <Icon icon="fluent:filter-16-regular" width="15" height="15" />
+            <span>Filter</span>
+            <span v-if="activeFilterCount" class="filter-count">{{ activeFilterCount }}</span>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="unread">
+                <span class="filter-option" :class="{ 'is-on': emailStore.searchParams.unreadOnly }">Unread only</span>
+              </el-dropdown-item>
+              <el-dropdown-item command="starred">
+                <span class="filter-option" :class="{ 'is-on': emailStore.searchParams.starredOnly }">Starred only</span>
+              </el-dropdown-item>
+              <el-dropdown-item command="attachments">
+                <span class="filter-option" :class="{ 'is-on': emailStore.searchParams.hasAttachments }">Has attachments</span>
+              </el-dropdown-item>
+              <el-dropdown-item command="clear" divided>Clear filters</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </header>
-      <nav class="inbox-filters" aria-label="Filter inbox">
-        <button
-          v-for="filter in inboxFilters"
-          :key="filter.key"
-          type="button"
-          :class="{ active: activeFilter === filter.key }"
-          :aria-pressed="activeFilter === filter.key"
-          @click="setInboxFilter(filter.key)"
-        >{{ filter.label }}</button>
-      </nav>
       <emailScroll ref="scroll"
                  :cancel-success="cancelStar"
                  :star-success="addStar"
@@ -41,7 +52,11 @@
         embedded
         @close="closeReader"
       />
-      <el-empty v-else description="Select an email to read" />
+      <div v-else class="reader-empty">
+        <span class="reader-empty-icon"><Icon icon="hugeicons:mail-open-01" width="26" height="26" /></span>
+        <p class="reader-empty-title">No message selected</p>
+        <p class="reader-empty-hint">Choose a conversation from the list to read it here.</p>
+      </div>
     </section>
   </div>
 </template>
@@ -53,12 +68,13 @@ import {useSettingStore} from "@/store/setting.js";
 import emailScroll from "@/components/email-scroll/index.vue"
 import {emailList, emailDelete, emailLatest, emailRead} from "@/request/email.js";
 import {starAdd, starCancel} from "@/request/star.js";
-import {mailboxFolderList, mailboxMove} from "@/request/mailbox.js";
+import {mailboxFolderList, mailboxMove, mailboxCounts} from "@/request/mailbox.js";
 import {computed, defineOptions, onMounted, onUnmounted, ref, watch} from "vue";
 import {sleep} from "@/utils/time-utils.js";
 import router from "@/router/index.js";
 import { useRoute } from 'vue-router'
 import ContentView from '@/views/content/index.vue'
+import { Icon } from '@iconify/vue'
 
 defineOptions({
   name: 'email'
@@ -80,22 +96,25 @@ const mailboxActions = ref([
   {label: 'Mark as Notification', value: 'category:notification'},
   {label: 'Mark as Primary', value: 'category:primary'},
 ])
-const inboxFilters = [
-  {key: 'all', label: 'All'},
-  {key: 'unread', label: 'Unread'},
-  {key: 'starred', label: 'Starred'},
-  {key: 'attachments', label: 'Attachments'},
-]
-const activeFilter = computed(() => {
-  const params = emailStore.searchParams
-  if (params.unreadOnly) return 'unread'
-  if (params.starredOnly) return 'starred'
-  if (params.hasAttachments) return 'attachments'
-  return 'all'
-})
+const hasActiveFilter = computed(() =>
+  Boolean(emailStore.searchParams.unreadOnly || emailStore.searchParams.starredOnly || emailStore.searchParams.hasAttachments)
+)
+const activeFilterCount = computed(() =>
+  [emailStore.searchParams.unreadOnly, emailStore.searchParams.starredOnly, emailStore.searchParams.hasAttachments].filter(Boolean).length
+)
+const folderCounts = ref({})
+const unreadCount = computed(() => Number(folderCounts.value.unread) || 0)
+
+function loadFolderCounts() {
+  mailboxCounts()
+    .then(counts => { folderCounts.value = counts || {} })
+    .catch(error => console.error('Mailbox counts failed:', error))
+}
 onMounted(() => {
   emailStore.emailScroll = scroll;
   window.addEventListener('resize', updateDesktopLayout)
+  window.addEventListener('mailbox:updated', loadFolderCounts)
+  loadFolderCounts()
   latest()
   mailboxFolderList().then(folders => {
     mailboxActions.value.push(...folders.map(folder => ({
@@ -107,18 +126,26 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateDesktopLayout)
+  window.removeEventListener('mailbox:updated', loadFolderCounts)
 })
 
 function updateDesktopLayout() {
   isDesktop.value = window.innerWidth >= 700
 }
 
-function setInboxFilter(filter) {
-  emailStore.setSearchParams({
-    unreadOnly: filter === 'unread',
-    starredOnly: filter === 'starred',
-    hasAttachments: filter === 'attachments',
-  })
+function toggleFilter(key) {
+  const params = emailStore.searchParams
+  if (key === 'clear') {
+    emailStore.setSearchParams({unreadOnly: false, starredOnly: false, hasAttachments: false})
+    return
+  }
+  if (key === 'unread') {
+    emailStore.setSearchParams({unreadOnly: !params.unreadOnly})
+  } else if (key === 'starred') {
+    emailStore.setSearchParams({starredOnly: !params.starredOnly})
+  } else if (key === 'attachments') {
+    emailStore.setSearchParams({hasAttachments: !params.hasAttachments})
+  }
 }
 
 
@@ -279,7 +306,7 @@ async function applyMailboxAction(ids, action) {
 
 .message-column {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -312,48 +339,103 @@ async function applyMailboxAction(ids, action) {
   letter-spacing: -.025em;
 }
 
-.account-label {
-  max-width: 52%;
-  overflow: hidden;
-  color: var(--el-text-color-secondary);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.inbox-title {
+  min-width: 0;
 }
 
-.inbox-filters {
-  display: flex;
-  gap: 5px;
-  padding: 0 14px 10px;
-  border-bottom: 1px solid var(--el-border-color);
+.inbox-subtitle {
+  margin-top: 2px;
+  color: var(--hq-muted);
+  font-size: 11px;
 }
 
-.inbox-filters button {
-  min-height: 29px;
-  padding: 0 11px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--el-text-color-secondary);
-  font-size: 11px;
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  flex: 0 0 auto;
+  border: 1px solid var(--hq-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--hq-text-secondary);
+  font-size: 12px;
   font-weight: 550;
   cursor: pointer;
-  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
 }
 
-.inbox-filters button:hover {
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-primary);
+.filter-btn:hover {
+  background: var(--hq-hover);
+  color: var(--hq-text);
 }
 
-.inbox-filters button.active {
-  border-color: var(--el-border-color);
-  background: var(--el-text-color-primary);
+.filter-btn.active {
+  border-color: var(--hq-border-strong);
+  background: var(--hq-selected);
+  color: var(--hq-accent-strong);
+}
+
+.filter-btn:focus-visible {
+  outline: 2px solid var(--hq-focus);
+  outline-offset: 2px;
+}
+
+.filter-count {
+  display: inline-grid;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--hq-accent);
   color: #fff;
+  font-size: 10px;
+  font-weight: 700;
 }
 
-.inbox-filters button.active:hover {
-  background: var(--el-text-color-primary);
-  color: #fff;
+.filter-option.is-on {
+  color: var(--hq-accent-strong);
+  font-weight: 600;
+}
+
+.reader-empty {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+  color: var(--hq-muted);
+}
+
+.reader-empty-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 6px;
+  place-items: center;
+  border: 1px solid var(--hq-border);
+  border-radius: 14px;
+  background: var(--hq-surface);
+  color: var(--hq-text-secondary);
+}
+
+.reader-empty-title {
+  margin: 0;
+  color: var(--hq-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.reader-empty-hint {
+  max-width: 260px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .reading-pane {
@@ -367,15 +449,15 @@ async function applyMailboxAction(ids, action) {
   height: 100%;
 }
 
+@media (min-width: 701px) and (max-width: 900px) {
+  .inbox-workspace {
+    grid-template-columns: minmax(225px, 46%) minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 700px) {
   .inbox-workspace {
     display: block;
-  }
-
-  @media (min-width: 701px) and (max-width: 900px) {
-    .inbox-workspace {
-      grid-template-columns: minmax(225px, 46%) minmax(0, 1fr);
-    }
   }
 
   .message-column {
@@ -386,21 +468,16 @@ async function applyMailboxAction(ids, action) {
   .reading-pane {
     display: none;
   }
+
+  .filter-btn span:not(.filter-count) {
+    display: none;
+  }
 }
 
 @media (max-width: 480px) {
   .inbox-heading {
     min-height: 64px;
     padding: 10px 14px;
-  }
-
-  .inbox-filters {
-    gap: 2px;
-    padding: 0 10px 10px;
-  }
-
-  .inbox-filters button {
-    padding: 0 9px;
   }
 }
 </style>

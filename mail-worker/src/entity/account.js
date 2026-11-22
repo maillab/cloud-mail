@@ -12,9 +12,20 @@ export const account = sqliteTable('account', {
 	sort: integer('sort').default(0).notNull(),
 	isDel: integer('is_del').default(0).notNull(),
 	signatureImageKey: text('signature_image_key'),
+	// The downscaled asset actually embedded in outgoing mail. The master is kept
+	// only so the image can be replaced or re-derived later.
+	signatureDeliveryKey: text('signature_delivery_key'),
 	signatureText: text('signature_text').default('').notNull(),
 	signature: text('signature').default('').notNull(),
 	signatureEnabled: integer('signature_enabled').default(1).notNull(),
 	signatureReplyEnabled: integer('signature_reply_enabled').default(1).notNull(),
+	// 'personal' = one team member's own address; 'shared' = an operational
+	// company address (support@, legal@ …) that several members work.
+	mailboxType: text('mailbox_type').default('personal').notNull(),
+	displayName: text('display_name').default('').notNull(),
+	mailboxStatus: text('mailbox_status').default('active').notNull(),
+	inboundState: text('inbound_state').default('unknown').notNull(),
+	outboundState: text('outbound_state').default('unknown').notNull(),
+	healthCheckedAt: text('health_checked_at'),
 });
 export default account

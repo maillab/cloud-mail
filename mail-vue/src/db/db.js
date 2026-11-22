@@ -8,7 +8,11 @@ const userStore = useUserStore();
 let db =  shallowRef({})
 
 function createDB() {
-    db.value = new Dexie(userStore.user.email);
+    // The database is per employee, so it cannot be opened before there is an
+    // identity. Importing this module during startup must not throw.
+    const email = userStore.user?.email;
+    if (!email) return;
+    db.value = new Dexie(email);
     db.value.version(1).stores({
         draft: '++draftId,createTime'
     })
@@ -20,6 +24,6 @@ function createDB() {
 
 createDB()
 
-watch(() => userStore.user.email,() => createDB())
+watch(() => userStore.user?.email,() => createDB())
 
 export default db;

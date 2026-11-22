@@ -34,10 +34,87 @@
               </header>
 
               <div class="card-box">
+                <div class="identity-head">
+                  <hq-avatar :src="identity.avatarUrl" :name="identity.displayName" :username="identity.username" :size="56" />
+                  <div class="identity-head-copy">
+                    <div class="identity-name">{{ identity.displayName || 'Not set' }}</div>
+                    <div class="identity-handle">{{ identity.username ? '@' + identity.username : 'No username yet' }}</div>
+                    <div class="identity-meta">
+                      {{ identity.jobTitle || 'No job title' }}
+                      <span v-if="identity.team"> · {{ identity.team.name }}</span>
+                    </div>
+                  </div>
+                  <div class="identity-head-actions">
+                    <el-button size="small" :loading="avatarSaving" @click="pickAvatar">Change photo</el-button>
+                    <el-button v-if="identity.avatarUrl" size="small" text type="danger" @click="removeAvatar">Remove</el-button>
+                    <input ref="avatarInput" type="file" accept="image/png,image/jpeg,image/webp" class="hidden-file" @change="onAvatarChange" />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="field-info">
+                    <label class="field-label">Display name</label>
+                    <span class="field-desc">How you appear across HQ: people, requests, decisions, tasks and audit history.</span>
+                  </div>
+                  <div class="field-control">
+                    <el-input v-model="identityForm.displayName" maxlength="80" placeholder="e.g. Rodney" />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="field-info">
+                    <label class="field-label">Username</label>
+                    <span class="field-desc">Your @handle. Used for mentions, assignments and audit history.</span>
+                  </div>
+                  <div class="field-control">
+                    <el-input v-model="identityForm.username" maxlength="24" placeholder="e.g. rodney">
+                      <template #prepend>@</template>
+                    </el-input>
+                    <div v-if="identityError" class="field-error">{{ identityError }}</div>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="field-info">
+                    <label class="field-label">Position</label>
+                    <span class="field-desc">Your position is set by an administrator. Ask them to change it.</span>
+                  </div>
+                  <div class="field-control">
+                    <el-input :model-value="identity.jobTitle" disabled placeholder="Not set" />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="field-info">
+                    <label class="field-label">Work phone</label>
+                    <span class="field-desc">Optional. Only visible to you on your own profile.</span>
+                  </div>
+                  <div class="field-control">
+                    <el-input v-model="identityForm.phone" maxlength="20" placeholder="+2547…" />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="field-info">
+                    <label class="field-label">Team</label>
+                    <span class="field-desc">Team membership is managed by an administrator.</span>
+                  </div>
+                  <div class="field-control">
+                    <el-input :model-value="identity.team ? identity.team.name : ''" disabled placeholder="Not in a team" />
+                  </div>
+                </div>
+
+                <div class="identity-actions">
+                  <el-button type="primary" :loading="savingIdentity" @click="saveIdentity">Save identity</el-button>
+                  <el-button :disabled="savingIdentity" @click="resetIdentityForm">Reset</el-button>
+                </div>
+              </div>
+
+              <div class="card-box">
                 <div class="form-row">
                   <div class="field-info">
                     <label class="field-label">{{ $t('username') }}</label>
-                    <span class="field-desc">Your display name shown to email recipients and team members.</span>
+                    <span class="field-desc">Your mail display name shown to email recipients.</span>
                   </div>
                   <div class="field-control">
                     <div v-if="editingName" class="inline-edit">
@@ -71,7 +148,7 @@
                   </div>
                   <div class="field-control">
                     <el-tag :type="userStore.user.type === 0 ? 'warning' : 'info'" size="small">
-                      {{ userStore.user.role?.roleName || (userStore.user.type === 0 ? 'Administrator' : 'Employee') }}
+                      {{ userStore.user.role?.roleName || (userStore.user.type === 0 ? 'Administrator' : 'Team member') }}
                     </el-tag>
                   </div>
                 </div>
@@ -262,42 +339,81 @@
               </div>
             </section>
 
-            <!-- TAB 4: APPEARANCE -->
-            <section v-if="activeTab === 'appearance'" class="settings-section">
-              <header class="section-header">
-                <h3>{{ $t('appearance') }}</h3>
-                <p>Customize the look and feel of XPass HQ for your display preference.</p>
-              </header>
-
-              <div class="card-box">
-                <div class="form-row appearance-row">
-                  <div class="field-info">
-                    <label class="field-label">{{ $t('themeStyle') }}</label>
-                    <span class="field-desc">Select between Light, Dark, or automatically match your operating system appearance.</span>
-                  </div>
-                  <div class="field-control full-width">
-                    <ThemeSelector />
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <!-- TAB 5: NOTIFICATIONS -->
+            <!-- TAB 4: NOTIFICATIONS -->
             <section v-if="activeTab === 'notifications'" class="settings-section">
               <header class="section-header">
                 <h3>{{ $t('noticeTitle') }}</h3>
-                <p>Company-wide bulletins, updates, and system notices.</p>
+                <p>Choose how XPass HQ keeps you informed. Security alerts are always on.</p>
               </header>
 
               <div class="card-box">
-                <div class="form-row">
-                  <div class="field-info">
-                    <label class="field-label">{{ $t('noticeInfo') }}</label>
-                    <span class="field-desc">Review notices and announcements published by XPass leadership.</span>
+                <div v-loading="notifLoading" class="pref-list">
+                  <div class="pref-row">
+                    <div class="field-info">
+                      <label class="field-label">{{ $t('notifEmail') }}</label>
+                      <span class="field-desc">{{ $t('notifEmailDesc') }}</span>
+                    </div>
+                    <div class="field-control">
+                      <el-switch v-model="notifPrefs.email" :disabled="notifSaving" />
+                    </div>
                   </div>
-                  <div class="field-control">
-                    <el-button plain @click="uiStore.showNotice()">{{ $t('viewNotice') }}</el-button>
+                  <div class="pref-row">
+                    <div class="field-info">
+                      <label class="field-label">{{ $t('notifInApp') }}</label>
+                      <span class="field-desc">{{ $t('notifInAppDesc') }}</span>
+                    </div>
+                    <div class="field-control">
+                      <el-switch v-model="notifPrefs.inApp" :disabled="notifSaving" />
+                    </div>
                   </div>
+                  <div class="pref-row">
+                    <div class="field-info">
+                      <label class="field-label">{{ $t('notifDigest') }}</label>
+                      <span class="field-desc">{{ $t('notifDigestDesc') }}</span>
+                    </div>
+                    <div class="field-control">
+                      <el-switch v-model="notifPrefs.digest" :disabled="notifSaving" />
+                    </div>
+                  </div>
+                  <div class="pref-row is-locked">
+                    <div class="field-info">
+                      <label class="field-label">{{ $t('notifSecurity') }}</label>
+                      <span class="field-desc">{{ $t('notifSecurityDesc') }}</span>
+                    </div>
+                    <div class="field-control">
+                      <el-switch :model-value="true" disabled />
+                    </div>
+                  </div>
+                </div>
+                <div class="pref-actions">
+                  <el-button type="primary" :loading="notifSaving" @click="saveNotifPrefs">{{ $t('save') }}</el-button>
+                  <el-button plain @click="resetNotifPrefs">{{ $t('reset') }}</el-button>
+                  <el-button plain @click="uiStore.showNotice()">{{ $t('viewNotice') }}</el-button>
+                </div>
+              </div>
+
+              <!-- TOUR PREFERENCES -->
+              <div class="card-box">
+                <header class="section-header">
+                  <h3>{{ $t('tourPreferences') }}</h3>
+                  <p>{{ $t('tourPreferencesDesc') }}</p>
+                </header>
+                <div class="pref-list">
+                  <div class="pref-row">
+                    <div class="field-info">
+                      <label class="field-label">{{ $t('tourAutoStart') }}</label>
+                      <span class="field-desc">{{ $t('tourAutoStartDesc') }}</span>
+                    </div>
+                    <div class="field-control">
+                      <el-switch v-model="tutorialPrefs.showOnFirstVisit" @change="saveTutorialPrefs" />
+                    </div>
+                  </div>
+                </div>
+                <div class="pref-actions">
+                  <el-button v-for="tour in availableTours" :key="tour.id" plain @click="startTour(tour.id)">
+                    {{ tour.title }}
+                  </el-button>
+                  <el-button plain type="danger" @click="resetAllTours">{{ $t('reset') }}</el-button>
                 </div>
               </div>
             </section>
@@ -305,41 +421,11 @@
             <!-- TAB 6: SECURITY -->
             <section v-if="activeTab === 'security'" class="settings-section">
               <header class="section-header">
-                <h3>{{ $t('security') }}</h3>
-                <p>Credential management and account protection status.</p>
+                <h3>Security</h3>
+                <p>Your password, authenticator, recovery codes and active sessions.</p>
               </header>
 
-              <div class="card-box">
-                <div class="form-row">
-                  <div class="field-info">
-                    <label class="field-label">{{ $t('securityAuthStatus') }}</label>
-                    <span class="field-desc">{{ $t('securityAuthStatusDesc') }}</span>
-                  </div>
-                  <div class="field-control">
-                    <el-tag type="success" effect="plain">Authenticated</el-tag>
-                  </div>
-                </div>
-
-                <div class="form-row">
-                  <div class="field-info">
-                    <label class="field-label">{{ $t('password') }}</label>
-                    <span class="field-desc">Change your password to keep your mailbox protected.</span>
-                  </div>
-                  <div class="field-control">
-                    <el-button plain @click="pwdShow = true">{{ $t('changePassword') }}</el-button>
-                  </div>
-                </div>
-
-                <div class="form-row">
-                  <div class="field-info">
-                    <label class="field-label">Multi-Factor Authentication (MFA)</label>
-                    <span class="field-desc">{{ $t('security2faNotice') }}</span>
-                  </div>
-                  <div class="field-control">
-                    <el-tag type="info">Planned for Identity Sprint</el-tag>
-                  </div>
-                </div>
-              </div>
+              <hq-security-panel @changed="onSecurityChanged" />
 
               <!-- DANGER ZONE -->
               <div v-perm="'my:delete'" class="card-box danger-card">
@@ -371,25 +457,32 @@
 </template>
 
 <script setup>
-import { computed, defineOptions, onMounted, reactive, ref } from 'vue'
+import { computed, defineOptions, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@/store/user.js'
+import { loginUserInfo } from '@/request/my.js'
 import { useAccountStore } from '@/store/account.js'
 import { useUiStore } from '@/store/ui.js'
 import router from '@/router/index.js'
 import { resetPassword, updateSignature, userDelete } from '@/request/my.js'
 import { accountList, accountSetName, accountSetSignature } from '@/request/account.js'
-import ThemeSelector from '@/components/theme-selector/index.vue'
 import { fileToBase64 } from '@/utils/file-utils.js'
+import HqAvatar from '@/components/hq-avatar/index.vue'
+import HqSecurityPanel from '@/components/hq-security/index.vue'
+import { identityGet, identityUpdate, avatarUpload, avatarRemove, teamList } from '@/request/profile.js'
 import { sanitizeSignatureHtml } from '@/utils/email-html.js'
+import { notificationsPreferencesGet, notificationsPreferencesSet, notificationsPreferencesReset } from '@/request/notifications.js'
+import { useTutorialStore } from '@/store/tutorial.js'
 
 defineOptions({
   name: 'setting'
 })
 
 const { t } = useI18n()
+const route = useRoute()
 const userStore = useUserStore()
 const accountStore = useAccountStore()
 const uiStore = useUiStore()
@@ -399,15 +492,230 @@ const navTabs = [
   { id: 'profile', label: 'profile', icon: 'fluent:person-20-regular' },
   { id: 'accounts', label: 'mailAccounts', icon: 'fluent:mail-multiple-20-regular' },
   { id: 'signatures', label: 'emailSignatures', icon: 'hugeicons:quill-write-01' },
-  { id: 'appearance', label: 'appearance', icon: 'fluent:paint-brush-20-regular' },
   { id: 'notifications', label: 'noticeTitle', icon: 'fluent:alert-20-regular' },
   { id: 'security', label: 'security', icon: 'fluent:shield-keyhole-20-regular' },
 ]
+
+function applyTabFromRoute() {
+  const requested = route.query.tab
+  if (typeof requested === 'string' && navTabs.some(tab => tab.id === requested)) {
+    activeTab.value = requested
+  }
+}
+applyTabFromRoute()
+watch(() => route.query.tab, applyTabFromRoute)
+
+// SECURITY TAB
+// The panel loads and owns its own data; the settings page only needs to
+// refresh the cached identity so the header reflects a changed display name.
+function onSecurityChanged() {
+  loginUserInfo().then(user => {
+    if (user) userStore.user = user
+  }).catch(() => {})
+}
+
+// NOTIFICATION PREFERENCES TAB
+// Channel toggles the member controls. Security is always on (server-enforced),
+// so it is shown locked rather than as a mutable switch.
+const notifLoading = ref(false)
+const notifSaving = ref(false)
+const notifPrefs = reactive({ email: true, inApp: true, digest: false })
+
+async function loadNotifPrefs() {
+  notifLoading.value = true
+  try {
+    const prefs = await notificationsPreferencesGet()
+    notifPrefs.email = prefs?.email !== false
+    notifPrefs.inApp = prefs?.inApp !== false
+    notifPrefs.digest = prefs?.digest === true
+  } catch {
+    // keep defaults; the panel still works if the read fails
+  } finally {
+    notifLoading.value = false
+  }
+}
+
+async function saveNotifPrefs() {
+  if (notifSaving.value) return
+  notifSaving.value = true
+  try {
+    await notificationsPreferencesSet({
+      email: notifPrefs.email,
+      inApp: notifPrefs.inApp,
+      digest: notifPrefs.digest,
+    })
+    ElMessage({ message: 'Notification preferences saved.', type: 'success', plain: true })
+  } catch {
+    // interceptor surfaces the reason
+  } finally {
+    notifSaving.value = false
+  }
+}
+
+async function resetNotifPrefs() {
+  try {
+    await notificationsPreferencesReset()
+    notifPrefs.email = true
+    notifPrefs.inApp = true
+    notifPrefs.digest = false
+    ElMessage({ message: 'Notification preferences reset.', type: 'success', plain: true })
+  } catch {
+    // interceptor surfaces the reason
+  }
+}
+
+// TOUR PREFERENCES
+const tutorialStore = useTutorialStore()
+const tutorialPrefs = reactive({ showOnFirstVisit: true })
+const availableTours = computed(() => tutorialStore.availableTours)
+
+async function saveTutorialPrefs() {
+  await tutorialStore.savePreferences({ showOnFirstVisit: tutorialPrefs.showOnFirstVisit })
+}
+
+function startTour(tourId) {
+  tutorialStore.startTour(tourId)
+}
+
+async function resetAllTours() {
+  await tutorialStore.resetAll()
+  ElMessage({ message: 'Tour progress reset.', type: 'success', plain: true })
+}
 
 // PROFILE TAB
 const editingName = ref(false)
 const nameInput = ref('')
 const savingName = ref(false)
+
+// INTERNAL IDENTITY
+const identity = ref({ userId: null, displayName: '', username: '', email: '', avatarUrl: '', jobTitle: '', phone: '', team: null })
+const identityForm = ref({ displayName: '', username: '', jobTitle: '', phone: '', teamId: null })
+const identityError = ref('')
+const savingIdentity = ref(false)
+const avatarSaving = ref(false)
+const avatarInput = ref(null)
+const teams = ref([])
+
+function resetIdentityForm() {
+  identityError.value = ''
+  identityForm.value = {
+    displayName: identity.value.displayName || '',
+    username: identity.value.username || '',
+    jobTitle: identity.value.jobTitle || '',
+    phone: identity.value.phone || '',
+    teamId: identity.value.team?.id ?? null
+  }
+}
+
+async function loadIdentity() {
+  try {
+    const data = await identityGet()
+    if (data) {
+      identity.value = {
+        userId: data.userId,
+        displayName: data.displayName || '',
+        username: data.username || '',
+        email: data.email || '',
+        avatarUrl: data.avatarUrl || '',
+        jobTitle: data.jobTitle || '',
+        phone: data.phone || '',
+        team: data.team || null
+      }
+      resetIdentityForm()
+    }
+  } catch (error) {
+    identityError.value = error.message || 'Could not load your identity.'
+  }
+}
+
+async function loadTeams() {
+  try {
+    teams.value = await teamList()
+  } catch {
+    teams.value = []
+  }
+}
+
+async function saveIdentity() {
+  identityError.value = ''
+  savingIdentity.value = true
+  try {
+    const data = await identityUpdate({
+      displayName: identityForm.value.displayName,
+      username: identityForm.value.username,
+      phone: identityForm.value.phone
+    })
+    identity.value = {
+      ...identity.value,
+      displayName: data.displayName || '',
+      username: data.username || '',
+      jobTitle: data.jobTitle || '',
+      phone: data.phone || '',
+      team: data.team || null
+    }
+    resetIdentityForm()
+    await userStore.refreshUserInfo()
+    ElMessage({ message: 'Identity updated.', type: 'success', plain: true })
+  } catch (error) {
+    identityError.value = error.message || 'Could not save your identity.'
+    ElMessage({ message: identityError.value, type: 'error', plain: true })
+  } finally {
+    savingIdentity.value = false
+  }
+}
+
+function pickAvatar() {
+  avatarInput.value?.click()
+}
+
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Could not read that file.'))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function onAvatarChange(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+    ElMessage({ message: 'Choose a PNG, JPG or WEBP image.', type: 'warning', plain: true })
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage({ message: 'Profile photo must be 2 MB or smaller.', type: 'warning', plain: true })
+    return
+  }
+  avatarSaving.value = true
+  try {
+    const dataUrl = await readAsDataUrl(file)
+    const result = await avatarUpload(dataUrl)
+    identity.value = { ...identity.value, avatarUrl: result?.avatarUrl || identity.value.avatarUrl }
+    await userStore.refreshUserInfo()
+    ElMessage({ message: 'Profile photo updated.', type: 'success', plain: true })
+  } catch (error) {
+    ElMessage({ message: error.message || 'Could not upload that image.', type: 'error', plain: true })
+  } finally {
+    avatarSaving.value = false
+  }
+}
+
+async function removeAvatar() {
+  avatarSaving.value = true
+  try {
+    await avatarRemove()
+    identity.value = { ...identity.value, avatarUrl: '' }
+    await userStore.refreshUserInfo()
+    ElMessage({ message: 'Profile photo removed.', type: 'success', plain: true })
+  } catch (error) {
+    ElMessage({ message: error.message || 'Could not remove that image.', type: 'error', plain: true })
+  } finally {
+    avatarSaving.value = false
+  }
+}
 
 function startEditName() {
   nameInput.value = userStore.user.name || ''
@@ -451,6 +759,17 @@ async function fetchAccounts() {
 onMounted(() => {
   fetchAccounts()
   loadSignatureScope('default')
+  loadIdentity()
+  loadTeams()
+  loadNotifPrefs()
+  tutorialStore.load().then(() => { tutorialPrefs.showOnFirstVisit = tutorialStore.preferences.showOnFirstVisit })
+})
+
+watch(activeTab, (tab) => {
+  if (tab === 'notifications') {
+    loadNotifPrefs()
+    tutorialStore.load().then(() => { tutorialPrefs.showOnFirstVisit = tutorialStore.preferences.showOnFirstVisit })
+  }
 })
 
 function editAccountSignature(acc) {
@@ -903,6 +1222,40 @@ function deleteConfirm() {
   }
 }
 
+.pref-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--hq-border);
+
+  &:first-child { padding-top: 0; }
+  &:last-child { padding-bottom: 0; border-bottom: none; }
+
+  &.is-locked .field-label {
+    color: var(--hq-muted);
+  }
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.pref-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+  flex-wrap: wrap;
+}
+
 .accounts-header {
   font-size: 13px;
   font-weight: 600;
@@ -1031,7 +1384,7 @@ function deleteConfirm() {
     object-fit: contain;
     border-radius: 4px;
     border: 1px solid var(--hq-border);
-    background: #ffffff;
+    background: var(--hq-surface);
   }
 
   .image-actions {
@@ -1121,4 +1474,86 @@ function deleteConfirm() {
   flex-direction: column;
   gap: 14px;
 }
-</style>
+
+.appearance-static {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--hq-border);
+  border-radius: 8px;
+  background: var(--hq-surface);
+  color: var(--hq-text-secondary);
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.appearance-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #050403;
+  box-shadow: inset 0 0 0 3px #ff5500;
+}
+
+.identity-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--hq-border);
+}
+
+.identity-head-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.identity-name {
+  color: var(--hq-text);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+}
+
+.identity-handle {
+  color: var(--hq-accent);
+  font-size: 12.5px;
+  font-weight: 550;
+}
+
+.identity-meta {
+  color: var(--hq-muted);
+  font-size: 12.5px;
+}
+
+.identity-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.hidden-file {
+  display: none;
+}
+
+.identity-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding-top: 14px;
+  border-top: 1px solid var(--hq-border);
+  margin-top: 6px;
+}
+
+.field-error {
+  margin-top: 6px;
+  color: var(--hq-danger);
+  font-size: 12px;
+}</style>

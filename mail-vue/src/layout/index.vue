@@ -23,14 +23,17 @@
     </el-container>
   </el-container>
   <writer ref="writerRef" />
+  <AiPanel />
+  <MobileBottomNav />
 </template>
 <script setup>
 import Aside from '@/layout/aside/index.vue'
 import Header from '@/layout/header/index.vue'
 import Main from '@/layout/main/index.vue'
+import AiPanel from '@/components/ai-panel/index.vue'
+import MobileBottomNav from '@/components/mobile-bottom-nav/index.vue'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import {useUiStore} from "@/store/ui.js";
-import {hasPerm} from "@/perm/perm.js";
 import writer from '@/layout/write/index.vue'
 
 const uiStore = useUiStore();
@@ -41,9 +44,8 @@ function handleComposeShortcut(event) {
   const isTyping = target instanceof HTMLElement
     && (target.isContentEditable || target.matches('input, textarea, select, [contenteditable="true"]'))
   if (event.key.toLowerCase() !== 'c' || event.altKey || event.ctrlKey || event.metaKey || isTyping) return
-  if (!hasPerm('email:send')) return
   event.preventDefault()
-  uiStore.writerRef?.open()
+  uiStore.openCompose()
 }
 const handleResize = () => {
   const nextIsMobile = window.innerWidth < 700
@@ -72,7 +74,8 @@ onBeforeUnmount(() => {
 }
 
 .aside-collapsed :deep(.sidebar-header) {
-  display: none;
+  justify-content: center;
+  padding: 0 8px;
 }
 
 .aside-collapsed :deep(.workspace-navigation) {
@@ -94,6 +97,15 @@ onBeforeUnmount(() => {
 .aside-collapsed :deep(.navigation-item) {
   justify-content: center;
   padding: 0;
+}
+
+.aside-collapsed :deep(.nav-group-main) {
+  justify-content: center;
+  padding: 0;
+}
+
+.aside-collapsed :deep(.nav-group-main span) {
+  display: none;
 }
 
 .aside-collapsed :deep(.mail-controls) {
@@ -146,38 +158,37 @@ onBeforeUnmount(() => {
 }
 
 .layout {
-  --el-bg-color: #fff;
-  --el-bg-color-page: #f6f3f2;
-  --el-bg-color-overlay: #fff;
-  --el-fill-color-light: #f5f2f0;
-  --el-fill-color-blank: #fff;
-  --el-text-color-primary: #252321;
-  --el-text-color-regular: #504b47;
-  --el-text-color-secondary: #817a75;
-  --el-border-color: #e7e2de;
-  --el-border-color-light: #ece8e5;
-  --el-border-color-lighter: #f1eeeb;
-  --extra-light-fill: #fff;
-  --settings-page-background: #f6f3f2;
-  --light-ill: #f7f4f2;
-  --light-border: #e7e2de;
-  --aside-backgound: #fff;
-  --aside-menu-active-background: #fff2eb;
-  --header-actions-border: inset 0 -1px 0 0 #ece8e5;
-  --dark-border: #e1dcd8;
-  --base-fill: #f4f1ef;
-  --regular-text-color: #716a66;
-  --light-border-color: #e7e2de;
-  --aside-right-border: 1px 0 0 rgba(40, 30, 20, .08);
-  --choose-account-background: #fff2eb;
-  --email-scroll-content-color: #817a75;
-  --email-hover-background: #faf7f5;
-  --email-right-click-background: #fff4ed;
-  --scrollbar-track-color: #c8c1bc;
-  --base-border-color: #e7e2de;
-  --secondary-text-color: #8c8580;
-  --message-block-color: rgba(255, 255, 255, 0);
-  color-scheme: light;
+  --el-bg-color: var(--hq-surface);
+  --el-bg-color-page: var(--hq-page);
+  --el-bg-color-overlay: var(--hq-surface);
+  --el-fill-color-light: var(--hq-hover);
+  --el-fill-color-blank: var(--hq-surface);
+  --el-text-color-primary: var(--hq-text);
+  --el-text-color-regular: var(--hq-text-secondary);
+  --el-text-color-secondary: var(--hq-muted);
+  --el-border-color: var(--hq-border);
+  --el-border-color-light: var(--hq-border);
+  --el-border-color-lighter: var(--hq-border);
+  --extra-light-fill: var(--hq-hover);
+  --settings-page-background: var(--hq-page);
+  --light-ill: var(--hq-hover);
+  --light-border: var(--hq-border);
+  --aside-backgound: var(--hq-sidebar);
+  --aside-menu-active-background: var(--hq-selected);
+  --header-actions-border: inset 0 -1px 0 0 var(--hq-border);
+  --dark-border: var(--hq-border);
+  --base-fill: var(--hq-hover);
+  --regular-text-color: var(--hq-text-secondary);
+  --light-border-color: var(--hq-border);
+  --aside-right-border: 1px 0 0 var(--hq-border);
+  --choose-account-background: var(--hq-selected);
+  --email-scroll-content-color: var(--hq-muted);
+  --email-hover-background: var(--hq-hover);
+  --email-right-click-background: var(--hq-selected);
+  --scrollbar-track-color: var(--hq-border);
+  --base-border-color: var(--hq-border);
+  --secondary-text-color: var(--hq-muted);
+  --message-block-color: rgba(0, 0, 0, 0);
   height: 100vh;
   height: 100svh;
   min-height: 0;
@@ -219,6 +230,12 @@ onBeforeUnmount(() => {
   .el-aside {
     width: min(330px, calc(100vw - 42px)) !important;
     flex-basis: min(330px, calc(100vw - 42px));
+  }
+
+  /* Reserve space for the fixed mobile bottom nav so content is not hidden. */
+  .main-container {
+    padding-bottom: 56px;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   }
 }
 

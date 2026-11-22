@@ -1,7 +1,7 @@
 <template>
   <div id="login-box" class="login-surface" v-loading="oauthLoading" element-loading-text="Signing in...">
     <main class="login-layout">
-      <img class="login-brand-logo" src="/xpass-logo.png" alt="XPass" />
+      <img class="login-brand-logo" src="/xpass-logo-inverted.png" alt="XPass" />
       <section class="login-brand">
         <div class="login-brand-copy">
           <div class="login-brand-kicker"><span></span> INTERNAL WORKSPACE.</div>
@@ -16,7 +16,7 @@
             Sign in to continue.
           </p>
 
-          <form class="auth-form" @submit.prevent="submit">
+          <form v-if="!mfaChallenge" class="auth-form" @submit.prevent="submit">
             <div class="auth-field">
               <label for="login-username">{{ hideLoginDomain ? $t('emailAccount') : 'Username' }}</label>
               <el-input
@@ -64,6 +64,65 @@
             </div>
           </form>
 
+          <form v-else class="auth-form" @submit.prevent="submitMfa">
+            <div class="auth-field">
+              <div class="mfa-identity-hint" v-if="emailHint">Signing in as <strong>{{ emailHint }}</strong></div>
+              <label for="login-code">{{ mfaMode === 'recovery' ? 'Recovery code' : 'Authenticator code' }}</label>
+              <el-input
+                v-if="mfaMode === 'recovery'"
+                id="login-recovery"
+                ref="mfaInput"
+                v-model="mfaRecovery"
+                maxlength="11"
+                class="mfa-recovery-input"
+                placeholder="XXXXX-XXXXX"
+                autocomplete="off"
+                @keyup.enter="submitMfa"
+              />
+              <el-input
+                v-else
+                id="login-code"
+                ref="mfaInput"
+                v-model="mfaCode"
+                maxlength="6"
+                class="mfa-code-input"
+                placeholder="000000"
+                autocomplete="one-time-code"
+                inputmode="numeric"
+                @keyup.enter="submitMfa"
+              />
+              <p v-if="mfaMode === 'totp'" class="mfa-help">
+                Open your authenticator app and enter the six-digit code for XPass HQ.
+              </p>
+              <p v-else class="mfa-help">
+                Enter one of the recovery codes you saved when you secured your account.
+              </p>
+              <p v-if="mfaError" class="inline-error">{{ mfaError }}</p>
+            </div>
+            <el-button class="auth-submit" type="primary" native-type="submit" :loading="loginLoading">
+              {{ loginLoading ? 'Verifying…' : (mfaMode === 'recovery' ? 'Continue' : 'Verify') }}
+            </el-button>
+            <div class="auth-switch">
+              <el-button
+                v-if="mfaMode === 'totp'"
+                class="auth-link"
+                @click="switchMfaMode('recovery')"
+              >
+                Can't access your authenticator? Use a recovery code
+              </el-button>
+              <el-button
+                v-else
+                class="auth-link"
+                @click="switchMfaMode('totp')"
+              >
+                Back to authenticator code
+              </el-button>
+            </div>
+            <div class="oauth-list">
+              <el-button class="oauth-button" @click="cancelMfa">Sign in with a different account</el-button>
+            </div>
+          </form>
+
         </div>
         <div class="login-brand-footer">Confidential system. Access limited to authorized personnel.</div>
       </section>
@@ -92,8 +151,8 @@
 <script setup>
 import router from "@/router";
 import {useRoute} from "vue-router";
-import {computed, reactive, ref} from "vue";
-import {login} from "@/request/login.js";
+import {computed, nextTick, reactive, ref} from "vue";
+import {login, verifyMfa} from "@/request/login.js";
 import {websiteConfig} from "@/request/setting.js";
 import {isEmail} from "@/utils/verify-utils.js";
 import {useSettingStore} from "@/store/setting.js";
@@ -144,10 +203,32 @@ const form = reactive({
   password: '',
 
 });
+
+// Second factor. The password is verified first, then the member either enters
+// A code or a recovery code; only then is a session issued.
+const mfaChallenge = ref(false)
+const mfaMode = ref('totp')
+const mfaCode = ref('')
+const mfaRecovery = ref('')
+const mfaError = ref('')
+const mfaInput = ref(null)
+// The pre-auth challenge token issued after the password stage. The MFA
+// verify endpoint derives the member's identity from this, so the client
+// never re-sends the email or password.
+const preAuthToken = ref('')
+const emailHint = ref('')
 const mySelect = ref()
 const suffix = ref('')
-const domainList = settingStore.domainList;
-suffix.value = domainList[0]
+// The domain list comes from the server, but the login page must remain usable
+// while the API is unreachable (worker cold start / network hiccup). Fall back
+// to the build-time domain so the suffix field is never blank.
+const domainList = computed(() => {
+  const fromServer = settingStore.domainList
+  if (Array.isArray(fromServer) && fromServer.length) return fromServer
+  const fallback = import.meta.env.VITE_LOGIN_DOMAIN || 'example.com'
+  return [fallback]
+})
+if (!suffix.value) suffix.value = domainList.value[0]
 
 const hideLoginDomain = computed(() => settingStore.settings.loginDomain === 1)
 
@@ -310,37 +391,184 @@ const submit = () => {
 
   loginLoading.value = true
   login(email, form.password).then(async data => {
+    if (data?.onboardingRequired) {
+      // A restricted session: it can reach the onboarding endpoints and nothing
+      // else, so the member is taken straight to security setup.
+      localStorage.setItem('token', data.token)
+      await router.replace({name: 'onboarding'})
+      return
+    }
+    // MFA is required: the server returned a pre-auth challenge instead of a
+    // session. Show the MFA screen and carry the challenge token.
+    if (data?.preAuthToken || data?.mfaRequired) {
+      mfaChallenge.value = true
+      mfaMode.value = 'totp'
+      mfaCode.value = ''
+      mfaRecovery.value = ''
+      mfaError.value = ''
+      preAuthToken.value = data.preAuthToken || ''
+      emailHint.value = data.emailHint || ''
+      return
+    }
     await saveToken(data.token)
+  }).catch(err => {
+    // A 428 with a preAuthToken means the password was right but MFA is
+    // still owed. The challenge token carries the identity forward.
+    if (err?.code === 428 && (err?.data?.mfaRequired || err?.data?.preAuthToken)) {
+      mfaChallenge.value = true
+      mfaMode.value = 'totp'
+      mfaCode.value = ''
+      mfaRecovery.value = ''
+      mfaError.value = ''
+      preAuthToken.value = err.data?.preAuthToken || ''
+      emailHint.value = err.data?.emailHint || ''
+      return
+    }
+    throw err
   }).finally(() => {
     loginLoading.value = false
   })
 }
 
+function switchMfaMode(mode) {
+  mfaMode.value = mode
+  mfaCode.value = ''
+  mfaRecovery.value = ''
+  mfaError.value = ''
+  nextTick(() => {
+    const input = mfaInput.value
+    if (input && typeof input.focus === 'function') input.focus()
+  })
+}
+
+async function submitMfa() {
+  // Mode-aware: authenticator OR recovery code, never both.
+  const payload = mfaMode.value === 'recovery'
+    ? {preAuthToken: preAuthToken.value, recoveryCode: mfaRecovery.value}
+    : {preAuthToken: preAuthToken.value, code: mfaCode.value}
+
+  if (mfaMode.value === 'recovery') {
+    if (!mfaRecovery.value) {
+      mfaError.value = 'Enter one of your recovery codes.'
+      return
+    }
+  } else {
+    if (!/^\d{6}$/.test(mfaCode.value)) {
+      mfaError.value = 'Enter the six-digit code from your authenticator app.'
+      return
+    }
+  }
+
+  if (!preAuthToken.value) {
+    // The challenge expired or was lost. Send the member back to login.
+    mfaError.value = 'Your sign-in session expired. Please sign in again.'
+    return
+  }
+
+  mfaError.value = ''
+  loginLoading.value = true
+  try {
+    const data = await verifyMfa(payload)
+    mfaChallenge.value = false
+    mfaCode.value = ''
+    mfaRecovery.value = ''
+    mfaError.value = ''
+    preAuthToken.value = ''
+    if (data?.onboardingRequired) {
+      localStorage.setItem('token', data.token)
+      await router.replace({name: 'onboarding'})
+      return
+    }
+    // A recovery code was used: the authenticator may be lost. Offer a
+    // re-enrolment flow rather than letting the member keep spending codes.
+    if (data?.reenrollRequired) {
+      localStorage.setItem('token', data.token)
+      sessionStorage.setItem('xpass:reenroll', '1')
+      await saveToken(data.token)
+      return
+    }
+    await saveToken(data.token)
+  } catch (err) {
+    // A 428 with a new preAuthToken means the code was wrong. The server
+    // re-issues a challenge so the member can retry without re-entering the
+    // password.
+    if (err?.code === 428) {
+      if (err?.data?.preAuthToken) {
+        preAuthToken.value = err.data.preAuthToken
+        if (err.data.emailHint) emailHint.value = err.data.emailHint
+      }
+      mfaError.value = mfaMode.value === 'recovery'
+        ? "That recovery code isn't valid or has already been used."
+        : "That authenticator code isn't valid. Try the newest code from your app."
+    } else if (err?.code === 429) {
+      mfaError.value = 'Too many attempts. Wait a moment and try again.'
+    } else if (err?.code === 401 && err?.data?.preAuthExpired) {
+      // The challenge expired. Send the member back to login.
+      mfaError.value = 'Your sign-in session expired. Please sign in again.'
+      mfaChallenge.value = false
+      preAuthToken.value = ''
+    } else {
+      throw err
+    }
+  } finally {
+    loginLoading.value = false
+  }
+}
+
+function cancelMfa() {
+  mfaChallenge.value = false
+  mfaCode.value = ''
+  mfaRecovery.value = ''
+  mfaError.value = ''
+  mfaMode.value = 'totp'
+  preAuthToken.value = ''
+  emailHint.value = ''
+  form.password = ''
+}
+
 async function saveToken(token) {
   localStorage.setItem('token', token)
   refreshWebsiteConfig()
-  const user = await loginUserInfo();
-  accountStore.currentAccountId = user.account.accountId;
-  accountStore.currentAccount = user.account;
-  userStore.user = user;
-  const routers = permsToRouter(user.permKeys);
-  routers.forEach(routerData => {
-    router.addRoute('layout', routerData);
-  });
-  await router.replace({name: 'layout'})
-  oauthLoading.value = false;
-  bindLoading.value = false;
+  // Sign-in has to end in one of three states: the shell, the sign-in page with
+  // a reason, or a cleared token. It must not leave the button spinning.
+  try {
+    const user = await loginUserInfo({ timeout: 10000 });
+    if (!user) throw new Error('No identity was returned for that token.')
+    accountStore.currentAccountId = user.account ? user.account.accountId : null;
+    accountStore.currentAccount = user.account || null;
+    userStore.user = user;
+    const routers = permsToRouter(user.permKeys || []);
+    routers.forEach(routerData => {
+      router.addRoute('layout', routerData);
+    });
+    await router.replace({ name: 'layout' })
+  } catch (e) {
+    // Fail closed: an unusable token must not survive a failed sign-in.
+    localStorage.removeItem('token');
+    userStore.user = {};
+    ElMessage({
+      message: e?.message || 'Could not complete sign-in.',
+      type: 'error',
+      plain: true,
+    })
+  } finally {
+    oauthLoading.value = false;
+    bindLoading.value = false;
+  }
 }
 
 function refreshWebsiteConfig() {
   websiteConfig().then(setting => {
     settingStore.settings = setting
-    settingStore.domainList = setting.domainList
-    if (!suffix.value && setting.domainList.length > 0) {
+    settingStore.domainList = setting.domainList || []
+    if (setting.domainList && setting.domainList.length > 0) {
+      // Adopt the server's first domain once it is known.
       suffix.value = setting.domainList[0]
     }
     document.title = 'Sign in | XPass HQ'
   }).catch(e => {
+    // The worker may still be starting. Keep the fallback domain so the form
+    // stays usable; the next attempt will pick up the real list.
     console.error(e)
   })
 }
@@ -403,8 +631,8 @@ function refreshWebsiteConfig() {
 }
 
 .login-brand-logo {
-  width: 144px !important;
-  height: 42px !important;
+  width: 128px !important;
+  height: 128px !important;
   border-radius: 0 !important;
   object-fit: contain;
   object-position: left center;
@@ -587,6 +815,55 @@ function refreshWebsiteConfig() {
 
 .auth-switch button {
   color: #ff8751;
+}
+
+.auth-switch .auth-link {
+  color: #ff8751;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.mfa-code-input :deep(input),
+.mfa-recovery-input :deep(input) {
+  font-size: 20px;
+  letter-spacing: 0.35em;
+  text-align: center;
+  font-weight: 600;
+}
+
+.mfa-recovery-input :deep(input) {
+  letter-spacing: 0.12em;
+  font-weight: 500;
+}
+
+.mfa-help {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #b2a49a;
+  line-height: 1.5;
+}
+
+.mfa-identity-hint {
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: #b2a49a;
+}
+
+.mfa-identity-hint strong {
+  color: #f2ebe5;
+  font-weight: 600;
+}
+
+.inline-error {
+  margin-top: 10px;
+  padding: 9px 12px;
+  background: rgba(255, 92, 92, 0.12);
+  border: 1px solid rgba(255, 92, 92, 0.4);
+  color: #ff9b9b;
+  border-radius: 7px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .login-card.registering {
@@ -961,8 +1238,8 @@ function refreshWebsiteConfig() {
   top: clamp(24px, 3.5vw, 48px);
   left: clamp(24px, 3.5vw, 48px);
   z-index: 3;
-  width: 144px;
-  height: 42px;
+  width: 96px;
+  height: 96px;
   object-fit: contain;
   object-position: left center;
 }
@@ -1941,8 +2218,8 @@ function refreshWebsiteConfig() {
 }
 
 .login-brand-logo {
-  width: 144px;
-  height: 42px;
+  width: 96px;
+  height: 96px;
   object-fit: contain;
   object-position: left center;
 }

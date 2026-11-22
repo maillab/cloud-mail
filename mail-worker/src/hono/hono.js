@@ -29,7 +29,7 @@ app.onError((err, c) => {
 		return c.json(result.fail('Please update the database as documented.',502));
 	}
 
-	return c.json(result.fail(err.message, err.code));
+	return c.json(result.fail(err.message, err.code, err.data));
 });
 
 export default app;

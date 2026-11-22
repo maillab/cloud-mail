@@ -10,11 +10,16 @@
 html, body {
     width: 100%;
     height: 100%;
+    /* Prevent the page itself from ever scrolling horizontally. Individual
+       views own their vertical scroll; wide content (tables, grids) must
+       shrink or scroll within its own container, never push the page wide. */
+    overflow-x: hidden;
 }
 
 #app {
     width: 100%;
     height: 100%;
+    overflow-x: hidden;
 }
 
 :deep(.el-input__inner:focus) {
@@ -62,6 +67,39 @@ button, input, select, textarea {
 
 .el-message {
     white-space: nowrap !important;
+}
+
+/* Wide tables and grids must never push the page wider than the viewport.
+   Tables scroll within their own wrapper; grids and flex rows shrink. */
+.el-table {
+    max-width: 100%;
+}
+
+.el-table__body-wrapper,
+.el-table__header-wrapper {
+    overflow-x: auto;
+}
+
+.main-view {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+// A button that reserves an icon slot must either show an icon or reserve no
+// space at all. An icon that fails to resolve renders an empty wrapper, which
+// is exactly the "empty 32px area" then label problem. Collapsing it here
+// fixes every button at once instead of patching page by page.
+.el-button > .el-icon:empty {
+    display: none !important;
+}
+
+.el-button > .el-icon:empty + span {
+    margin-left: 0 !important;
+}
+
+.el-icon svg {
+    display: block;
 }
 
 .message-bottom {
@@ -122,6 +160,8 @@ button, input, select, textarea {
     --hq-accent-strong: #cc4400;
     --hq-focus: #ff5500;
     --hq-danger: #b42318;
+    --hq-success: #067647;
+    --hq-warning: #b54708;
     --hq-space-1: 4px;
     --hq-space-2: 8px;
     --hq-space-3: 12px;
@@ -139,15 +179,83 @@ button, input, select, textarea {
     --el-color-primary-light-3: #ff7b3d;
     --el-color-primary-light-5: #ff9b6b;
     --el-color-primary-light-7: #ffbd9e;
+    --el-color-primary-light-8: #e64d00;
     --el-color-primary-light-9: #fff1e8;
+    --el-color-success: #67c23a;
+    --el-color-success-light-3: rgb(223,239,213);
+    --el-color-success-light-5: rgb(201,226,184);
+    --el-color-success-light-7: rgb(168,205,149);
+    --el-color-success-light-8: rgb(144,184,126);
+    --el-color-success-light-9: rgb(101,140,85);
+    --el-color-success-dark-2: rgb(102,194,64);
+    --el-color-warning: #e6a23c;
+    --el-color-warning-light-3: rgb(253,232,202);
+    --el-color-warning-light-5: rgb(246,212,155);
+    --el-color-warning-light-7: rgb(232,181,104);
+    --el-color-warning-light-8: rgb(215,163,86);
+    --el-color-warning-light-9: rgb(171,118,48);
+    --el-color-warning-dark-2: rgb(250,183,73);
+    --el-color-danger: #ef4b4b;
+    --el-color-danger-light-3: rgb(249,220,219);
+    --el-color-danger-light-5: rgb(244,191,188);
+    --el-color-danger-light-7: rgb(234,157,153);
+    --el-color-danger-light-8: rgb(221,137,132);
+    --el-color-danger-light-9: rgb(174,82,78);
+    --el-color-danger-dark-2: rgb(251,111,103);
+    --el-color-error: #ef4b4b;
+    --el-color-error-light-3: rgb(249,220,219);
+    --el-color-error-light-5: rgb(244,191,188);
+    --el-color-error-light-7: rgb(234,157,153);
+    --el-color-error-light-8: rgb(221,137,132);
+    --el-color-error-light-9: rgb(174,82,78);
+    --el-color-error-dark-2: rgb(251,111,103);
+    --el-color-info: #909399;
+    --el-color-info-light-3: rgb(227,228,229);
+    --el-color-info-light-5: rgb(204,205,207);
+    --el-color-info-light-7: rgb(172,174,177);
+    --el-color-info-light-8: rgb(150,152,156);
+    --el-color-info-light-9: rgb(107,109,113);
+    --el-color-info-dark-2: rgb(144,147,151);
+    --el-box-shadow: 0px 2px 12px 0 rgba(0,0,0,0.1);
+    --el-box-shadow-light: 0px 0px 12px rgba(0,0,0,0.12);
+    --el-box-shadow-lighter: 0px 0px 6px rgba(0,0,0,0.08);
+    --el-box-shadow-dark: 0px 12px 32px 4px rgba(0,0,0,0.16);
+    --el-bg-color-page: #f8f7f5;
+    --el-bg-color: #ffffff;
+    --el-bg-color-overlay: rgba(255,255,255,0.9);
+    --el-text-color-primary: #201c19;
+    --el-text-color-regular: #635c57;
+    --el-text-color-secondary: #8c847e;
+    --el-text-color-placeholder: #a8a29a;
+    --el-text-color-disabled: #c7c2bc;
+    --el-border-color-darker: #d0c8c0;
+    --el-border-color-dark: #e7e2dc;
+    --el-border-color: #e7e2dc;
+    --el-border-color-light: #f1eeeb;
+    --el-border-color-lighter: #f7f5f3;
+    --el-border-color-extra-light: #fdfbfa;
+    --el-fill-color-darker: #e7e2dc;
+    --el-fill-color-dark: #ece8e5;
+    --el-fill-color: #e2ddd6;
+    --el-fill-color-light: #f5f2f0;
+    --el-fill-color-lighter: #faf8f6;
+    --el-fill-color-extra-light: #fdfbfa;
+    --el-fill-color-blank: #ffffff;
+    --el-mask-color: rgba(0,0,0,0.4);
+    --el-mask-color-extra-light: rgba(0,0,0,0.15);
+    --el-button-disabled-text-color: #c7c2bc;
+    --el-card-bg-color: #ffffff;
+    --el-empty-fill-color: #f3efe9;
+    --el-color-black: #000000;
 
+    --el-text-color-regular: var(--el-text-color-primary);
     --extra-light-fill: #faf8f6;
     --settings-page-background: #f8f7f5;
     --light-ill: #f3efe9;
     --light-border: #e7e2dc;
+    --aside-backgound: #ffffff;
+    --aside-menu-active-background: #fff2eb;
     --header-actions-border: inset 0 -1px 0 0 var(--el-border-color-lighter);
-    --aside-backgound: #191a23;
-    --aside-menu-active-background: #27282d;
     --loadding-background: rgba(255, 255, 255, 0.8);
     --dark-border: #d0c8c0;
     --base-fill: #f3efe9;
@@ -155,7 +263,6 @@ button, input, select, textarea {
     --light-border-color: #e7e2dc;
     --aside-right-border: 1px solid var(--hq-border);
     --choose-account-background: rgba(255, 85, 0, 0.08);
-    --el-text-color-regular: var(--el-text-color-primary);
     --email-scroll-content-color: rgba(32, 28, 25, 0.6);
     --email-hover-background: #f5f1eb;
     --email-right-click-background: #fff0e7;
@@ -173,41 +280,102 @@ button, input, select, textarea {
     --vt-easing: ease-out;
 }
 
-.dark {
+html.dark {
     color-scheme: dark;
-    --hq-page: #100e0c;
-    --hq-sidebar: #161310;
-    --hq-surface: #181411;
-    --hq-text: #f5f0eb;
-    --hq-text-secondary: #b8aea7;
+    /* XPass semantic tokens */
+    --hq-page: #050403;
+    --hq-sidebar: #0d0a08;
+    --hq-surface: #100e0c;
+    --hq-text: #f2ebe5;
+    --hq-text-secondary: #c1b4aa;
     --hq-muted: #8a7f78;
-    --hq-border: #362e28;
+    --hq-border: #3a2f28;
     --hq-border-strong: #4a3e35;
-    --hq-hover: #231c17;
+    --hq-hover: #18110d;
     --hq-selected: #331e13;
     --hq-accent: #ff5500;
     --hq-accent-hover: #ff6e26;
     --hq-accent-strong: #ff8547;
     --hq-focus: #ff5500;
     --hq-danger: #f87171;
+    --hq-success: #4ade80;
+    --hq-warning: #fbbf24;
 
     --el-color-primary: #ff5500;
     --el-color-primary-dark-2: #d94700;
     --el-color-primary-light-3: #ff7b3d;
     --el-color-primary-light-5: #ff9b6b;
     --el-color-primary-light-7: #ffbd9e;
+    --el-color-primary-light-8: #ff6e26;
     --el-color-primary-light-9: #39241a;
-    --el-bg-color: #100e0c;
+    --el-color-success: #67c23a;
+    --el-color-success-light-3: rgb(78,142,47);
+    --el-color-success-light-5: rgb(62,107,39);
+    --el-color-success-light-7: rgb(45,72,31);
+    --el-color-success-light-8: rgb(37,55,28);
+    --el-color-success-light-9: rgb(28,37,24);
+    --el-color-success-dark-2: rgb(133,206,97);
+    --el-color-warning: #e6a23c;
+    --el-color-warning-light-3: rgb(167,119,48);
+    --el-color-warning-light-5: rgb(125,91,40);
+    --el-color-warning-light-7: rgb(83,63,32);
+    --el-color-warning-light-8: rgb(62,48,28);
+    --el-color-warning-light-9: rgb(41,34,24);
+    --el-color-warning-dark-2: rgb(235,181,99);
+    --el-color-danger: #f56c6c;
+    --el-color-danger-light-3: rgb(178,82,82);
+    --el-color-danger-light-5: rgb(133,64,64);
+    --el-color-danger-light-7: rgb(88,46,46);
+    --el-color-danger-light-8: rgb(65,38,38);
+    --el-color-danger-light-9: rgb(42,29,29);
+    --el-color-danger-dark-2: rgb(247,137,137);
+    --el-color-error: #f56c6c;
+    --el-color-error-light-3: rgb(178,82,82);
+    --el-color-error-light-5: rgb(133,64,64);
+    --el-color-error-light-7: rgb(88,46,46);
+    --el-color-error-light-8: rgb(65,38,38);
+    --el-color-error-light-9: rgb(42,29,29);
+    --el-color-error-dark-2: rgb(247,137,137);
+    --el-color-info: #909399;
+    --el-color-info-light-3: rgb(107,109,113);
+    --el-color-info-light-5: rgb(82,84,87);
+    --el-color-info-light-7: rgb(57,58,60);
+    --el-color-info-light-8: rgb(45,45,47);
+    --el-color-info-light-9: rgb(32,33,33);
+    --el-color-info-dark-2: rgb(166,169,173);
+    --el-box-shadow: 0px 12px 32px 4px rgba(0,0,0,0.4), 0px 8px 20px rgba(0,0,0,0.5);
+    --el-box-shadow-light: 0px 0px 12px rgba(0,0,0,0.5);
+    --el-box-shadow-lighter: 0px 0px 6px rgba(0,0,0,0.5);
+    --el-box-shadow-dark: 0px 16px 48px 16px rgba(0,0,0,0.6), 0px 12px 32px #000000;
     --el-bg-color-page: #050403;
+    --el-bg-color: #100e0c;
     --el-bg-color-overlay: #18110d;
-    --el-fill-color-light: #201812;
-    --el-fill-color-blank: #100e0c;
     --el-text-color-primary: #f2ebe5;
     --el-text-color-regular: #c1b4aa;
     --el-text-color-secondary: #a99b91;
-    --el-border-color: #3a2f28 !important;
-    --el-border-color-light: #3a2f28;
-    --el-border-color-lighter: #30261f;
+    --el-text-color-placeholder: #7a7068;
+    --el-text-color-disabled: #5a5048;
+    --el-border-color-darker: #4a3e35;
+    --el-border-color-dark: #3a2f28;
+    --el-border-color: #3a2f28;
+    --el-border-color-light: #30261f;
+    --el-border-color-lighter: #281f1a;
+    --el-border-color-extra-light: #1f1a16;
+    --el-fill-color-darker: #26201a;
+    --el-fill-color-dark: #1e1913;
+    --el-fill-color: #18110d;
+    --el-fill-color-light: #201812;
+    --el-fill-color-lighter: #1d1d1d;
+    --el-fill-color-extra-light: #191919;
+    --el-fill-color-blank: #100e0c;
+    --el-mask-color: rgba(0,0,0,0.6);
+    --el-mask-color-extra-light: rgba(0,0,0,0.3);
+    --el-button-disabled-text-color: #5a5048;
+    --el-card-bg-color: #100e0c;
+    --el-empty-fill-color: #18110d;
+    --el-color-black: #100e0c;
+
+    --el-text-color-regular: var(--el-text-color-primary);
     --extra-light-fill: #100e0c;
     --settings-page-background: #050403;
     --light-ill: #18110d;
@@ -277,4 +445,55 @@ html[data-theme-to="light"]::view-transition-old(root) {
 @keyframes vt-radial-out {
     from { clip-path: circle(var(--vt-end-radius, 0px) at var(--vt-x) var(--vt-y)); }
     to   { clip-path: circle(0px at var(--vt-x) var(--vt-y)); }
+}
+
+/* NProgress loading bar — XPass orange instead of default blue */
+#nprogress .bar { background: var(--hq-accent) !important; }
+#nprogress .peg { box-shadow: 0 0 10px var(--hq-accent), 0 0 5px var(--hq-accent) !important; }
+#nprogress .spinner-icon { border-top-color: var(--hq-accent) !important; border-left-color: var(--hq-accent) !important; }
+
+/* Gate 9 — responsive overlays (tablet + mobile) */
+@media (max-width: 1024px) {
+    .el-dialog {
+        max-width: 92vw;
+    }
+}
+
+@media (max-width: 768px) {
+    .el-overlay-dialog {
+        padding: 0 2.5vw;
+    }
+
+    .el-dialog {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        margin: 2.5vh auto !important;
+        max-height: 95vh;
+    }
+
+    .el-dialog .el-dialog__body {
+        overflow: auto;
+        max-height: calc(95vh - 120px);
+    }
+
+    .el-dialog.is-fullscreen {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        max-height: 100vh;
+    }
+
+    .el-drawer.ltr,
+    .el-drawer.rtl {
+        width: 95vw !important;
+        max-width: 95vw !important;
+    }
+
+    .el-message-box {
+        width: 95vw !important;
+        max-width: 95vw !important;
+    }
+
+    .el-message-box__btns {
+        flex-wrap: wrap;
+    }
 }

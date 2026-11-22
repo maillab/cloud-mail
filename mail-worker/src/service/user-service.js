@@ -10,13 +10,16 @@ import cryptoUtils from '../utils/crypto-utils';
 import emailService from './email-service';
 import dayjs from 'dayjs';
 import permService from './perm-service';
+import scopeService from './scope-service';
 import roleService from './role-service';
+import userContext from '../security/user-context';
 import emailUtils from '../utils/email-utils';
 import saltHashUtils from '../utils/crypto-utils';
 import constant from '../const/constant';
 import { t } from '../i18n/i18n'
 import reqUtils from '../utils/req-utils';
 import {oauth} from "../entity/oauth";
+import identityService from "./identity-service";
 import oauthService from "./oauth-service";
 import settingService from './setting-service';
 import starService from './star-service';
@@ -32,10 +35,17 @@ const userService = {
 			throw new BizError(t('authExpired'), 401);
 		}
 
-		const [account, roleRow, permKeys] = await Promise.all([
+		const [account, roleRow, permKeys, identityRow, dataScope] = await Promise.all([
 			accountService.selectByEmailIncludeDel(c, userRow.email),
 			roleService.selectById(c, userRow.type),
-			userRow.email === c.env.admin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
+			permService.userPermKeys(c, userId),
+			c.env.db.prepare(
+				`SELECT u.display_name, u.username, u.avatar_key, u.job_title, u.phone, u.team_id,
+					t.name AS team_name, t.slug AS team_slug
+				 FROM user u LEFT JOIN team t ON t.team_id = u.team_id
+				 WHERE u.user_id = ?`
+			).bind(userId).first(),
+			scopeService.resolveScope(c, userId)
 		]);
 		if (account) {
 			account.signatureImageUrl = signatureService.imageUrl(c.req.url, account.signatureImageKey);
@@ -63,12 +73,61 @@ const userService = {
 		user.role = roleRow;
 		user.type = userRow.type;
 		user.signature_image_url = signatureService.imageUrl(c.req.url, userRow.signatureImageKey);
+		user.signature_delivery_url = signatureService.imageUrl(
+			c.req.url,
+			userRow.signatureDeliveryKey || userRow.signatureImageKey
+		);
 		user.signature_text = userRow.signatureText || '';
 		user.signature = userRow.signature || '';
 		user.signature_settings = {
 			enabled: signatureSettings.enabled !== false,
 			replyForward: signatureSettings.replyForward !== false,
 			defaultAccountId: signatureSettings.defaultAccountId || null
+		};
+
+		// Canonical internal identity. This is the single source every module
+		// should read for "who is this person": display name and handle exist
+		// for local employees, not only for OAuth accounts.
+		user.identity = identityService.toIdentity(c, {
+			user_id: userRow.userId,
+			email: userRow.email,
+			display_name: identityRow?.display_name || '',
+			username: identityRow?.username || '',
+			avatar_key: identityRow?.avatar_key || null,
+			job_title: identityRow?.job_title || '',
+			phone: identityRow?.phone || ''
+		}, {
+			team: identityRow?.team_id
+				? { team_id: identityRow.team_id, name: identityRow.team_name, slug: identityRow.team_slug }
+				: null
+		});
+		user.identity.initials = identityService.initialsFor(user.identity.displayName || userRow.email);
+		if (!user.identity.avatarUrl && userRow.avatarKey) {
+			user.identity.avatarUrl = identityService.avatarUrl(c.req.url, userRow.avatarKey);
+		}
+
+		user.name = user.identity.displayName || account?.name || '';
+		user.username = user.identity.username;
+		user.avatar_url = user.identity.avatarUrl;
+		// How much company data this employee may see (own/assigned/team/company).
+		user.dataScope = dataScope;
+
+		// Security posture. The shell uses this to route a member who still owes
+		// setup, and to show the authenticator state on the account surfaces.
+		// Only flags and dates travel; the secret never leaves the worker.
+		const [activeRecoveryCodes] = await Promise.all([
+			c.env.db.prepare(
+				`SELECT COUNT(*) as count FROM user_recovery_code WHERE user_id = ? AND used_at IS NULL`
+			).bind(userId).first()
+		]);
+		user.security = {
+			mfaEnabled: userRow.mfaEnabled === 1,
+			mfaRequired: true,
+			mfaEnrolledAt: userRow.mfaEnrolledAt || null,
+			recoveryCodeCount: activeRecoveryCodes?.count || 0,
+			passwordChangeRequired: userRow.passwordChangeRequired || 'none',
+			onboardingComplete: Boolean(userRow.onboardingCompletedAt),
+			onboardingRequired: !userRow.onboardingCompletedAt
 		};
 
 		if (c.env.admin === userRow.email) {
@@ -110,33 +169,42 @@ const userService = {
 				: JSON.stringify(params.signatureSettings);
 		}
 		const previousKey = userRow.signatureImageKey;
+		const previousDeliveryKey = userRow.signatureDeliveryKey;
 		let signatureImageKey = previousKey;
-		let uploadedKey = null;
+		let signatureDeliveryKey = previousDeliveryKey;
+		let uploadedKeys = [];
 
 		if (params.signatureImageData) {
-			uploadedKey = await signatureService.saveImage(c, userId, params.signatureImageData);
-			signatureImageKey = uploadedKey;
+			const set = await signatureService.saveImageSet(c, userId, params.signatureImageData);
+			uploadedKeys = [set.masterKey, set.deliveryKey === set.masterKey ? null : set.deliveryKey].filter(Boolean);
+			signatureImageKey = set.masterKey;
+			signatureDeliveryKey = set.deliveryKey;
 		} else if (params.removeSignatureImage === true) {
 			signatureImageKey = null;
+			signatureDeliveryKey = null;
 		}
 
 		try {
 			await orm(c).update(user).set({
 				signatureImageKey,
+				signatureDeliveryKey,
 				signatureText,
 				signature,
 				signatureSettings: signatureSettingsStr
 			})
 				.where(eq(user.userId, userId)).run();
 		} catch (error) {
-			if (uploadedKey) {
-				await signatureService.deleteImage(c, uploadedKey);
+			for (const key of uploadedKeys) {
+				await signatureService.deleteImage(c, key);
 			}
 			throw error;
 		}
 
 		if (previousKey && previousKey !== signatureImageKey) {
 			await signatureService.deleteImage(c, previousKey);
+		}
+		if (previousDeliveryKey && previousDeliveryKey !== signatureDeliveryKey) {
+			await signatureService.deleteImage(c, previousDeliveryKey);
 		}
 
 		return this.loginUserInfo(c, userId);
@@ -377,11 +445,25 @@ const userService = {
 			throw new BizError(t('roleNotExist'));
 		}
 
+		// Capture the previous role first: the change itself is what the access
+		// history has to describe, and the row is gone afterwards.
+		const current = await orm(c).select({ type: user.type, email: user.email }).from(user).where(eq(user.userId, userId)).get();
+		const previousRole = current ? await roleService.selectById(c, current.type) : null;
+
 		await orm(c)
 			.update(user)
 			.set({ type })
 			.where(eq(user.userId, userId))
 			.run();
+
+		await roleService.recordAudit(c, {
+			roleId: type,
+			roleName: roleRow.name,
+			actorId: userContext.getUserId(c),
+			action: 'member',
+			summary: `Changed access for ${current?.email || userId}`,
+			detail: `${previousRole ? previousRole.name : 'no role'} -> ${roleRow.name}`
+		});
 
 	},
 

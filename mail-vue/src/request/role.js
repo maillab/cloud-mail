@@ -25,6 +25,18 @@ export function roleSetDef(roleId) {
 }
 
 
+export function roleAccessPreview(roleId) {
+    return http.get('/role/access', { params: { roleId } });
+}
+
+export function roleHistory(roleId) {
+    return http.get('/role/history', { params: roleId ? { roleId } : {} });
+}
+
+export function roleMembers(roleId) {
+    return http.get('/role/members', { params: { roleId } });
+}
+
 export function roleSelectUse() {
     return http.get('/role/selectUse')
 }

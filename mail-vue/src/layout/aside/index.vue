@@ -2,27 +2,58 @@
   <div class="sidebar-shell">
     <header class="sidebar-header">
       <button class="brand-button" type="button" aria-label="Go to Overview" @click="router.push({name: 'overview'})">
-        <img src="/xpass-logo.png" alt="XPass" />
+        <img class="brand-wordmark brand-logo-light" src="/xpass-wordmark.png" alt="XPass" />
+        <img class="brand-wordmark brand-logo-dark" src="/xpass-wordmark-inverted.png" alt="XPass" />
+        <img class="brand-mark" src="/xpass-mark.png" alt="XPass" />
+      </button>
+      <button v-if="isMobile" class="mobile-toggle" type="button" aria-label="Toggle navigation" @click="uiStore.asideShow = !uiStore.asideShow">
+        <Icon icon="mingcute:menu-line" width="20" height="20" />
       </button>
     </header>
 
-    <nav class="workspace-navigation" aria-label="Workspace">
-      <div class="navigation-label">Workspace</div>
-      <button
-        v-for="module in primaryModules"
-        :key="module.id"
-        class="navigation-item"
-        :class="{ 'is-active': isModuleActive(module) }"
-        type="button"
-        :aria-label="module.name"
-        :aria-current="isModuleActive(module) ? 'page' : undefined"
-        :title="module.name"
-        @click="openModule(module)"
-      >
-        <Icon :icon="module.icon" width="19" height="19" />
-        <span>{{ module.name }}</span>
-      </button>
-
+    <el-scrollbar class="sidebar-content-scroll">
+      <nav class="workspace-navigation" aria-label="Workspace">
+      <div v-for="group in moduleGroups" :key="group.id" class="module-group">
+        <div class="navigation-label">{{ group.label }}</div>
+        <template v-for="module in group.modules" :key="module.id">
+          <div v-if="isGroupedModule(module)" class="nav-group">
+            <div class="nav-group-row" :class="{ 'is-active': isModuleActive(module) }">
+              <button class="nav-group-main" type="button" @click="openModule(module)">
+                <Icon :icon="module.icon" width="19" height="19" />
+                <span>{{ module.name }}</span>
+              </button>
+              <button
+                v-if="!isCollapsed"
+                class="nav-group-chevron"
+                type="button"
+                :aria-expanded="isGroupOpen(module.id)"
+                :aria-label="groupToggleLabel(module)"
+                @click.stop="toggleGroup(module.id)"
+              >
+                <Icon :icon="isGroupOpen(module.id) ? 'fluent:chevron-up-12-regular' : 'fluent:chevron-down-12-regular'" width="14" height="14" />
+              </button>
+            </div>
+            <div v-show="isGroupOpen(module.id)" class="nav-sub">
+              <MailNav v-if="module.id === 'mail'" />
+              <CrmNav v-else-if="module.id === 'crm'" />
+            </div>
+          </div>
+          <button
+            v-else
+            class="navigation-item"
+            :class="{ 'is-active': isModuleActive(module) }"
+            type="button"
+            :aria-label="module.name"
+            :aria-current="isModuleActive(module) ? 'page' : undefined"
+            :title="module.name"
+            @click="openModule(module)"
+          >
+            <Icon :icon="module.icon" width="19" height="19" />
+            <span class="navigation-item-text">{{ module.name }}</span>
+            <span v-if="moduleSoon(module)" class="nav-soon">Soon</span>
+          </button>
+        </template>
+      </div>
     </nav>
 
     <section v-if="isMailModule" class="mail-controls" aria-label="Mail actions">
@@ -69,115 +100,27 @@
         </span>
       </div>
 
-      <button
-        v-perm="'email:send'"
-        class="compose-cta"
-        type="button"
-        aria-label="Compose email (C)"
-        @click="openCompose"
-      >
-        <Icon icon="hugeicons:quill-write-01" width="19" height="19" />
-        <span>Compose</span>
-        <kbd aria-hidden="true">C</kbd>
-      </button>
     </section>
 
-    <el-scrollbar class="sidebar-content-scroll">
-      <nav v-if="isMailModule" class="mail-navigation" aria-label="Mail folders">
-        <div class="navigation-label">Mail</div>
-        <button
-          v-for="item in primaryMailLinks"
-          :key="item.id"
-          class="mail-navigation-item"
-          :class="{ 'is-active': isMailLinkActive(item) }"
-          type="button"
-          :aria-current="isMailLinkActive(item) ? 'page' : undefined"
-          @click="openMailLink(item)"
-        >
-          <Icon :icon="item.icon" width="18" height="18" />
-          <span>{{ item.label }}</span>
-          <span v-if="item.count" class="count-badge">{{ badge(item.count) }}</span>
-        </button>
-
-        <div class="folder-heading">
-          <span>Folders</span>
-          <span class="folder-actions">
-            <button type="button" aria-label="Create folder" title="Create folder" @click="showFolderDialog = true">
-              <Icon icon="fluent:add-20-regular" width="17" height="17" />
-            </button>
-            <button type="button" aria-label="Manage folders" title="Manage folders" @click="router.push({name: 'folder-settings'})">
-              <Icon icon="fluent:settings-48-regular" width="17" height="17" />
-            </button>
-          </span>
-        </div>
-        <button
-          v-for="folder in folders"
-          :key="folder.folderId"
-          class="mail-navigation-item"
-          :class="{ 'is-active': route.params.folderKey === `custom-${folder.folderId}` }"
-          type="button"
-          :aria-current="route.params.folderKey === `custom-${folder.folderId}` ? 'page' : undefined"
-          @click="openFolder(`custom-${folder.folderId}`)"
-        >
-          <Icon icon="fluent:folder-20-regular" width="18" height="18" />
-          <span>{{ folder.name }}</span>
-          <span v-if="folder.unreadCount" class="count-badge">{{ badge(folder.unreadCount) }}</span>
-        </button>
-
-        <div class="navigation-label smart-label">Categories</div>
-        <button
-          v-for="item in categoryLinks"
-          :key="item.id"
-          class="mail-navigation-item"
-          :class="{ 'is-active': isMailLinkActive(item) }"
-          type="button"
-          :aria-current="isMailLinkActive(item) ? 'page' : undefined"
-          @click="openMailLink(item)"
-        >
-          <Icon :icon="item.icon" width="18" height="18" />
-          <span>{{ item.label }}</span>
-          <span v-if="item.count" class="count-badge">{{ badge(item.count) }}</span>
-        </button>
-      </nav>
-      <nav class="secondary-navigation" aria-label="Additional workspace navigation">
-        <details v-if="futureModules.length" class="future-modules">
-          <summary>
-            <Icon icon="fluent:grid-20-regular" width="18" height="18" />
-            <span>More modules</span>
-            <span class="future-count">{{ futureModules.length }}</span>
-            <Icon class="summary-chevron" icon="fluent:chevron-down-20-regular" width="15" height="15" />
-          </summary>
-          <div class="future-module-list">
-            <div v-for="module in futureModules" :key="module.id" class="future-module" :title="`${module.name} — upcoming`">
-              <Icon :icon="module.icon" width="17" height="17" />
-              <span>{{ module.name }}</span>
-              <span class="future-status">Soon</span>
-            </div>
-          </div>
-        </details>
-        <details v-if="adminLinks.length" class="admin-navigation" :open="isAdminRoute">
-          <summary>
-            <Icon icon="fluent:shield-task-20-regular" width="18" height="18" />
-            <span>Administration</span>
-            <Icon class="summary-chevron" icon="fluent:chevron-down-20-regular" width="15" height="15" />
-          </summary>
-          <div class="admin-link-list">
-            <button
-              v-for="item in adminLinks"
-              :key="item.routeName"
-              class="navigation-item"
-              :class="{ 'is-active': route.name === item.routeName }"
-              type="button"
-              :aria-current="route.name === item.routeName ? 'page' : undefined"
-              @click="router.push({name: item.routeName})"
-            >
-              <Icon :icon="item.icon" width="18" height="18" />
-              <span>{{ item.label }}</span>
-            </button>
-          </div>
-        </details>
-      </nav>
     </el-scrollbar>
+
+    <el-drawer
+      v-model="groupDrawerOpen"
+      direction="ltr"
+      :with-header="false"
+      size="280px"
+      append-to-body
+      class="mail-nav-drawer"
+    >
+      <div class="mail-drawer-head">
+        <span class="mail-drawer-title">{{ groupDrawerTitle }}</span>
+        <button type="button" aria-label="Close menu" @click="groupDrawerOpen = false">
+          <Icon icon="fluent:dismiss-12-regular" width="16" height="16" />
+        </button>
+      </div>
+      <MailNav v-if="groupDrawerId === 'mail'" @navigate="groupDrawerOpen = false" />
+      <CrmNav v-else-if="groupDrawerId === 'crm'" @navigate="groupDrawerOpen = false" />
+    </el-drawer>
 
     <el-dialog v-model="showFolderDialog" title="Create new folder" width="420px">
       <el-input v-model="folderName" maxlength="60" show-word-limit placeholder="Folder name" @keyup.enter="createFolder" />
@@ -205,7 +148,12 @@ import {hasPerm} from "@/perm/perm.js";
 import {ElMessage} from "element-plus";
 import {useEmailStore} from "@/store/email.js";
 import {workspaceModules} from "@/modules/registry.js";
+import {featureStatus, isHidden} from "@/features/registry.js";
+import MailNav from "@/layout/mail-nav.vue";
+import CrmNav from "@/layout/crm-nav.vue";
+import {useI18n} from "vue-i18n";
 
+const {t} = useI18n();
 const uiStore = useUiStore();
 const route = useRoute();
 const draftStore = userDraftStore();
@@ -224,10 +172,67 @@ const saving = ref(false);
 const draftCount = ref(0);
 let countRefreshTimer;
 
-const primaryModules = computed(() => workspaceModules.filter(module =>
-  module.available && (!module.requiredPermission || hasPerm(module.requiredPermission))
-));
-const futureModules = computed(() => workspaceModules.filter(module => !module.available));
+const isMobile = computed(() => window.innerWidth < 700);
+const isCollapsed = computed(() => uiStore.asideCollapsed && !isMobile.value);
+
+const groupedModuleIds = ['mail', 'crm'];
+const expandedGroups = ref({});
+const groupDrawerOpen = ref(false);
+const groupDrawerId = ref('');
+
+function isGroupedModule(module) {
+  return groupedModuleIds.includes(module.id);
+}
+
+function isGroupOpen(id) {
+  return Boolean(expandedGroups.value[id]) && !isCollapsed.value;
+}
+
+function toggleGroup(id) {
+  expandedGroups.value = {...expandedGroups.value, [id]: !expandedGroups.value[id]};
+}
+
+function groupToggleLabel(module) {
+  return `${isGroupOpen(module.id) ? 'Collapse' : 'Expand'} ${module.name} menu`;
+}
+
+const groupDrawerTitle = computed(() =>
+  workspaceModules.find(module => module.id === groupDrawerId.value)?.name || ''
+);
+
+function syncGroupsFromRoute() {
+  const next = {};
+  for (const module of workspaceModules) {
+    if (!groupedModuleIds.includes(module.id)) continue;
+    if (module.routeNames?.includes(route.name)) next[module.id] = true;
+  }
+  expandedGroups.value = next;
+}
+
+watch(
+  () => route.name,
+  () => syncGroupsFromRoute(),
+  { immediate: true }
+);
+
+const moduleGroups = computed(() => {
+  const groups = [
+    {id: 'workspace', label: t('sidebarGroupWorkspace'), modules: []},
+    {id: 'people', label: t('sidebarGroupPeople'), modules: []},
+    {id: 'settings', label: t('sidebarGroupSettings'), modules: []},
+    {id: 'admin', label: t('sidebarGroupAdmin'), modules: []},
+  ];
+  const byId = Object.fromEntries(groups.map(g => [g.id, g]));
+    for (const module of workspaceModules) {
+        if (!module.available) continue;
+        if (isHidden(module.id)) continue;
+        if (module.requiredPermission && !hasPerm(module.requiredPermission)) continue;
+        const group = byId[module.group];
+        if (group) group.modules.push(module);
+    }
+  return groups.filter(g => g.modules.length > 0);
+});
+
 const canSwitchAccount = computed(() => hasPerm('account:query'));
 const activeAccountEmail = computed(() =>
   accountStore.currentAccount?.email || userStore.user?.account?.email || ''
@@ -236,32 +241,6 @@ const accountInitial = computed(() => accountInitials(activeAccountEmail.value))
 const isMailModule = computed(() =>
   workspaceModules.find(module => module.id === 'mail')?.routeNames?.includes(route.name)
 );
-const adminLinks = computed(() => [
-  {routeName: 'user', label: 'People', icon: 'fluent:people-20-regular', permission: 'user:query'},
-  {routeName: 'all-email', label: 'All mail', icon: 'fluent:mail-list-28-regular', permission: 'all-email:query'},
-  {routeName: 'role', label: 'Roles & permissions', icon: 'fluent:lock-closed-16-regular', permission: 'role:query'},
-  {routeName: 'reg-key', label: 'Invite codes', icon: 'fluent:fingerprint-20-regular', permission: 'reg-key:query'},
-  {routeName: 'sys-setting', label: 'System settings', icon: 'fluent:settings-48-regular', permission: 'setting:query'},
-].filter(item => hasPerm(item.permission)));
-const isAdminRoute = computed(() => adminLinks.value.some(item => item.routeName === route.name));
-const primaryMailLinks = computed(() => [
-  {id: 'inbox', label: 'Inbox', icon: 'hugeicons:mailbox-01', routeName: 'email', count: counts.value.inbox},
-  {id: 'unread', label: 'Unread', icon: 'fluent:mail-unread-20-regular', folderKey: 'all-unread', count: counts.value.unread},
-  {id: 'sent', label: 'Sent', icon: 'cil:send', routeName: 'send', permission: 'email:send'},
-  {id: 'drafts', label: 'Drafts', icon: 'fluent:document-20-regular', routeName: 'draft', permission: 'email:send', count: draftCount.value},
-  {id: 'starred', label: 'Starred', icon: 'solar:star-line-duotone', routeName: 'star'},
-  {id: 'templates', label: 'Templates', icon: 'fluent:document-bullet-list-20-regular', routeName: 'templates'},
-  {id: 'snoozed', label: 'Snoozed', icon: 'fluent:clock-20-regular', folderKey: 'snoozed', count: counts.value.snoozed},
-].filter(item => !item.permission || hasPerm(item.permission)));
-const categoryLinks = computed(() => [
-  {id: 'spam', label: 'Spam', icon: 'fluent:shield-error-20-regular', folderKey: 'spam', count: counts.value.spam},
-  {id: 'trash', label: 'Trash', icon: 'fluent:delete-20-regular', folderKey: 'trash', count: counts.value.trash},
-  {id: 'archive', label: 'Archive', icon: 'fluent:archive-20-regular', folderKey: 'archive', count: counts.value.archive},
-  {id: 'outbox', label: 'Outbox', icon: 'fluent:send-clock-20-regular', folderKey: 'outbox', count: counts.value.outbox},
-  {id: 'newsletter', label: 'Newsletter', icon: 'fluent:mail-list-20-regular', folderKey: 'newsletter', count: counts.value.newsletter},
-  {id: 'notification', label: 'Notification', icon: 'fluent:alert-20-regular', folderKey: 'notification', count: counts.value.notification},
-]);
-
 function accountInitials(email) {
   const [name = 'X'] = String(email || 'X').split('@');
   return name.slice(0, 2).toUpperCase();
@@ -347,13 +326,25 @@ function isModuleActive(module) {
 
 function openModule(module) {
   if (!module.available || !module.routeName) return;
-  router.push({name: module.routeName});
+  if (isGroupedModule(module) && isCollapsed.value) {
+    groupDrawerId.value = module.id;
+    groupDrawerOpen.value = true;
+    return;
+  }
+  if (isGroupedModule(module)) {
+    expandedGroups.value = {...expandedGroups.value, [module.id]: true};
+  }
+  router.push({name: module.routeName, query: module.query || {}});
   if (window.innerWidth < 700) uiStore.asideShow = false;
 }
 
 function badge(value) {
   const count = Number(value) || 0;
   return count > 99 ? '99+' : count;
+}
+
+function moduleSoon(module) {
+  return featureStatus(module.id) === 'comingSoon';
 }
 
 async function createFolder() {
@@ -376,7 +367,7 @@ async function updateDraftCount() {
 }
 
 function openCompose() {
-  uiStore.writerRef?.open();
+  uiStore.openCompose();
 }
 
 onMounted(() => {
@@ -411,8 +402,8 @@ watch(() => route.path, () => refreshNavigation().catch(error => console.error(e
 
 .sidebar-header {
   display: flex;
-  height: 58px;
-  flex: 0 0 58px;
+  height: 68px;
+  flex: 0 0 68px;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
@@ -420,18 +411,68 @@ watch(() => route.path, () => refreshNavigation().catch(error => console.error(e
 
 .brand-button {
   display: flex;
-  width: 132px;
-  height: 38px;
+  width: 184px;
+  height: 48px;
   align-items: center;
-  border-radius: 6px;
+  justify-content: flex-start;
+  border-radius: 8px;
   cursor: pointer;
 }
 
-.brand-button img {
-  width: 122px;
-  height: 34px;
+.brand-wordmark {
+  width: 168px;
+  height: 42px;
   object-fit: contain;
   object-position: left center;
+}
+
+.brand-mark {
+  display: none;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.brand-logo-dark {
+  display: none;
+}
+
+html.dark .brand-logo-light {
+  display: none;
+}
+
+html.dark .brand-logo-dark {
+  display: block;
+}
+
+:global(.aside-collapsed) .brand-wordmark {
+  display: none !important;
+}
+
+:global(.aside-collapsed) .brand-mark {
+  display: block !important;
+}
+
+:global(.aside-collapsed) .brand-button {
+  width: 48px;
+  justify-content: center;
+}
+
+.mobile-toggle {
+  display: none;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--hq-text);
+  cursor: pointer;
+}
+
+.mobile-toggle:hover {
+  background: var(--hq-hover);
 }
 
 .folder-actions button {
@@ -456,6 +497,10 @@ watch(() => route.path, () => refreshNavigation().catch(error => console.error(e
   gap: 2px;
   padding: 5px 10px 12px;
   border-bottom: 1px solid var(--hq-border);
+}
+
+.module-group {
+  display: contents;
 }
 
 .navigation-label {
@@ -502,12 +547,152 @@ watch(() => route.path, () => refreshNavigation().catch(error => console.error(e
   color: currentColor;
 }
 
-.future-modules,
+.navigation-item-text {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-soon {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--hq-accent) 16%, transparent);
+  color: var(--hq-accent-strong);
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.nav-group {
+  display: grid;
+  gap: 1px;
+}
+
+.nav-group-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  border-radius: 6px;
+  color: var(--hq-text-secondary);
+}
+
+.nav-group-row:hover {
+  background: var(--hq-hover);
+  color: var(--hq-text);
+}
+
+.nav-group-row.is-active {
+  background: var(--hq-selected);
+  color: var(--hq-accent-strong);
+}
+
+.nav-group-main {
+  display: flex;
+  min-width: 0;
+  min-height: 36px;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-group-main span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-group-main :deep(svg),
+.nav-group-chevron :deep(svg) {
+  flex: 0 0 auto;
+}
+
+.nav-group-main:focus-visible,
+.nav-group-chevron:focus-visible {
+  outline: 2px solid var(--hq-focus);
+  outline-offset: -2px;
+}
+
+.nav-group-chevron {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  margin-right: 4px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--hq-muted);
+  cursor: pointer;
+}
+
+.nav-group-chevron:hover {
+  background: var(--hq-hover);
+  color: var(--hq-text);
+}
+
+.nav-sub {
+  display: grid;
+  gap: 1px;
+  margin: 1px 0 3px;
+  padding-left: 8px;
+  border-left: 1px solid var(--hq-border);
+}
+
+.mail-drawer-head {
+  display: flex;
+  height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 16px;
+  border-bottom: 1px solid var(--hq-border);
+}
+
+.mail-drawer-title {
+  color: var(--hq-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.mail-drawer-head button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--hq-muted);
+  cursor: pointer;
+}
+
+.mail-drawer-head button:hover {
+  background: var(--hq-hover);
+  color: var(--hq-text);
+}
+
+:global(.aside-collapsed) .nav-sub {
+  display: none !important;
+}
+
 .admin-navigation {
   color: var(--hq-text-secondary);
 }
 
-.future-modules summary,
 .admin-navigation summary {
   display: flex;
   min-height: 36px;
@@ -520,12 +705,10 @@ watch(() => route.path, () => refreshNavigation().catch(error => console.error(e
   list-style: none;
 }
 
-.future-modules summary::-webkit-details-marker,
 .admin-navigation summary::-webkit-details-marker {
   display: none;
 }
 
-.future-modules summary:hover,
 .admin-navigation summary:hover {
   background: var(--hq-hover);
   color: var(--hq-text);
@@ -536,39 +719,8 @@ watch(() => route.path, () => refreshNavigation().catch(error => console.error(e
   transition: transform .15s ease;
 }
 
-.future-modules[open] .summary-chevron,
 .admin-navigation[open] .summary-chevron {
   transform: rotate(180deg);
-}
-
-.future-count {
-  color: var(--hq-muted);
-  font-size: 11px;
-}
-
-.future-module-list,
-.admin-link-list {
-  display: grid;
-  gap: 1px;
-  padding: 2px 0 4px 16px;
-}
-
-.future-module {
-  display: flex;
-  min-height: 32px;
-  align-items: center;
-  gap: 10px;
-  padding: 0 10px;
-  color: var(--hq-muted);
-  font-size: 12px;
-}
-
-.future-module > span:nth-child(2) {
-  flex: 1;
-}
-
-.future-status {
-  font-size: 10px;
 }
 
 .mail-controls {
@@ -669,17 +821,9 @@ watch(() => route.path, () => refreshNavigation().catch(error => console.error(e
   background: var(--hq-accent-hover);
 }
 
-.compose-cta kbd {
-  margin-left: auto;
-  padding: 1px 6px;
-  border: 1px solid rgba(255, 255, 255, .4);
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 10px;
-}
-
-.compose-cta span {
-  margin-right: auto;
+.compose-cta:focus-visible {
+  outline: 2px solid var(--hq-focus);
+  outline-offset: 2px;
 }
 
 .sidebar-content-scroll {
@@ -756,12 +900,12 @@ watch(() => route.path, () => refreshNavigation().catch(error => console.error(e
 
 .brand-button:focus-visible,
 .navigation-item:focus-visible,
-.future-modules summary:focus-visible,
 .admin-navigation summary:focus-visible,
 .mail-navigation-item:focus-visible,
 .folder-actions button:focus-visible,
 .account-switcher:focus-visible,
-.compose-cta:focus-visible {
+.compose-cta:focus-visible,
+.mobile-toggle:focus-visible {
   outline: 2px solid var(--hq-focus);
   outline-offset: 2px;
 }
@@ -777,6 +921,10 @@ watch(() => route.path, () => refreshNavigation().catch(error => console.error(e
   .compose-cta {
     display: none;
   }
+
+  .mobile-toggle {
+    display: inline-flex;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -785,6 +933,12 @@ watch(() => route.path, () => refreshNavigation().catch(error => console.error(e
   *::after {
     scroll-behavior: auto !important;
     transition-duration: .01ms !important;
+  }
+}
+
+@media (min-width: 701px) {
+  .mobile-toggle {
+    display: none !important;
   }
 }
 </style>

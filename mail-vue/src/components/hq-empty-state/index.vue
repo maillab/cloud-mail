@@ -33,9 +33,9 @@ defineEmits(['action'])
   align-items: center;
   gap: 12px;
   padding: 18px 16px;
-  border: 1px dashed #e7e2de;
+  border: 1px dashed var(--hq-border);
   border-radius: 12px;
-  background: #fbfaf9;
+  background: var(--hq-surface, transparent);
 }
 
 .empty-icon {
@@ -45,8 +45,8 @@ defineEmits(['action'])
   flex: 0 0 auto;
   place-items: center;
   border-radius: 11px;
-  background: #fff0e8;
-  color: #d94b00;
+  background: color-mix(in srgb, var(--hq-accent) 12%, transparent);
+  color: var(--hq-accent);
 }
 
 .empty-copy {
@@ -56,13 +56,13 @@ defineEmits(['action'])
 }
 
 .empty-copy strong {
-  color: #302b28;
+  color: var(--hq-text);
   font-size: 13px;
   font-weight: 650;
 }
 
 .empty-copy span {
-  color: #817a75;
+  color: var(--hq-muted);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -72,9 +72,24 @@ defineEmits(['action'])
   margin-left: auto;
 }
 
+.hq-empty-state.is-compact {
+  padding: 14px 12px;
+}
+
+.hq-empty-state.is-compact .empty-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+
 @media (max-width: 520px) {
   .hq-empty-state {
     align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .hq-empty-state :deep(.el-button) {
+    margin-left: 50px;
   }
 }
 </style>

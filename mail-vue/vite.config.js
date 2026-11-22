@@ -22,13 +22,18 @@ export default defineConfig(({mode}) => {
                     name: env.VITE_PWA_NAME,
                     short_name: env.VITE_PWA_NAME,
                     background_color: '#FFFFFF',
-                    theme_color: '#FFFFFF',
+                    theme_color: '#FF5500',
                     icons: [
                         {
-                            src: 'mail-pwa.png',
+                            src: 'android-chrome-192x192.png',
                             sizes: '192x192',
                             type: 'image/png',
-                        }
+                        },
+                        {
+                            src: 'android-chrome-512x512.png',
+                            sizes: '512x512',
+                            type: 'image/png',
+                        },
                     ],
                 },
                 workbox: {

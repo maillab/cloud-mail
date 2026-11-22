@@ -21,7 +21,7 @@ const settingService = {
 		await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
 	},
 
-	async query(c) {
+async query(c) {
 
 		if (c.get?.('setting')) {
 			return c.get('setting')
@@ -29,10 +29,31 @@ const settingService = {
 
 		const setting = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
 
+		// Cold-start fallback: the KV cache is populated by settingService.refresh(),
+		// which only runs on the init endpoint or on a settings write. If the cache
+		// is missing (a fresh wrangler --local, a new deployment, a wiped KV) the
+		// login page must still get its domain list instead of hanging on a 501.
+		// Read straight from D1 and cache the result for subsequent requests.
 		if (!setting) {
-			throw new BizError('Database not initialized.');
+			const stmt = c.env.db.prepare(`SELECT * FROM setting LIMIT 1`);
+			const row = await stmt.first();
+			if (!row) {
+				throw new BizError('Database not initialized.');
+			}
+			row.resendTokens = row.resendTokens ? JSON.parse(row.resendTokens) : {};
+			row.r2Domain = '';
+			c.set?.('setting', row);
+			c.env.kv.put(KvConst.SETTING, JSON.stringify(row)).catch(() => {});
+			return this._finalize(c, row);
 		}
 
+		return this._finalize(c, setting);
+	},
+
+	// Apply the env-derived fields that only exist on the config payload (domain
+	// list, project link, email prefix filter). Shared by the KV and D1 paths so
+	// the two can never drift.
+	_finalize(c, setting) {
 		let domainList = c.env.domain;
 
 		if (typeof domainList === 'string') {
@@ -61,7 +82,7 @@ const settingService = {
 
 		setting.projectLink = projectLink;
 
-		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
+		setting.emailPrefixFilter = setting.emailPrefixFilter ? setting.emailPrefixFilter.split(",").filter(Boolean) : [];
 
 		c.set?.('setting', setting);
 		return setting;
