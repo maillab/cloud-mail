@@ -15,6 +15,20 @@ const SCOPE_PHRASE = {
 	company: 'all company records'
 };
 
+// D1 limits a prepared statement to 100 bound values. A member can legitimately
+// receive every permission (the XPass control plane currently has more than
+// that), so validation and clearing must be chunked instead of building one
+// enormous IN (...) clause.
+const D1_BINDING_BATCH = 90;
+
+function batches(values, size = D1_BINDING_BATCH) {
+	const result = [];
+	for (let index = 0; index < values.length; index += size) {
+		result.push(values.slice(index, index + size));
+	}
+	return result;
+}
+
 // Each entry describes one area and the actions the model can resolve. The
 // permission keys are the ones the API actually checks; the phrases are the only
 // place human language is attached, and they are chosen per action.
@@ -351,20 +365,26 @@ const accessService = {
 
 		// Reject unknown keys so a typo cannot create a dead override that never
 		// matches a real permission.
-		const placeholders = keys.map(() => '?').join(', ');
-		const known = await c.env.db.prepare(
-			`SELECT perm_key FROM perm WHERE perm_key IS NOT NULL AND perm_key <> '' AND perm_key IN (${placeholders})`
-		).bind(...keys).all();
-		const knownSet = new Set((known.results || []).map((r) => r.perm_key));
+		const knownSet = new Set();
+		for (const batch of batches(keys)) {
+			const placeholders = batch.map(() => '?').join(', ');
+			const known = await c.env.db.prepare(
+				`SELECT perm_key FROM perm WHERE perm_key IS NOT NULL AND perm_key <> '' AND perm_key IN (${placeholders})`
+			).bind(...batch).all();
+			for (const row of known.results || []) knownSet.add(row.perm_key);
+		}
 		const unknown = keys.filter((k) => !knownSet.has(k));
 		if (unknown.length) {
 			throw new BizError(`Unknown permission: ${unknown.join(', ')}`, 400);
 		}
 
 		if (effect === 'inherit') {
-			await c.env.db.prepare(
-				`DELETE FROM user_perm_override WHERE user_id = ? AND perm_key IN (${placeholders})`
-			).bind(userId, ...keys).run();
+			for (const batch of batches(keys)) {
+				const placeholders = batch.map(() => '?').join(', ');
+				await c.env.db.prepare(
+					`DELETE FROM user_perm_override WHERE user_id = ? AND perm_key IN (${placeholders})`
+				).bind(userId, ...batch).run();
+			}
 		} else {
 			for (const key of keys) {
 				await c.env.db.prepare(
