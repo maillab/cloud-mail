@@ -226,12 +226,6 @@ const routes = [
                 meta: {title: 'sharedMailboxes', name: 'admin-shared-mailboxes', menu: true}
             },
             {
-                // Support work is tracked as internal requests; the old
-                // standalone view is kept on disk but no longer routable.
-                path: '/support',
-                redirect: { name: 'requests' }
-            },
-            {
                 // Approvals is not a release-ready workspace yet; it exposes raw
                 // requester/approver ids and duplicate records. Send it to the
                 // Requests workspace instead of rendering a half-built screen.
@@ -277,15 +271,6 @@ const routes = [
                 name: 'integrations',
                 component: () => import('@/views/integrations/index.vue'),
                 meta: {title: 'integrations', name: 'integrations', menu: true}
-            },
-            {
-                // Administration destinations. These were referenced by the
-                // sidebar and the permission map but never registered, so every
-                // admin link was a dead button. Each is permission-gated.
-                path: '/role',
-                name: 'role',
-                component: () => import('@/views/role/index.vue'),
-                meta: {title: 'accessControl', name: 'role', menu: true}
             },
             {
                 path: '/all-email',

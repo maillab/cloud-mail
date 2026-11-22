@@ -62,7 +62,7 @@
   }
 
   .loading-image {
-    width: 200px;
+    width: 188px;
     height: auto;
     max-height: 52px;
     object-fit: contain;
@@ -83,8 +83,8 @@
 
   .loading-progress {
     position: relative;
-    width: 200px;
-    height: 4px;
+    width: 188px;
+    height: 3px;
     overflow: hidden;
     border-radius: 999px;
     background: rgba(255, 85, 0, 0.18);
@@ -101,7 +101,7 @@
     background: #FF5500;
     transform: scaleX(0);
     transform-origin: left center;
-    animation: loading-progress-grow 2.4s linear forwards;
+    animation: loading-progress-grow 900ms ease-out forwards;
   }
 
   .loading-progress::after {
@@ -114,7 +114,7 @@
     background: rgba(255, 85, 0, 0.45);
     filter: blur(4px);
     transform: translateX(-24px);
-    animation: loading-progress-peg 2.4s linear forwards;
+    animation: loading-progress-peg 900ms ease-out forwards;
   }
 
   .loading-complete .loading-progress::before {
@@ -167,7 +167,7 @@
       splash.classList.add('loading-complete');
       splash.remove();
     }
-  }, 10000);
+  }, 4000);
 </script>
 <script type="module" src="/src/main.js"></script>
 </body>

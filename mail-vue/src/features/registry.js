@@ -29,13 +29,13 @@ export const FEATURE_STATUS = {
   'admin-mail': 'active',
   'admin-company': 'active',
 
-  // Only WhatsApp is coming soon — it shows an explainer page.
-  // Everything else is fully active and working.
+  // These are intentional explainers until their real, permission-aware
+  // services are ready. Every other listed module is live.
   whatsapp: 'comingSoon',
   projects: 'active',
   calendar: 'active',
   notes: 'active',
-  'xpass-one': 'active',
+  'xpass-one': 'comingSoon',
   announcements: 'active',
 };
 

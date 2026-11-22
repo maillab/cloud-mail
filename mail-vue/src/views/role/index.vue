@@ -6,12 +6,11 @@
           <div class="access-eyebrow">XPASS HQ / ACCESS</div>
           <h1>Access control</h1>
           <p class="access-sub">
-            See what everyone can do, and fine-tune each person's access. A role sets the baseline;
-            you can grant or deny specific permissions for any individual.
+            See what everyone can do, and fine-tune each person's access. A baseline provides a reusable starting point; direct access lets you grant or deny specific permissions for each individual.
           </p>
         </div>
         <div class="access-actions">
-          <el-button v-perm="'role:add'" type="primary" icon="plus" @click="openCreate">New role</el-button>
+          <el-button v-perm="'role:add'" type="primary" icon="plus" @click="openCreate">New baseline</el-button>
           <el-button text circle icon="refresh" :aria-label="$t('refresh')" :title="$t('refresh')" @click="refresh" />
         </div>
       </div>
@@ -24,10 +23,10 @@
 
           <div class="people-toolbar">
             <el-input v-model="peopleSearch" placeholder="Search people" clearable size="small" style="max-width: 280px" />
-            <el-select v-model="peopleRoleFilter" placeholder="All roles" clearable size="small" style="width: 180px">
+            <el-select v-model="peopleRoleFilter" placeholder="All baselines" clearable size="small" style="width: 180px">
               <el-option v-for="role in roles" :key="role.roleId" :label="role.name" :value="role.roleId" />
             </el-select>
-            <el-button v-perm="'role:add'" type="primary" size="small" icon="plus" @click="openCreate">New role</el-button>
+            <el-button v-perm="'role:add'" type="primary" size="small" icon="plus" @click="openCreate">New baseline</el-button>
           </div>
 
           <el-table v-if="filteredPeople.length" v-loading="peopleLoading" :data="filteredPeople" style="width: 100%">
@@ -42,7 +41,7 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="Role" min-width="160">
+            <el-table-column label="Access baseline" min-width="160">
               <template #default="scope">
                 <el-tag size="small" effect="plain">{{ scope.row.roleName }}</el-tag>
               </template>
@@ -65,10 +64,10 @@
           </div>
         </el-tab-pane>
 
-        <el-tab-pane :label="`Overview`" name="overview">
+        <el-tab-pane :label="`Baselines`" name="overview">
           <el-card>
             <el-table v-if="roles.length" v-loading="loading" :data="roles" style="width: 100%">
-              <el-table-column label="Role" min-width="200">
+              <el-table-column label="Access baseline" min-width="200">
                 <template #default="scope">
                   <div class="role-name">
                     <span>{{ scope.row.name }}</span>
@@ -132,7 +131,7 @@
             <div class="perm-head">
               <div>
                 <div class="perm-title">{{ editingRole.name }}</div>
-                <div class="perm-sub">Editing this role's permissions. Changes apply to everyone holding it.</div>
+                <div class="perm-sub">Editing this baseline. Changes apply to everyone assigned to it unless you give them direct access.</div>
               </div>
               <div class="perm-head-actions">
                 <el-input v-model="filterText" placeholder="Filter permissions" clearable style="width: 220px" />
@@ -167,8 +166,8 @@
             </div>
           </el-card>
           <el-card v-else class="empty-state">
-            <p>Select a role to edit its permissions.</p>
-            <el-button type="primary" @click="activeTab = 'overview'">Back to overview</el-button>
+            <p>Select a baseline to edit its permissions.</p>
+            <el-button type="primary" @click="activeTab = 'overview'">Back to baselines</el-button>
           </el-card>
         </el-tab-pane>
 
@@ -177,7 +176,7 @@
             <div class="perm-head">
               <div>
                 <div class="perm-title">{{ editingRole.name }} members</div>
-                <div class="perm-sub">Changing a member's role takes effect at their next request.</div>
+                <div class="perm-sub">Changing a member's baseline takes effect at their next request. Direct access still applies immediately.</div>
               </div>
             </div>
             <el-table v-if="members.length" v-loading="membersLoading" :data="members" style="width: 100%">
@@ -193,7 +192,7 @@
                 </template>
               </el-table-column>
               <el-table-column prop="email" label="Email" min-width="200" />
-              <el-table-column label="Role" min-width="190">
+              <el-table-column label="Access baseline" min-width="190">
                 <template #default="scope">
                   <el-select
                     v-if="hasPerm('user:set-type')"
@@ -224,7 +223,7 @@
             </div>
           </el-card>
           <el-card v-else class="empty-state">
-            <p>Select a role to see its members.</p>
+            <p>Select a baseline to see its members.</p>
           </el-card>
         </el-tab-pane>
 
@@ -235,7 +234,7 @@
                 <div class="perm-title">Access history</div>
                 <div class="perm-sub">Every permission, scope and membership change, newest first.</div>
               </div>
-              <el-select v-model="historyRoleId" placeholder="All roles" clearable style="width: 220px" @change="loadHistory">
+              <el-select v-model="historyRoleId" placeholder="All baselines" clearable style="width: 220px" @change="loadHistory">
                 <el-option v-for="role in roles" :key="role.roleId" :label="role.name" :value="role.roleId" />
               </el-select>
             </div>
@@ -292,7 +291,7 @@
                   <ul v-if="preview.cannot.length" class="preview-list">
                     <li v-for="(item, index) in preview.cannot" :key="'cannot' + index">{{ item.phrase }}</li>
                   </ul>
-                  <p v-else class="preview-empty">Nothing is blocked by this role definition.</p>
+                  <p v-else class="preview-empty">Nothing is blocked by this baseline.</p>
                 </div>
               </div>
 
@@ -306,16 +305,16 @@
             </div>
           </el-card>
           <el-card v-else class="empty-state">
-            <p>Choose a role to preview its effective access.</p>
+            <p>Choose a baseline to preview its effective access.</p>
           </el-card>
         </el-tab-pane>
       </el-tabs>
     </div>
 
-    <el-dialog v-model="createVisible" title="New role" width="520px">
+    <el-dialog v-model="createVisible" title="New access baseline" width="520px">
       <el-form :model="createForm" label-width="120px">
         <el-form-item label="Name">
-          <el-input v-model="createForm.name" placeholder="e.g. Finance Viewer" />
+          <el-input v-model="createForm.name" placeholder="e.g. Finance read only" />
         </el-form-item>
         <el-form-item label="Description">
           <el-input v-model="createForm.description" type="textarea" rows="2" />
@@ -328,7 +327,7 @@
       </el-form>
       <template #footer>
         <el-button @click="createVisible = false">Cancel</el-button>
-        <el-button type="primary" :loading="creating" @click="createRole">Create role</el-button>
+        <el-button type="primary" :loading="creating" @click="createRole">Create baseline</el-button>
       </template>
     </el-dialog>
 
@@ -341,7 +340,7 @@
     <el-drawer v-model="accessVisible" :title="accessTitle" direction="rtl" size="480px">
       <div v-loading="accessLoading" class="member-access-view">
         <p class="access-view-note">
-          What {{ accessTarget?.displayName || accessTarget?.email || 'this person' }} can do, based on their role and any individual adjustments.
+          What {{ accessTarget?.displayName || accessTarget?.email || 'this person' }} can do, based on their access baseline and any individual adjustments.
         </p>
         <div v-if="accessData" class="preview-columns">
           <div class="preview-col">
@@ -520,7 +519,7 @@ async function refresh() {
     }
     await Promise.all([loadTree(), loadHistory()])
   } catch (error) {
-    ElMessage({ message: error.message || 'Failed to load roles.', type: 'error', plain: true })
+    ElMessage({ message: error.message || 'Failed to load access baselines.', type: 'error', plain: true })
   } finally {
     loading.value = false
   }
@@ -604,7 +603,7 @@ function openCreate() {
 
 async function createRole() {
   if (!createForm.name.trim()) {
-    ElMessage({ message: 'Name is required.', type: 'warning', plain: true })
+    ElMessage({ message: 'A baseline name is required.', type: 'warning', plain: true })
     return
   }
   creating.value = true
@@ -623,9 +622,9 @@ async function createRole() {
     })
     createVisible.value = false
     await refresh()
-    ElMessage({ message: 'Role created.', type: 'success', plain: true })
+    ElMessage({ message: 'Access baseline created.', type: 'success', plain: true })
   } catch (error) {
-    ElMessage({ message: error.message || 'Failed to create role.', type: 'error', plain: true })
+    ElMessage({ message: error.message || 'Failed to create access baseline.', type: 'error', plain: true })
   } finally {
     creating.value = false
   }
@@ -740,9 +739,9 @@ async function changeMemberRole(member, roleId) {
     await openMembers(editingRole.value)
     await refresh()
     await loadHistory()
-    ElMessage({ message: `Moved to ${role ? role.name : 'new role'}.`, type: 'success', plain: true })
+    ElMessage({ message: `Moved to ${role ? role.name : 'the new baseline'}.`, type: 'success', plain: true })
   } catch (error) {
-    ElMessage({ message: error.message || 'Failed to change role.', type: 'error', plain: true })
+    ElMessage({ message: error.message || 'Failed to change access baseline.', type: 'error', plain: true })
   }
 }
 
@@ -750,14 +749,14 @@ async function setDefault(role) {
   try {
     await roleSetDef(role.roleId)
     await refresh()
-    ElMessage({ message: 'Default role updated.', type: 'success', plain: true })
+    ElMessage({ message: 'Default access baseline updated.', type: 'success', plain: true })
   } catch (error) {
-    ElMessage({ message: error.message || 'Failed to set default.', type: 'error', plain: true })
+    ElMessage({ message: error.message || 'Failed to set default access baseline.', type: 'error', plain: true })
   }
 }
 
 async function removeRole(role) {
-  if (!await confirm(`Delete role "${role.name}"? Its members move to the default role.`)) return
+  if (!await confirm(`Delete access baseline "${role.name}"? Its members move to the default baseline.`)) return
   try {
     await roleDelete(role.roleId)
     if (editingRole.value?.roleId === role.roleId) {
@@ -765,9 +764,9 @@ async function removeRole(role) {
       activeTab.value = 'overview'
     }
     await refresh()
-    ElMessage({ message: 'Role deleted.', type: 'success', plain: true })
+    ElMessage({ message: 'Access baseline deleted.', type: 'success', plain: true })
   } catch (error) {
-    ElMessage({ message: error.message || 'Failed to delete role.', type: 'error', plain: true })
+    ElMessage({ message: error.message || 'Failed to delete access baseline.', type: 'error', plain: true })
   }
 }
 

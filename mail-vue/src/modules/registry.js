@@ -54,6 +54,18 @@ export const workspaceModules = [
         // opens the explainer page rather than being gated behind whatsapp:query.
     },
     {
+        id: 'xpass-one',
+        name: 'XPass AI',
+        description: 'Future intelligence layer for your authorized work',
+        icon: 'fluent:brain-circuit-20-regular',
+        group: 'workspace',
+        available: true,
+        routeName: 'ai',
+        routeNames: ['ai'],
+        // An intentional explainer page for now, visible like WhatsApp so the
+        // team understands what is planned without mistaking it for a live tool.
+    },
+    {
         id: 'finance',
         name: 'Finance',
         description: 'Money in, money out, budgets, and invoices',

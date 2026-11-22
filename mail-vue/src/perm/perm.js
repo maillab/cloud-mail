@@ -66,6 +66,17 @@ const routers = {
             name: 'mail-shared-inbox',
             menu: false
         }
+    }, {
+        // Support is the primary shared-inbox destination. It is governed by
+        // the same mailbox permission that controls the sidebar entry.
+        path: '/support',
+        name: 'support-inbox',
+        component: () => import('@/views/support-inbox/index.vue'),
+        meta: {
+            title: 'supportInbox',
+            name: 'support-inbox',
+            menu: true
+        }
     }],
     'user:query': [{
         path: '/all-users',
@@ -267,24 +278,16 @@ const routers = {
             menu: true
         }
     }],
-    'support:query': [{
-        path: '/support',
-        name: 'support',
-        component: () => import('@/views/support/index.vue'),
-        meta: {
-            title: 'support',
-            name: 'support',
-            menu: true
-        }
-    }],
+    // Approvals is deliberately folded into Requests until its own workflow is
+    // release-ready. Never add the old raw-ID approvals screen after login.
     'approvals:query': [{
         path: '/approvals',
         name: 'approvals',
-        component: () => import('@/views/approvals/index.vue'),
+        redirect: '/requests',
         meta: {
-            title: 'approvals',
+            title: 'internalRequests',
             name: 'approvals',
-            menu: true
+            menu: false
         }
     }],
     'requests:query': [{
@@ -327,14 +330,16 @@ const routers = {
             menu: true
         }
     }],
+    // XPass AI is intentionally an explainer until the real, permission-aware
+    // service is ready. The permission route must not override that page.
     'ai:use': [{
         path: '/ai',
         name: 'ai',
-        redirect: '/overview',
+        redirect: '/coming-soon/xpass-one',
         meta: {
             title: 'ai',
             name: 'ai',
-            menu: false
+            menu: true
         }
     }],
     'automations:query': [{

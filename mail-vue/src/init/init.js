@@ -52,17 +52,17 @@ export async function init() {
 
     i18n.global.locale.value = settingStore.lang;
 
-    // Neither of these may take the application down: a settings or identity
-    // failure must still leave a renderable shell (sign-in or a degraded app).
-    const safeSetting = websiteConfig({timeout: CALL_TIMEOUT}).catch(e => {
-        console.error('website config failed', e);
-        bootstrapState.error = e;
-        return null;
-    });
-
     let setting = null;
 
     if (token) {
+        // An authenticated shell needs both the identity and the company
+        // configuration. The sign-in screen loads its own configuration after
+        // it renders, so an unauthenticated first paint has no network wait.
+        const safeSetting = websiteConfig({timeout: CALL_TIMEOUT}).catch(e => {
+            console.error('website config failed', e);
+            bootstrapState.error = e;
+            return null;
+        });
         const userPromise = loginUserInfo({timeout: CALL_TIMEOUT}).catch(e => {
             console.error(e);
             bootstrapState.error = e;
@@ -111,17 +111,10 @@ export async function init() {
         }
 
     } else {
-        try {
-            setting = await withTimeout(safeSetting, CALL_TIMEOUT + 1500, 'startup');
-        } catch (e) {
-            console.error('startup timed out', e);
-            bootstrapState.error = e;
-        }
-        if (setting) {
-            settingStore.settings = setting;
-            settingStore.domainList = setting.domainList;
-            bootstrapState.configReady = true;
-        }
+        // The sign-in view owns its own configuration request and has a safe
+        // build-time domain fallback. Do not hold the first paint hostage to a
+        // network call here: a cold Worker must still show a usable sign-in
+        // screen immediately.
         document.title = 'XPass HQ';
     }
 }
