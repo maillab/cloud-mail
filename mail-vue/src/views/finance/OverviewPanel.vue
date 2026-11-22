@@ -20,12 +20,12 @@
       <section class="fin-section">
         <div class="fin-section-head">
           <h3>Accounts</h3>
-          <span class="fin-section-note">{{ view.accounts?.length || 0 }} account{{ (view.accounts?.length || 0) === 1 ? '' : 's' }} · cash on hand {{ money(view.totalBalanceCents) }}</span>
+          <span class="fin-section-note">{{ view.accounts?.length || 0 }} account{{ (view.accounts?.length || 0) === 1 ? '' : 's' }} · available cash {{ money(view.totalBalanceCents) }}</span>
           <el-button text size="small" @click="emit('navigate', 'accounts')">Manage accounts</el-button>
         </div>
         <div class="fin-stats">
           <StatCard
-            label="Cash on hand"
+            label="Available cash"
             :value="moneyShort(view.totalBalanceCents)"
             :hint="`${view.accounts?.length || 0} account${(view.accounts?.length || 0) === 1 ? '' : 's'} · ${money(view.totalBalanceCents)}`"
           />

@@ -33,7 +33,7 @@
       <section class="fin-card">
         <div class="fin-card-head">
           <h3>Accounts</h3>
-          <span class="fin-card-note">Balances are derived from the ledger, never typed in</span>
+          <span class="fin-card-note">Available cash is calculated from the account ledger</span>
         </div>
 
         <el-table v-if="accounts.length" :data="accounts" size="small" style="width: 100%">
@@ -43,11 +43,11 @@
               <span v-if="scope.row.confidential" class="fin-tag">Restricted</span>
             </template>
           </el-table-column>
-          <el-table-column prop="account_type" label="Type" min-width="110" />
+          <el-table-column prop="account_type" label="Where it is held" min-width="130" />
           <el-table-column label="Opened" min-width="110">
             <template #default="scope">{{ scope.row.opened_on || '—' }}</template>
           </el-table-column>
-          <el-table-column label="Opening" min-width="130" align="right">
+          <el-table-column label="Starting balance" min-width="130" align="right">
             <template #default="scope">{{ money(scope.row.opening_cents, scope.row.currency) }}</template>
           </el-table-column>
           <el-table-column label="Balance" min-width="140" align="right">
@@ -131,7 +131,7 @@
         <el-form-item label="Currency">
           <el-input v-model="form.currency" maxlength="8" placeholder="KES" />
         </el-form-item>
-        <el-form-item :label="form.id ? 'Opening balance' : 'Opening balance'">
+        <el-form-item label="Starting balance">
           <el-input-number
             v-model="form.opening"
             :precision="2"
@@ -141,7 +141,7 @@
             style="width: 100%"
           />
           <div class="fin-hint">
-            The opening balance is the start of this account's ledger. Changing it is recorded in the audit log.
+            This is the balance when the account was first added. Later changes belong in the ledger.
           </div>
         </el-form-item>
         <el-form-item v-if="form.id" label="Change reason">
@@ -154,12 +154,12 @@
         <el-form-item label="Opened on">
           <el-date-picker v-model="form.opened_on" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="Custodian">
+        <el-form-item label="Account owner">
           <el-select
             v-model="form.owner_id"
             clearable
             filterable
-            placeholder="Who holds or controls this money"
+            placeholder="Who is responsible for this account"
             style="width: 100%"
           >
             <el-option
@@ -170,11 +170,11 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="Source">
-          <el-input v-model="form.source" maxlength="120" placeholder="Where this money came from" />
+        <el-form-item label="Funding source">
+          <el-input v-model="form.source" maxlength="120" placeholder="e.g. sales, founder funds, grant" />
         </el-form-item>
-        <el-form-item label="Restrictions">
-          <el-input v-model="form.restrictions" type="textarea" :rows="2" maxlength="500" placeholder="What this money may be used for" />
+        <el-form-item label="Use of funds">
+          <el-input v-model="form.restrictions" type="textarea" :rows="2" maxlength="500" placeholder="What this money is reserved for, if anything" />
         </el-form-item>
         <el-form-item label="Description">
           <el-input v-model="form.description" type="textarea" :rows="2" maxlength="500" />
