@@ -415,6 +415,16 @@
                   </el-button>
                   <el-button plain type="danger" @click="resetAllTours">{{ $t('reset') }}</el-button>
                 </div>
+                <div class="pref-list" style="margin-top: 16px">
+                  <div class="field-info">
+                    <label class="field-label">What I can access</label>
+                    <span class="field-desc">Only the modules your administrator has granted you appear here.</span>
+                  </div>
+                  <div class="access-chips">
+                    <span v-for="mod in myModules" :key="mod.key" class="access-chip">{{ mod.label }}</span>
+                    <span v-if="!myModules.length" class="field-desc">No additional modules yet.</span>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -568,6 +578,7 @@ async function resetNotifPrefs() {
 const tutorialStore = useTutorialStore()
 const tutorialPrefs = reactive({ showOnFirstVisit: true })
 const availableTours = computed(() => tutorialStore.availableTours)
+const myModules = computed(() => tutorialStore.myModules)
 
 async function saveTutorialPrefs() {
   await tutorialStore.savePreferences({ showOnFirstVisit: tutorialPrefs.showOnFirstVisit })
@@ -1254,6 +1265,26 @@ function deleteConfirm() {
   gap: 8px;
   padding-top: 8px;
   flex-wrap: wrap;
+}
+
+.access-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.access-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--hq-border);
+  border-radius: 999px;
+  background: var(--hq-hover);
+  color: var(--hq-text-secondary);
+  font-size: 12.5px;
+  font-weight: 550;
 }
 
 .accounts-header {

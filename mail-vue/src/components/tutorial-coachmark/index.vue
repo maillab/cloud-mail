@@ -18,11 +18,20 @@
         :class="`placement-${currentStep.placement || 'center'}`"
         :style="cardStyle"
       >
+        <div class="coachmark-chapter">{{ activeTour.title }}</div>
         <div class="coachmark-head">
           <span class="coachmark-step">{{ activeStep + 1 }} / {{ activeTour.steps.length }}</span>
           <span class="coachmark-title">{{ currentStep.title }}</span>
         </div>
         <p class="coachmark-body">{{ currentStep.body }}</p>
+        <div class="coachmark-progress" aria-hidden="true">
+          <span
+            v-for="(step, index) in activeTour.steps"
+            :key="index"
+            class="coachmark-dot"
+            :class="{ 'is-active': index === activeStep }"
+          ></span>
+        </div>
         <div class="coachmark-actions">
           <button
             v-if="activeStep > 0"
@@ -31,8 +40,8 @@
           >Back</button>
           <button
             class="coachmark-btn coachmark-btn-ghost"
-            @click="dismiss"
-          >Skip tour</button>
+            @click="pause"
+          >Pause</button>
           <button
             class="coachmark-btn coachmark-btn-primary"
             @click="next"
@@ -140,11 +149,20 @@ function onBackdropClick() {
 
 async function goToStep() {
   const step = currentStep.value
-  if (step?.route) {
+  // Navigate to the tour's home route on the first step if needed, then to any
+  // per-step route. This lets module tours open their module before spotlighting.
+  const tourRoute = tutorialStore.activeTour?.route
+  const targetRoute = step?.route || tourRoute
+  if (targetRoute && activeStep.value === 0) {
+    const currentRoute = router.currentRoute.value
+    if (currentRoute.name !== targetRoute) {
+      await router.push({ name: targetRoute }).catch(() => {})
+      await new Promise(r => setTimeout(r, 350))
+    }
+  } else if (step?.route) {
     const currentRoute = router.currentRoute.value
     if (currentRoute.name !== step.route) {
       await router.push({ name: step.route }).catch(() => {})
-      // wait for DOM to settle
       await new Promise(r => setTimeout(r, 300))
     }
   }
@@ -154,6 +172,7 @@ async function goToStep() {
 
 function next() { tutorialStore.nextStep().then(goToStep) }
 function prev() { tutorialStore.prevStep().then(goToStep) }
+function pause() { tutorialStore.dismissTour() }
 function dismiss() { tutorialStore.dismissTour() }
 
 watch(() => tutorialStore.activeStep, () => { goToStep() })
@@ -213,6 +232,35 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.coachmark-chapter {
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--hq-accent, #ff5500);
+  opacity: .85;
+}
+
+.coachmark-progress {
+  display: flex;
+  gap: 5px;
+  margin: 0 0 14px;
+}
+
+.coachmark-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hq-border, #e7e2dc);
+}
+
+.coachmark-dot.is-active {
+  width: 16px;
+  border-radius: 3px;
+  background: var(--hq-accent, #ff5500);
 }
 
 .coachmark-step {

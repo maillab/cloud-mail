@@ -70,6 +70,7 @@ const dbInit = {
 		await this.v3_39DB(c);
 		await this.v3_40DB(c);
 		await this.v3_41DB(c);
+		await this.v3_42DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
@@ -3374,6 +3375,23 @@ async v3_19DB(c) {
 		`).run();
 		await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_finance_invoice_share_invoice ON finance_invoice_share(invoice_id);`).run();
 		await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_finance_invoice_share_token ON finance_invoice_share(token_hash);`).run();
+	},
+
+	// v3_42: per-member guide state for the personalized XPass HQ Guide. Stores
+	// the effective-access version the member last acknowledged (so we can tell
+	// when an administrator grants or removes access) and whether they have
+	// completed the first-workspace tour. Module-tour completion already lives
+	// in tutorial_progress; this is only the access-version bookkeeping.
+	async v3_42DB(c) {
+		await c.env.db.prepare(`
+			CREATE TABLE IF NOT EXISTS member_guide (
+				user_id INTEGER PRIMARY KEY,
+				ack_access_hash TEXT,
+				ack_perms TEXT,
+				first_tour_completed INTEGER NOT NULL DEFAULT 0,
+				update_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)
+		`).run();
 	},
 
 	async v3_29DB(c) {

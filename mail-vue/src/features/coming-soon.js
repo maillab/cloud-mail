@@ -24,16 +24,50 @@ export const comingSoonContent = {
   whatsapp: {
     name: 'WhatsApp',
     icon: 'fluent:chat-20-regular',
-    tagline: 'One official XPass number, handled together.',
+    tagline: 'WhatsApp, inside XPass HQ.',
     body:
-      'WhatsApp will become a shared company inbox: one official number that authorized Team members handle together from HQ, with assignment, internal notes, and links back into Requests and CRM.',
-    bullets: [
-      'Shared official XPass WhatsApp',
-      'Team assignment and ownership',
-      'Support conversations in one place',
-      'Internal notes alongside messages',
-      'Link conversations to Requests and CRM',
+      'Soon, XPass HQ will let the team manage the official XPass WhatsApp Business account directly from the dashboard.',
+    intro: [
+      'There will be no need to open another WhatsApp login, switch devices, or lose customer context across personal phones. Incoming WhatsApp chats, support questions, and customer follow-ups will appear inside XPass HQ alongside Mail, CRM, Requests, and Support Inbox.',
     ],
+    sectionsTitle: 'What it will let the team do',
+    sections: [
+      {
+        title: 'Receive WhatsApp messages in HQ',
+        body: 'Customer chats sent to the official XPass WhatsApp Business number will arrive in one shared workspace.',
+      },
+      {
+        title: 'Reply without leaving the dashboard',
+        body: 'Authorized team members will read and answer WhatsApp conversations directly inside XPass HQ, without logging into WhatsApp Web or using a separate app.',
+      },
+      {
+        title: 'Handle support in one place',
+        body: 'WhatsApp support conversations will sit alongside email support, so the team can follow customer issues without switching tools.',
+      },
+      {
+        title: 'Assign and transfer conversations',
+        body: 'A conversation can be assigned to the right person, transferred to another team member, or returned to the shared queue.',
+      },
+      {
+        title: 'Keep the full context',
+        body: 'See previous messages, customer details, linked CRM records, related Requests, Projects, and support history in one place.',
+      },
+      {
+        title: 'Use statuses, tags, and internal notes',
+        body: 'Mark chats as Open, In Progress, Waiting for Customer, Waiting Internally, or Resolved. Add private notes and tags that customers never see.',
+      },
+      {
+        title: 'Keep access controlled',
+        body: 'Only team members who are explicitly given WhatsApp access will be able to view or handle conversations.',
+      },
+      {
+        title: 'Use XPass AI later',
+        body: 'XPass AI will eventually help summarize authorized conversation context and draft suggested replies for review. It will never send messages automatically.',
+      },
+    ],
+    note:
+      'WhatsApp is not connected in this release. No messages can currently be sent or received from XPass HQ.',
+    bullets: [],
   },
   projects: {
     name: 'Projects',
@@ -91,6 +125,8 @@ export function getComingSoon(feature) {
     icon: 'fluent:clock-20-regular',
     tagline: 'Coming soon.',
     body: 'This part of XPass HQ is being built and will be available in a future release.',
+    intro: [],
+    sections: [],
     bullets: [],
   };
 }

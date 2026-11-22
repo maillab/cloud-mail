@@ -2,17 +2,23 @@
   <el-config-provider>
     <router-view />
     <TutorialCoachmark />
+    <WorkspaceGuidePrompt />
   </el-config-provider>
 </template>
 <script setup>
 import { useI18n } from "vue-i18n";
 import { onMounted, onUnmounted, watch } from "vue";
-import {useUiStore} from "@/store/ui.js";
+import { useRoute } from "vue-router";
+import { useUiStore } from "@/store/ui.js";
 import { usePresence } from "@/composables/use-presence.js";
 import { useTutorialStore } from "@/store/tutorial.js";
+import { useUserStore } from "@/store/user.js";
 import TutorialCoachmark from "@/components/tutorial-coachmark/index.vue";
+import WorkspaceGuidePrompt from "@/components/workspace-guide-prompt/index.vue";
 const uiStore = useUiStore()
 const tutorialStore = useTutorialStore()
+const userStore = useUserStore()
+const route = useRoute()
 import('@/icons/index.js')
 const { locale } = useI18n()
 locale.value = 'en'
@@ -31,6 +37,25 @@ const handleSystemThemeChange = () => {
   }
 };
 
+// The XPass HQ Guide must never appear on the login page, before onboarding is
+// complete, or over a tour that is already running. It is evaluated only once
+// the member is authenticated and has reached their real Overview dashboard.
+function isAuthenticated() {
+  const token = localStorage.getItem('token')
+  const perms = userStore.user?.permKeys
+  return !!token && Array.isArray(perms) && perms.length > 0
+}
+
+let evaluated = false
+function maybeEvaluate() {
+  if (evaluated) return
+  if (route.name !== 'overview') return
+  if (!isAuthenticated()) return
+  if (tutorialStore.activeTour || tutorialStore.intro) return
+  evaluated = true
+  tutorialStore.evaluate({ onOverview: true })
+}
+
 onMounted(async () => {
   if (window.matchMedia) {
     mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -40,12 +65,16 @@ onMounted(async () => {
       mediaQuery.addListener(handleSystemThemeChange);
     }
   }
-  // Auto-start the welcome tour on first visit (after the shell renders).
+  // Load saved guide state up front; the prompt itself waits until the member
+  // reaches Overview (see maybeEvaluate). No tour auto-starts on login.
   await tutorialStore.load();
-  if (tutorialStore.shouldAutoStart('welcome', 1)) {
-    setTimeout(() => tutorialStore.startTour('welcome'), 800);
-  }
+  maybeEvaluate();
 });
+
+watch(() => route.name, () => maybeEvaluate());
+// Session restore: the user identity loads asynchronously after a refresh, so
+// re-check once permissions arrive while sitting on the Overview.
+watch(() => userStore.user?.permKeys?.length, () => maybeEvaluate());
 
 onUnmounted(() => {
   if (mediaQuery) {
