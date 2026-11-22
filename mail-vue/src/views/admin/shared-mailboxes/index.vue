@@ -138,6 +138,9 @@
             <span class="sm-field-label">{{ $t('sharedMailboxSelectUser') }}</span>
             <el-select
               v-model="addUserId"
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
               filterable
               clearable
               :placeholder="$t('sharedMailboxSelectUserPlaceholder')"
@@ -161,8 +164,8 @@
               </label>
             </div>
           </div>
-          <el-button type="primary" :loading="adding" :disabled="!addUserId" @click="submitAddMember">
-            {{ $t('addMember') }}
+          <el-button type="primary" :loading="adding" :disabled="!addUserId.length" @click="submitAddMember">
+            {{ addUserId.length > 1 ? `Add ${addUserId.length} members` : $t('addMember') }}
           </el-button>
         </section>
 
@@ -346,7 +349,7 @@ const membersLoading = ref(false)
 
 const users = ref([])
 const usersLoading = ref(false)
-const addUserId = ref(null)
+const addUserId = ref([])
 const addPerms = ref(['view'])
 const adding = ref(false)
 
@@ -380,7 +383,7 @@ async function openMembers(box) {
   membersMailbox.value = box
   membersVisible.value = true
   members.value = []
-  addUserId.value = null
+  addUserId.value = []
   addPerms.value = ['view']
   await loadMembers()
   await loadUsers()
@@ -412,16 +415,19 @@ function permSummary(value) {
 }
 
 async function submitAddMember() {
-  if (adding.value || !addUserId.value) return
+  if (adding.value || !addUserId.value.length) return
   adding.value = true
   try {
-    await sharedMailboxMemberAdd({
+    const selected = addUserId.value.slice()
+    const results = await Promise.allSettled(selected.map(userId => sharedMailboxMemberAdd({
       mailboxId: membersMailbox.value.account_id,
-      userId: addUserId.value,
+      userId,
       permissions: addPerms.value.slice(),
-    })
-    ElMessage({ message: 'Member added.', type: 'success', plain: true })
-    addUserId.value = null
+    })))
+    const added = results.filter(result => result.status === 'fulfilled').length
+    const failed = results.length - added
+    ElMessage({ message: failed ? `${added} member${added === 1 ? '' : 's'} added; ${failed} could not be added.` : `${added} members added.`, type: failed ? 'warning' : 'success', plain: true })
+    addUserId.value = []
     addPerms.value = ['view']
     await loadMembers()
   } catch {
