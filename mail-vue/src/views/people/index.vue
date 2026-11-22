@@ -141,7 +141,7 @@
           </div>
         </el-tab-pane>
 
-        <el-tab-pane name="roles">
+        <el-tab-pane v-if="canSeeAccessControl" name="roles">
           <template #label>
             <span>Roles &amp; permissions</span>
             <span v-if="roles.length" class="tab-count">{{ roles.length }}</span>
@@ -177,23 +177,43 @@
       </el-tabs>
     </div>
 
-    <el-dialog v-model="addMemberVisible" title="Add member" width="520px">
-      <el-form label-width="110px">
+    <el-dialog v-model="addMemberVisible" title="Add XPass Team member" width="640px">
+      <div class="member-setup-note">
+        Their access plan is only a starting point. After creating the account, you will choose the exact areas they can view or manage. On their first sign-in, they must set a new password, their signature, and their authenticator.
+      </div>
+      <el-form label-position="top" class="member-create-form">
         <el-form-item label="Work email">
           <el-input v-model="addForm.email" placeholder="name@company.com" autocomplete="off" />
         </el-form-item>
-        <el-form-item label="Temporary password">
-          <el-input v-model="addForm.password" type="password" placeholder="At least 6 characters" show-password />
-        </el-form-item>
-        <el-form-item label="Role">
-          <el-select v-model="addForm.roleId" placeholder="Choose a role" style="width: 100%">
-            <el-option v-for="role in roles" :key="role.roleId" :label="role.name" :value="role.roleId" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Team">
-          <el-select v-model="addForm.teamId" placeholder="No team" clearable style="width: 100%">
+        <div class="member-form-grid">
+          <el-form-item label="Full name">
+            <el-input v-model="addForm.displayName" placeholder="e.g. Amina Wanjiku" autocomplete="off" />
+          </el-form-item>
+          <el-form-item label="Username">
+            <el-input v-model="addForm.username" placeholder="e.g. amina" autocomplete="off" />
+          </el-form-item>
+          <el-form-item label="Position">
+            <el-input v-model="addForm.jobTitle" placeholder="e.g. Customer Experience Lead" autocomplete="off" />
+          </el-form-item>
+          <el-form-item label="Phone number">
+            <el-input v-model="addForm.phone" placeholder="e.g. +254 7XX XXX XXX" autocomplete="tel" />
+          </el-form-item>
+        </div>
+        <el-form-item label="Teams">
+          <el-select v-model="addForm.teamIds" multiple filterable placeholder="Choose one or more teams" style="width: 100%">
             <el-option v-for="team in teams" :key="team.team_id" :label="team.name" :value="team.team_id" />
           </el-select>
+          <div class="member-form-hint">The first team is their primary team for the directory. Teams organise work; they never grant access by themselves.</div>
+        </el-form-item>
+        <el-form-item v-if="canSeeAccessControl" label="Starting access plan">
+          <el-select v-model="addForm.roleId" clearable placeholder="Use the default starter access" style="width: 100%">
+            <el-option v-for="role in roles" :key="role.roleId" :label="role.name" :value="role.roleId" />
+          </el-select>
+          <div class="member-form-hint">This is the baseline. You will choose their individual view and manage permissions immediately after creation.</div>
+        </el-form-item>
+        <el-form-item label="Temporary password">
+          <el-input v-model="addForm.password" type="password" placeholder="Optional — generate a secure password for me" show-password autocomplete="new-password" />
+          <div class="member-form-hint">Leave this blank to generate one. It is shown once after you create the account and must be changed on first sign-in.</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -233,17 +253,17 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { directoryList, teamList, teamCreate } from '@/request/profile.js'
 import { roleRoleList } from '@/request/role.js'
-import { userAdd } from '@/request/user.js'
-import http from '@/axios/index.js'
+import { addMemberTeam, createTeamMember } from '@/request/team.js'
 import HqAvatar from '@/components/hq-avatar/index.vue'
 import MemberAccess from '@/components/member-access/index.vue'
 import MemberSecurity from '@/components/member-security/index.vue'
 import { useSettingStore } from '@/store/setting.js'
 import router from '@/router/index.js'
+import { hasPerm } from '@/perm/perm.js'
 
 const settingStore = useSettingStore()
 
@@ -256,10 +276,11 @@ const teamFilter = ref('')
 const page = ref(1)
 const teams = ref([])
 const roles = ref([])
+const canSeeAccessControl = computed(() => hasPerm('role:query'))
 
 const addMemberVisible = ref(false)
 const addingMember = ref(false)
-const addForm = ref({ email: '', password: '', roleId: null, teamId: null })
+const addForm = ref({ email: '', displayName: '', username: '', jobTitle: '', phone: '', password: '', roleId: null, teamIds: [] })
 
 const accessVisible = ref(false)
 const accessTarget = ref(null)
@@ -343,6 +364,10 @@ async function loadTeams() {
 }
 
 async function loadRoles() {
+  if (!canSeeAccessControl.value) {
+    roles.value = []
+    return
+  }
   try {
     roles.value = await roleRoleList()
   } catch {
@@ -353,7 +378,7 @@ async function loadRoles() {
 function reload() {
   loadDirectory()
   loadTeams()
-  loadRoles()
+  if (canSeeAccessControl.value) loadRoles()
 }
 
 function openRoleBuilder() {
@@ -388,9 +413,13 @@ function openAddMember() {
   const defaultRole = roles.value.find(role => role.isDefault) || roles.value[0] || null
   addForm.value = {
     email: '',
+    displayName: '',
+    username: '',
+    jobTitle: '',
+    phone: '',
     password: '',
     roleId: defaultRole ? defaultRole.roleId : null,
-    teamId: teamFilter.value || null,
+    teamIds: teamFilter.value ? [teamFilter.value] : [],
   }
   addMemberVisible.value = true
 }
@@ -405,32 +434,42 @@ async function submitMember() {
     ElMessage({ message: 'Work email is required.', type: 'warning', plain: true })
     return
   }
-  if (!settingStore.domainList.includes(email.split('@')[1] || '')) {
+  if (settingStore.domainList.length && !settingStore.domainList.includes(email.split('@')[1] || '')) {
     ElMessage({ message: 'That email domain is not one of the company domains.', type: 'error', plain: true })
     return
   }
-  if (!password || password.length < 6) {
-    ElMessage({ message: 'The temporary password needs at least 6 characters.', type: 'warning', plain: true })
+  if (password && password.length < 12) {
+    ElMessage({ message: 'Use at least 12 characters, or leave it blank for a secure generated password.', type: 'warning', plain: true })
     return
   }
   addingMember.value = true
   try {
-    const created = await userAdd({
+    const teamIds = [...new Set(addForm.value.teamIds.map(Number).filter(Boolean))]
+    const created = await createTeamMember({
       email,
-      password,
-      type: addForm.value.roleId ?? undefined,
-      signatureText: '',
+      password: password || undefined,
+      displayName: addForm.value.displayName.trim() || undefined,
+      username: addForm.value.username.trim() || undefined,
+      jobTitle: addForm.value.jobTitle.trim() || undefined,
+      phone: addForm.value.phone.trim() || undefined,
+      roleId: addForm.value.roleId ?? undefined,
+      teamId: teamIds[0] || undefined,
     })
     const newId = Number(created?.userId || created?.user_id || created?.user?.userId) || 0
-    if (newId && addForm.value.teamId) {
-      // Team is an administration field, so it is set through the assignment
-      // route rather than being smuggled into account creation.
-      await http.put(`/user/${newId}/assignment`, { teamId: addForm.value.teamId })
+    if (newId) {
+      for (const teamId of teamIds.slice(1)) await addMemberTeam(newId, teamId)
     }
     addMemberVisible.value = false
     await loadDirectory()
     await loadTeams()
     ElMessage({ message: 'Member added.', type: 'success', plain: true })
+    if (created?.temporaryPassword) {
+      await ElMessageBox.alert(
+        `Give this temporary password to ${created.displayName || email} now. It will not be shown again: ${created.temporaryPassword}`,
+        'Temporary password — save it now',
+        { confirmButtonText: 'I have saved it', type: 'warning' }
+      )
+    }
     if (newId) {
       // Take the admin straight into the new member's permissions so specific
       // access can be granted, edited or removed as part of account creation.
@@ -447,7 +486,7 @@ async function submitMember() {
 onMounted(() => {
   loadDirectory()
   loadTeams()
-  loadRoles()
+  if (canSeeAccessControl.value) loadRoles()
 })
 </script>
 
@@ -466,6 +505,10 @@ onMounted(() => {
 .directory-more { display: flex; justify-content: center; padding-top: 12px; }
 .section-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
 .section-hint { margin: 0; max-width: 640px; color: var(--hq-muted); font-size: 12.5px; line-height: 1.5; }
+.member-setup-note { margin: 0 0 16px; padding: 11px 12px; border: 1px solid var(--hq-border); border-radius: 9px; background: var(--hq-selected); color: var(--hq-text-secondary); font-size: 12.5px; line-height: 1.5; }
+.member-create-form { display: grid; gap: 2px; }
+.member-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.member-form-hint { margin-top: 5px; color: var(--hq-muted); font-size: 11.5px; line-height: 1.4; }
 .person-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .person-copy { display: grid; min-width: 0; }
 .person-name { color: var(--hq-text); font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -479,4 +522,9 @@ onMounted(() => {
 .empty-title { color: var(--hq-text); font-size: 15px; font-weight: 650; }
 .empty-state p { margin: 0; font-size: 13px; line-height: 1.55; }
 .empty-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+@media (max-width: 640px) {
+  .module-container { padding: 20px 16px 28px; }
+  .module-header { flex-direction: column; }
+  .member-form-grid { grid-template-columns: 1fr; gap: 0; }
+}
 </style>

@@ -24,9 +24,9 @@ const permService = {
 	},
 
 	// Resolve permissions from the database only: the user's role BUTTON perms
-	// plus per-user overrides. Never returns the '*' wildcard, so administrator
-	// access is expressed as explicit keys. This keeps deny overrides effective
-	// and stops record-level scope checks from being auto-bypassed.
+	// plus per-user overrides. A full-access override expands to the real keys
+	// at read time rather than returning '*', so new capabilities are included
+	// automatically while an intentional deny can still take effect.
 	async resolvePermKeys(c, userId) {
 		const {results} = await c.env.db.prepare(`
 			SELECT DISTINCT perm.perm_key FROM perm
@@ -40,9 +40,17 @@ const permService = {
 		// Per-user overrides are applied on top of the role's permissions.
 		try {
 			const overrides = await c.env.db.prepare(`SELECT perm_key, effect FROM user_perm_override WHERE user_id = ?`).bind(userId).all();
-			for (const o of overrides.results || []) {
+			const rows = overrides.results || [];
+			if (rows.some(o => o.effect === 'allow' && o.perm_key === '*')) {
+				const all = await c.env.db.prepare(`SELECT perm_key FROM perm WHERE type = ${permConst.type.BUTTON}`).all();
+				for (const p of all.results || []) {
+					if (p.perm_key) keys.add(p.perm_key);
+				}
+			}
+			for (const o of rows) {
+				if (!o.perm_key || o.perm_key === '*') continue;
 				if (o.effect === 'deny') keys.delete(o.perm_key);
-				else keys.add(o.perm_key);
+				else if (o.effect === 'allow') keys.add(o.perm_key);
 			}
 		} catch (e) {
 			// Override table not yet created; role perms still apply.

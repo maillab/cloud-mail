@@ -1460,6 +1460,102 @@ export async function createDebt(c, userId, body = {}) {
 	return getDebt(c, userId, debtId);
 }
 
+// A debt's original amount is an accounting fact. Editing the descriptive
+// fields is always allowed to the debt manager, but changing a balance after
+// any payment or correction would rewrite history. Balance corrections use the
+// dedicated, reasoned adjustment workflow below instead.
+export async function updateDebt(c, userId, debtId, body = {}) {
+	const keys = await permKeys(c, userId);
+	assertAnyPerm(keys, ['finance.debts:edit', 'finance.debts:create'], 'Editing a debt');
+	const debt = await getDebt(c, userId, debtId);
+	if (debt.status === 'cancelled') throw new BizError('A cancelled debt cannot be edited. Restore it first if it is still owed.', 400);
+
+	const patch = {};
+	if (body.name !== undefined) {
+		const name = text(body.name, 200);
+		if (!name) throw new BizError('Debt name is required.', 400);
+		patch.name = name;
+	}
+	if (body.creditor !== undefined) patch.creditor = text(body.creditor, 200);
+	if (body.due_date !== undefined) patch.due_date = body.due_date ? String(body.due_date).slice(0, 10) : null;
+	if (body.priority !== undefined) {
+		const priority = text(body.priority, 20).toLowerCase();
+		if (!['normal', 'high', 'critical'].includes(priority)) throw new BizError('Choose normal, high, or critical priority.', 400);
+		patch.priority = priority;
+	}
+	if (body.category !== undefined) patch.category = text(body.category, 80);
+	if (body.notes !== undefined) patch.notes = text(body.notes, 1000);
+	if (body.account_id !== undefined) patch.account_id = intOrNull(body.account_id);
+	if (body.document_key !== undefined) patch.document_key = text(body.document_key, 300);
+
+	const requestedAmount = body.amount_cents ?? body.amount;
+	if (requestedAmount !== undefined) {
+		const nextAmount = cents(requestedAmount);
+		assertAmount(nextAmount);
+		const hasHistory = (debt.payments || []).length > 0 || (debt.adjustments || []).length > 0;
+		if (hasHistory && nextAmount !== Number(debt.amount_cents)) {
+			throw new BizError('The original amount is locked after a payment or correction. Use “Correct balance” with a reason so the history stays accurate.', 400);
+		}
+		if (!hasHistory) {
+			patch.amount_cents = nextAmount;
+			patch.outstanding_cents = nextAmount;
+		}
+	}
+
+	if (!Object.keys(patch).length) return debt;
+	patch.update_time = nowStamp();
+	const columns = Object.keys(patch);
+	await db(c).prepare(
+		`UPDATE finance_debt SET ${columns.map(column => `${column} = ?`).join(', ')} WHERE id = ? AND is_del = 0`
+	).bind(...columns.map(column => patch[column]), debtId).run();
+
+	await audit(c, {
+		entityType: 'debt', entityId: debtId, action: 'updated', actorId: userId,
+		recordLabel: patch.name || debt.name, before: {
+			name: debt.name, creditor: debt.creditor, due_date: debt.due_date,
+			priority: debt.priority, category: debt.category, notes: debt.notes,
+			amount_cents: debt.amount_cents
+		}, after: patch
+	});
+	return getDebt(c, userId, debtId);
+}
+
+export async function deleteDebt(c, userId, debtId, body = {}) {
+	const keys = await permKeys(c, userId);
+	assertAnyPerm(keys, ['finance.debts:cancel', 'finance.debts:edit', 'finance.debts:create'], 'Removing a debt');
+	const debt = await getDebt(c, userId, debtId);
+	if ((debt.payments || []).length || (debt.adjustments || []).length || (debt.transactions || []).length) {
+		throw new BizError('This debt has financial history and cannot be deleted. Cancel it instead so its history is preserved.', 400);
+	}
+	await db(c).prepare(
+		`UPDATE finance_debt SET is_del = 1, update_time = CURRENT_TIMESTAMP WHERE id = ?`
+	).bind(debtId).run();
+	await audit(c, {
+		entityType: 'debt', entityId: debtId, action: 'removed', actorId: userId,
+		recordLabel: debt.name, before: { amount_cents: debt.amount_cents, creditor: debt.creditor },
+		reason: text(body.reason, 300) || 'Removed before financial activity'
+	});
+	return { deleted: true, id: debtId };
+}
+
+export async function cancelDebt(c, userId, debtId, body = {}) {
+	const keys = await permKeys(c, userId);
+	assertAnyPerm(keys, ['finance.debts:cancel', 'finance.debts:edit', 'finance.debts:create'], 'Cancelling a debt');
+	const debt = await getDebt(c, userId, debtId);
+	if (debt.status === 'cancelled') return debt;
+	const reason = text(body.reason, 300);
+	if (!reason) throw new BizError('Explain why this debt is being cancelled.', 400);
+	await db(c).prepare(
+		`UPDATE finance_debt SET status = 'cancelled', update_time = CURRENT_TIMESTAMP WHERE id = ? AND is_del = 0`
+	).bind(debtId).run();
+	await audit(c, {
+		entityType: 'debt', entityId: debtId, action: 'cancelled', actorId: userId,
+		recordLabel: debt.name, before: { status: debt.status, outstanding_cents: debt.outstanding_cents },
+		after: { status: 'cancelled' }, reason
+	});
+	return getDebt(c, userId, debtId);
+}
+
 // A payment is a real movement of money, and the obligation's outstanding
 // balance is derived from it. The outstanding figure is never typed by hand.
 export async function payDebt(c, userId, debtId, body = {}) {

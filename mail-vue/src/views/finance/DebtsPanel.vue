@@ -68,7 +68,7 @@
                 <span class="fin-status" :class="`is-${scope.row.status}`">{{ statusLabel(scope.row.status) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="Actions" min-width="200" fixed="right">
+            <el-table-column label="Actions" min-width="270" fixed="right">
               <template #default="scope">
                 <el-button text size="small" @click="openDetail(scope.row)">Open</el-button>
                 <el-button
@@ -86,6 +86,25 @@
                   size="small"
                   @click="openCharge(scope.row)"
                 >Add charge</el-button>
+                <el-button
+                  v-perm="['finance.debts:edit', 'finance.debts:create']"
+                  v-if="scope.row.status !== 'cancelled'"
+                  text
+                  size="small"
+                  @click="openEdit(scope.row)"
+                >Edit</el-button>
+                <el-dropdown v-if="canManageDebt" trigger="click">
+                  <el-button text size="small" aria-label="More debt actions">More</el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item
+                        v-if="scope.row.status !== 'cancelled'"
+                        @click="cancelDebt(scope.row)"
+                      >Cancel debt</el-dropdown-item>
+                      <el-dropdown-item divided @click="deleteDebt(scope.row)">Remove draft</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </template>
             </el-table-column>
           </el-table>
@@ -97,7 +116,7 @@
       </section>
     </div>
 
-    <el-dialog v-model="debtDialog" title="Record a debt" width="520px">
+    <el-dialog v-model="debtDialog" :title="form.id ? 'Edit debt' : 'Record a debt'" width="520px">
       <el-form :model="form" label-width="120px">
         <el-form-item label="Name" required>
           <el-input v-model="form.name" maxlength="200" placeholder="e.g. Supplier loan" />
@@ -126,8 +145,9 @@
         </el-form-item>
       </el-form>
       <div class="fin-hint fin-hint-block">
-        The original amount is kept exactly as entered. Payments reduce the outstanding balance; charges added later
-        appear separately so the history stays readable.
+        {{ form.id
+          ? 'You can correct the details here. Once a payment or balance correction exists, the original amount is locked; use “Add charge” with a reason to correct the balance without rewriting history.'
+          : 'The original amount is kept exactly as entered. Payments reduce the outstanding balance; charges added later appear separately so the history stays readable.' }}
       </div>
 
       <LinkedRecords
@@ -139,7 +159,7 @@
 
       <template #footer>
         <el-button @click="debtDialog = false">Cancel</el-button>
-        <el-button type="primary" :loading="saving" @click="saveDebt">Record</el-button>
+        <el-button type="primary" :loading="saving" @click="saveDebt">{{ form.id ? 'Save changes' : 'Record debt' }}</el-button>
       </template>
     </el-dialog>
 
@@ -268,12 +288,13 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import StatCard from './StatCard.vue'
 import LinkedRecords from '@/components/finance/LinkedRecords.vue'
 import { hasPerm } from '@/perm/perm.js'
 import {
-  financeAccounts, financeDebt, financeDebtCharge, financeDebtCreate, financeDebtPay, financeDebts,
+  financeAccounts, financeDebt, financeDebtCancel, financeDebtCharge, financeDebtCreate, financeDebtDelete,
+  financeDebtPay, financeDebtUpdate, financeDebts,
 } from '@/request/finance.js'
 import { formatCents, toCents } from '@/utils/money.js'
 import { statusLabel } from '@/utils/finance-labels.js'
@@ -299,11 +320,12 @@ const payForm = reactive({ amount: 0, account_id: null, fee: 0, method: '', refe
 const chargeForm = reactive({ amount: 0, reason: '' })
 
 function blankDebt() {
-  return { name: '', creditor: '', amount: 0, due_date: '', priority: 'normal', category: '', notes: '' }
+  return { id: null, name: '', creditor: '', amount: 0, due_date: '', priority: 'normal', category: '', notes: '', account_id: null, document_key: '' }
 }
 
 const money = (cents) => formatCents(cents)
 const canEditRelations = computed(() => hasPerm('finance.debts:create') || hasPerm('finance:edit'))
+const canManageDebt = computed(() => hasPerm('finance.debts:edit') || hasPerm('finance.debts:create') || hasPerm('finance.debts:cancel'))
 const signed = (cents) => `${Number(cents) > 0 ? '+' : ''}${formatCents(cents)}`
 
 const sumOutstanding = computed(() => debts.value
@@ -336,6 +358,22 @@ function openDebt() {
   debtDialog.value = true
 }
 
+function openEdit(row) {
+  Object.assign(form, {
+    id: row.id,
+    name: row.name || '',
+    creditor: row.creditor || '',
+    amount: (Number(row.amount_cents) || 0) / 100,
+    due_date: row.due_date || '',
+    priority: row.priority || 'normal',
+    category: row.category || '',
+    notes: row.notes || '',
+    account_id: row.account_id ?? null,
+    document_key: row.document_key || '',
+  })
+  debtDialog.value = true
+}
+
 async function saveDebt() {
   if (!form.name.trim()) {
     ElMessage({ message: 'Give the debt a name.', type: 'warning', plain: true })
@@ -347,7 +385,7 @@ async function saveDebt() {
   }
   saving.value = true
   try {
-    await financeDebtCreate({
+    const payload = {
       name: form.name,
       creditor: form.creditor,
       amount_cents: toCents(form.amount),
@@ -355,14 +393,58 @@ async function saveDebt() {
       priority: form.priority,
       category: form.category,
       notes: form.notes,
-    })
+      account_id: form.account_id,
+      document_key: form.document_key,
+    }
+    if (form.id) await financeDebtUpdate(form.id, payload)
+    else await financeDebtCreate(payload)
     debtDialog.value = false
     await load()
-    ElMessage({ message: 'Debt recorded.', type: 'success', plain: true })
+    ElMessage({ message: form.id ? 'Debt details updated.' : 'Debt recorded.', type: 'success', plain: true })
   } catch (error) {
-    ElMessage({ message: error.message || 'Could not record the debt.', type: 'error', plain: true })
+    ElMessage({ message: error.message || 'Could not save the debt.', type: 'error', plain: true })
   } finally {
     saving.value = false
+  }
+}
+
+async function cancelDebt(row) {
+  let reason = ''
+  try {
+    const response = await ElMessageBox.prompt(
+      'Cancelling preserves the debt, payments, and audit history but removes it from active obligations. Explain why it is no longer owed.',
+      `Cancel ${row.name}?`,
+      { confirmButtonText: 'Cancel debt', cancelButtonText: 'Keep debt', inputPlaceholder: 'e.g. Supplier agreement voided', inputValidator: value => value?.trim() ? true : 'A reason is required.' }
+    )
+    reason = response.value.trim()
+  } catch {
+    return
+  }
+  try {
+    await financeDebtCancel(row.id, { reason })
+    await load()
+    ElMessage({ message: 'Debt cancelled. Its history is retained.', type: 'success', plain: true })
+  } catch (error) {
+    ElMessage({ message: error.message || 'Could not cancel this debt.', type: 'error', plain: true })
+  }
+}
+
+async function deleteDebt(row) {
+  try {
+    await ElMessageBox.confirm(
+      'Remove this unused debt? This is only available before any payment or balance correction exists. Otherwise cancel it so the financial history is retained.',
+      `Remove ${row.name}?`,
+      { type: 'warning', confirmButtonText: 'Remove draft', cancelButtonText: 'Keep debt' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await financeDebtDelete(row.id)
+    await load()
+    ElMessage({ message: 'Unused debt removed.', type: 'success', plain: true })
+  } catch (error) {
+    ElMessage({ message: error.message || 'This debt could not be removed.', type: 'error', plain: true })
   }
 }
 

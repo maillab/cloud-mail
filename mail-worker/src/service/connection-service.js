@@ -22,7 +22,8 @@ const CATALOGUE = [
 		identityLabel: 'Company WhatsApp number',
 		identityPlaceholder: '+254 7XX XXX XXX',
 		docs: 'The company number is connected once by an administrator. Team members never sign in to WhatsApp themselves.',
-		permissions: ['whatsapp:query']
+		permissions: ['whatsapp:query'],
+		availability: 'coming_soon'
 	},
 	{
 		provider: 'ai_provider',
@@ -36,7 +37,8 @@ const CATALOGUE = [
 		identityLabel: 'Model or account label',
 		identityPlaceholder: 'e.g. company workspace',
 		docs: 'XPASS ONE only ever sees records the signed-in member can already access.',
-		permissions: ['ai:use']
+		permissions: ['ai:use'],
+		availability: 'coming_soon'
 	},
 	{
 		provider: 'email_forwarding',
@@ -48,7 +50,8 @@ const CATALOGUE = [
 		identityLabel: 'Sending domain',
 		identityPlaceholder: 'getxpass.com',
 		docs: 'Notifications point back to HQ. They are never a reply channel to customers.',
-		permissions: []
+		permissions: [],
+		availability: 'managed'
 	}
 ];
 
@@ -67,8 +70,12 @@ const connectionService = {
 	},
 
 	// Public shape. No secret ever leaves this function.
-	toPublic(def, row) {
-		const configured = Boolean(row?.secret_ref) || Boolean(row?.identity);
+	toPublic(c, def, row) {
+		// Cloudflare's bound email service is the source of truth for outbound
+		// notification delivery. It is configured with the deployment, not by
+		// typing an arbitrary domain into a dashboard form.
+		const managedConnected = def.availability === 'managed' && Boolean(c.env.forward || c.env.email || c.env.resend);
+		const configured = managedConnected || Boolean(row?.secret_ref) || Boolean(row?.identity);
 		return {
 			provider: def.provider,
 			name: def.name,
@@ -84,13 +91,15 @@ const connectionService = {
 			secretHint: def.secretHint || '',
 			help: def.docs,
 			permissions: def.permissions || [],
-			identity: row?.identity || '',
-			status: row?.status || 'not_configured',
+			identity: managedConnected ? (c.env.domain?.[0] || row?.identity || 'Configured XPass sending domain') : (row?.identity || ''),
+			status: managedConnected ? 'connected' : (row?.status || 'not_configured'),
 			lastCheckedAt: row?.last_checked_at || null,
 			lastError: row?.last_error || '',
 			configuredBy: row?.configured_by || null,
 			updatedAt: row?.update_time || null,
-			configured
+			configured,
+			managed: def.availability === 'managed',
+			available: def.availability !== 'coming_soon'
 		};
 	},
 
@@ -109,16 +118,18 @@ const connectionService = {
 	async list(c) {
 		const { results } = await c.env.db.prepare(`SELECT * FROM connection`).all();
 		const byProvider = new Map((results || []).map(row => [row.provider, row]));
-		return CATALOGUE.map(def => this.toPublic(def, byProvider.get(def.provider)));
+		return CATALOGUE.map(def => this.toPublic(c, def, byProvider.get(def.provider)));
 	},
 
 	async get(c, provider) {
 		const { def, row } = await this.ensureRow(c, provider);
-		return this.toPublic(def, row);
+		return this.toPublic(c, def, row);
 	},
 
 	async save(c, provider, body, actorId, secretService) {
 		const { def, row } = await this.ensureRow(c, provider);
+		if (def.availability === 'coming_soon') throw new BizError('This connection is not available yet.', 409);
+		if (def.availability === 'managed') throw new BizError('Email delivery is managed by the XPass deployment and cannot be changed from this page.', 409);
 
 		const patch = { update_time: now() };
 
@@ -161,18 +172,24 @@ const connectionService = {
 
 	async disconnect(c, provider, actorId) {
 		const { def } = await this.ensureRow(c, provider);
+		if (def.availability === 'coming_soon') throw new BizError('This connection is not available yet.', 409);
+		if (def.availability === 'managed') throw new BizError('Email delivery is managed by the XPass deployment and cannot be disconnected here.', 409);
 		await c.env.db.prepare(
 			`UPDATE connection SET status = 'not_configured', secret_ref = '', identity = '',
 				last_error = '', last_checked_at = ?, update_time = ?, configured_by = ?
 			 WHERE provider = ?`
 		).bind(now(), now(), actorId, provider).run();
-		return this.toPublic(def, null);
+		return this.toPublic(c, def, null);
 	},
 
 	// Mark a provider as connected after a real verification step (an OTP that
 	// the provider accepted, an OAuth callback, a health probe). Never called
 	// just because the form was submitted.
 	async markConnected(c, provider, identity) {
+		const def = this.find(provider);
+		if (!def || def.availability !== 'available') {
+			throw new BizError('This provider has no verification adapter yet, so it cannot be marked connected.', 409);
+		}
 		await c.env.db.prepare(
 			`UPDATE connection SET status = 'connected', identity = ?, last_checked_at = ?,
 				last_error = '', update_time = ? WHERE provider = ?`

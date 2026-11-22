@@ -74,7 +74,9 @@ const dbInit = {
 			['v3_38', () => this.v3_38DB(c)],
 			['v3_39', () => this.v3_39DB(c)],
 			['v3_40', () => this.v3_40DB(c)],
-			['v3_41', () => this.v3_41DB(c)]
+			['v3_41', () => this.v3_41DB(c)],
+			['v3_42', () => this.v3_42DB(c)],
+			['v3_43', () => this.v3_43DB(c)]
 		];
 
 		for (const [name, apply] of steps) {
@@ -3334,6 +3336,77 @@ async v3_19DB(c) {
 		`).run();
 		await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_finance_invoice_share_invoice ON finance_invoice_share(invoice_id);`).run();
 		await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_finance_invoice_share_token ON finance_invoice_share(token_hash);`).run();
+	},
+
+	// v3_42: a debt is a real obligation, not a disposable form row. These
+	// separate keys let an administrator give someone visibility, recording,
+	// detail correction, or cancellation independently. Existing finance
+	// managers receive the two new management keys so a release never leaves
+	// them able to create a debt but unable to correct a genuine mistake.
+	async v3_42DB(c) {
+		const parent = await c.env.db.prepare(`SELECT perm_id FROM perm WHERE perm_key = 'finance:view' LIMIT 1`).first();
+		if (!parent) return;
+		const addPerm = async (key, name) => {
+			const existing = await c.env.db.prepare(`SELECT perm_id FROM perm WHERE perm_key = ? LIMIT 1`).bind(key).first();
+			if (existing) return existing.perm_id;
+			const maxSort = await c.env.db.prepare(`SELECT COALESCE(MAX(sort), 0) AS s FROM perm WHERE pid = ?`).bind(parent.perm_id).first();
+			const { meta } = await c.env.db.prepare(
+				`INSERT INTO perm (pid, name, perm_key, type, sort) VALUES (?, ?, ?, 2, ?)`
+			).bind(parent.perm_id, name, key, (maxSort?.s || 0) + 1).run();
+			return meta.last_row_id;
+		};
+
+		const keys = ['finance.debts:edit', 'finance.debts:cancel'];
+		await addPerm(keys[0], 'Finance: edit debt details');
+		await addPerm(keys[1], 'Finance: cancel or remove debts');
+
+		const manager = await c.env.db.prepare(`SELECT role_id FROM role WHERE name = 'Finance Manager' LIMIT 1`).first();
+		if (manager) {
+			for (const key of keys) {
+				const perm = await c.env.db.prepare(`SELECT perm_id FROM perm WHERE perm_key = ? LIMIT 1`).bind(key).first();
+				if (perm) await c.env.db.prepare(
+					`INSERT OR IGNORE INTO role_perm (role_id, perm_id) VALUES (?, ?)`
+				).bind(manager.role_id, perm.perm_id).run();
+			}
+		}
+
+		const adminEmail = c.env.admin;
+		if (adminEmail) {
+			const admin = await c.env.db.prepare(`SELECT user_id FROM user WHERE email = ? LIMIT 1`).bind(adminEmail).first();
+			if (admin) {
+				for (const key of keys) {
+					await c.env.db.prepare(
+						`INSERT OR IGNORE INTO user_perm_override (user_id, perm_key, effect) VALUES (?, ?, 'allow')`
+					).bind(admin.user_id, key).run();
+				}
+			}
+		}
+	},
+
+	// v3_43: the two original company control accounts must never be left with
+	// an old partial role after new capability keys are introduced. Their full
+	// access expands into the current permission catalogue at request time, so
+	// it remains complete without making every employee an administrator.
+	async v3_43DB(c) {
+		const superAdmin = await c.env.db.prepare(`SELECT role_id FROM role WHERE name = 'Super Admin' LIMIT 1`).first();
+		if (!superAdmin) return;
+		await c.env.db.prepare(`UPDATE role SET data_scope = 'company' WHERE role_id = ?`).bind(superAdmin.role_id).run();
+		const emails = ['rodney@getxpass.net', 'admin@getxpass.net'];
+		for (const email of emails) {
+			const member = await c.env.db.prepare(
+				`SELECT user_id FROM user WHERE lower(email) = ? LIMIT 1`
+			).bind(email).first();
+			if (!member) continue;
+			await c.env.db.prepare(
+				`UPDATE user SET type = ?, data_scope = 'company', status = 0 WHERE user_id = ?`
+			).bind(superAdmin.role_id, member.user_id).run();
+			await c.env.db.prepare(
+				`DELETE FROM user_perm_override WHERE user_id = ? AND effect = 'deny'`
+			).bind(member.user_id).run();
+			await c.env.db.prepare(
+				`INSERT OR REPLACE INTO user_perm_override (user_id, perm_key, effect) VALUES (?, '*', 'allow')`
+			).bind(member.user_id).run();
+		}
 	},
 
 	async v3_29DB(c) {

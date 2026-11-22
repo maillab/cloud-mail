@@ -65,7 +65,17 @@
         :title="active.lastError"
       />
 
-      <el-form label-position="top" class="conn-form">
+      <el-alert
+        v-if="active.managed"
+        type="success"
+        :closable="false"
+        show-icon
+        class="conn-alert"
+        title="Managed by the XPass deployment"
+        description="This delivery service is configured through the secure Cloudflare email binding. There is nothing to paste or verify here."
+      />
+
+      <el-form v-else label-position="top" class="conn-form">
         <el-form-item :label="active.identityLabel || 'Identity'">
           <el-input v-model="form.identity" :placeholder="active.identityPlaceholder || ''" clearable />
         </el-form-item>
@@ -96,7 +106,7 @@
         </div>
       </div>
 
-      <div class="conn-detail-actions">
+      <div v-if="!active.managed" class="conn-detail-actions">
         <el-button type="primary" :loading="saving" @click="saveConnection">
           {{ active.status === 'not_configured' ? 'Save connection' : 'Save changes' }}
         </el-button>
@@ -120,6 +130,7 @@
       </div>
 
       <el-alert
+        v-if="!active.managed"
         type="info"
         :closable="false"
         show-icon
@@ -207,6 +218,7 @@ function statusDetail(item) {
 }
 
 function actionLabel(item) {
+  if (item.managed) return 'View status'
   if (item.status === 'connected') return 'Manage'
   if (item.status === 'error') return 'Reconnect'
   if (item.status === 'configured' || item.configured) return 'Finish setup'

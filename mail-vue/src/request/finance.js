@@ -169,6 +169,18 @@ export function financeDebtCreate(data) {
   return http.post('/finance/debts', data)
 }
 
+export function financeDebtUpdate(id, data) {
+  return http.put(`/finance/debts/${id}`, data)
+}
+
+export function financeDebtDelete(id, data = {}) {
+  return http.delete(`/finance/debts/${id}`, { data })
+}
+
+export function financeDebtCancel(id, data) {
+  return http.post(`/finance/debts/${id}/cancel`, data)
+}
+
 export function financeDebtPay(id, data) {
   return http.post(`/finance/debts/${id}/payments`, data)
 }

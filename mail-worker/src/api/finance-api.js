@@ -206,6 +206,24 @@ app.post('/finance/debts', async (c) => {
 	return c.json(result.ok(await finance.createDebt(c, uid(c), await body(c))));
 });
 
+// Debt details can be corrected without changing the financial history. The
+// original balance remains immutable once there are movements; use a traced
+// charge for a balance correction instead.
+app.put('/finance/debts/:id', async (c) => {
+	return c.json(result.ok(await finance.updateDebt(c, uid(c), int(c.req.param('id')), await body(c))));
+});
+
+// Removing an unused draft is safe. A debt with payments or corrections is
+// cancelled rather than erased so the company ledger and audit trail remain
+// honest.
+app.delete('/finance/debts/:id', async (c) => {
+	return c.json(result.ok(await finance.deleteDebt(c, uid(c), int(c.req.param('id')), await body(c))));
+});
+
+app.post('/finance/debts/:id/cancel', async (c) => {
+	return c.json(result.ok(await finance.cancelDebt(c, uid(c), int(c.req.param('id')), await body(c))));
+});
+
 app.get('/finance/debts/:id', async (c) => {
 	return c.json(result.ok(await finance.getDebt(c, uid(c), int(c.req.param('id')))));
 });
