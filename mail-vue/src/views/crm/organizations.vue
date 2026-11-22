@@ -117,13 +117,13 @@
           <el-form-item label="Assigned To" prop="assigned_to">
             <el-input v-model="orgForm.assigned_to" placeholder="User ID" />
           </el-form-item>
-          <template #footer>
-            <span class="dialog-footer">
-              <el-button @click="orgDialogVisible = false">{{ $t('crmCancel') }}</el-button>
-              <el-button type="primary" :loading="saving" @click="saveOrg">{{ $t('crmSave') }}</el-button>
-            </span>
-          </template>
         </el-form>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="orgDialogVisible = false">{{ $t('crmCancel') }}</el-button>
+            <el-button type="primary" :loading="saving" @click="saveOrg">{{ $t('crmSave') }}</el-button>
+          </span>
+        </template>
       </el-dialog>
     </div>
   </el-scrollbar>
