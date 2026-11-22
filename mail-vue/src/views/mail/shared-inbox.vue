@@ -14,7 +14,7 @@
         </div>
         <div class="si-heading-actions">
           <select
-            v-if="mailboxStore.sharedMailboxes.length > 1 && !isSupportMailbox"
+            v-if="mailboxStore.sharedMailboxes.length > 1"
             class="si-inbox-select"
             :value="mailboxId"
             aria-label="Filter by source inbox"
@@ -667,6 +667,14 @@ function tabCount(key) {
 
 onMounted(async () => {
   await mailboxStore.load()
+  // Shared Inbox is a unified queue by default. A direct link to one mailbox
+  // (including the old Support Mail link) is still available through the
+  // selector, but never becomes the user's default view when several inboxes
+  // are accessible.
+  if (mailboxStore.sharedMailboxes.length > 1 && mailboxId.value !== 0) {
+    await router.replace({ name: 'mail-shared-inbox', params: { mailboxId: '0' } })
+    return
+  }
   await reload()
   await mailboxStore.loadSummary()
   if (mailboxId.value) sharedMailboxAssignees(mailboxId.value).then(rows => { assignees.value = rows || [] }).catch(() => {})
@@ -674,7 +682,7 @@ onMounted(async () => {
 })
 
 watch(mailboxId, async (next, prev) => {
-  if (!next || next === prev) return
+  if (Number.isNaN(next) || next === prev) return
   list.value = []
   closeDetail()
   status.value = 'open'
