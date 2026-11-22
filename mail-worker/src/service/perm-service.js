@@ -9,8 +9,19 @@ import { t } from '../i18n/i18n'
 
 const permService = {
 	async tree(c) {
-		const pList = await orm(c).select().from(perm).where(eq(perm.pid, 0)).orderBy(asc(perm.sort)).all();
-		const cList = await orm(c).select().from(perm).where(ne(perm.pid, 0)).orderBy(asc(perm.sort)).all();
+		// The access drawer requests this catalogue alongside the member preview.
+		// Two ORM queries plus translation work made the drawer feel stuck on a
+		// busy D1. Read the catalogue once, then build the same tree in memory.
+		const { results } = await c.env.db.prepare(
+			`SELECT perm_id, pid, perm_key, name, type, sort FROM perm ORDER BY sort ASC, perm_id ASC`
+		).all();
+		const rows = results || [];
+		const pList = rows.filter((row) => Number(row.pid) === 0).map((row) => ({
+			permId: row.perm_id, pid: row.pid, permKey: row.perm_key, name: row.name, type: row.type, sort: row.sort
+		}));
+		const cList = rows.filter((row) => Number(row.pid) !== 0).map((row) => ({
+			permId: row.perm_id, pid: row.pid, permKey: row.perm_key, name: row.name, type: row.type, sort: row.sort
+		}));
 
 		cList.forEach(cItem => {
 			cItem.name = t('perms.' + cItem.name)
