@@ -298,8 +298,10 @@ async function tagList(c, conversationId) {
 }
 
 export async function listConversations(c, userId, params) {
-	const mailboxId = Number(params.mailboxId);
-	const mailbox = await assertAccess(c, userId, mailboxId, 'view');
+	const requestedMailboxId = String(params.mailboxId || '');
+	const allShared = requestedMailboxId === 'all' || requestedMailboxId === '0';
+	const mailboxId = Number(requestedMailboxId);
+	const mailbox = allShared ? null : await assertAccess(c, userId, mailboxId, 'view');
 	const status = params.status ? String(params.status) : '';
 	const excludeStatus = params.excludeStatus ? String(params.excludeStatus) : '';
 	const priority = params.priority ? String(params.priority) : '';
@@ -309,8 +311,10 @@ export async function listConversations(c, userId, params) {
 	const page = Math.max(1, Number(params.page) || 1);
 	const pageSize = Math.min(100, Math.max(1, Number(params.pageSize) || 30));
 
-	const where = [`mc.mailbox_id = ?`, `e.is_del = 0`];
-	const args = [mailboxId];
+	const where = [allShared
+		? `mc.mailbox_id IN (SELECT m.mailbox_id FROM mailbox_member m JOIN account a ON a.account_id = m.mailbox_id WHERE m.user_id = ? AND m.status = 'active' AND a.mailbox_type = 'shared' AND COALESCE(a.is_del, 0) = 0)`
+		: `mc.mailbox_id = ?`, `e.is_del = 0`];
+	const args = [allShared ? userId : mailboxId];
 	if (status) {
 		if (!STATUSES.includes(status)) throw new BizError('Invalid status.', 400);
 		where.push('mc.status = ?'); args.push(status);
@@ -377,7 +381,7 @@ export async function listConversations(c, userId, params) {
 		tags: tags[index] || []
 	}));
 
-	return { list, total: total?.total ?? 0, mailbox: { id: mailbox.account_id, email: mailbox.email, actions: mailbox.actions } };
+	return { list, total: total?.total ?? 0, mailbox: allShared ? { id: 0, email: '', actions: ['view'] } : { id: mailbox.account_id, email: mailbox.email, actions: mailbox.actions } };
 }
 
 // Badge counts for the mail navigation. These are computed per request so the

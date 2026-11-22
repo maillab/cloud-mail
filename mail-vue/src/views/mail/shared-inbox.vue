@@ -25,6 +25,7 @@
               :key="box.account_id"
               :value="box.account_id"
             >{{ box.display_name || box.email }}</option>
+            <option v-if="mailboxStore.sharedMailboxes.length > 1" :value="0">All shared inboxes</option>
           </select>
           <button type="button" class="si-icon-btn" title="Refresh" aria-label="Refresh" @click="reload">
             <Icon icon="fluent:arrow-clockwise-20-regular" width="15" height="15" />
@@ -350,8 +351,8 @@ const eventLabels = {
 }
 
 const mailbox = computed(() => mailboxStore.mailboxById(mailboxId.value))
-const mailboxLabel = computed(() => mailbox.value?.display_name || mailbox.value?.email || 'Shared inbox')
-const mailboxAddress = computed(() => mailbox.value?.email || '')
+const mailboxLabel = computed(() => mailboxId.value === 0 ? 'All shared inboxes' : (mailbox.value?.display_name || mailbox.value?.email || 'Shared inbox'))
+const mailboxAddress = computed(() => mailboxId.value === 0 ? 'Every shared inbox you can access' : (mailbox.value?.email || ''))
 const isSupportMailbox = computed(() => `${mailboxLabel.value} ${mailboxAddress.value}`.toLowerCase().includes('support'))
 
 // The inbox a conversation arrived at. In a single-mailbox view every row shares
@@ -376,7 +377,7 @@ function inboxSourceLabel(row) {
 
 function changeInbox(event) {
   const next = Number(event.target.value)
-  if (!next || next === mailboxId.value) return
+  if (Number.isNaN(next) || next === mailboxId.value) return
   router.replace({ name: 'mail-shared-inbox', params: { mailboxId: String(next) } })
 }
 const counts = computed(() => mailboxStore.countsFor(mailboxId.value))
@@ -451,7 +452,7 @@ function timeAgo(value) {
 }
 
 function tabParams() {
-  const params = { mailboxId: mailboxId.value, page: 1, pageSize: PAGE_SIZE }
+  const params = { mailboxId: mailboxId.value === 0 ? 'all' : mailboxId.value, page: 1, pageSize: PAGE_SIZE }
   if (status.value === 'open') {
     // Open is "everything not resolved", which is a server-side exclusion.
     params.excludeStatus = 'resolved'
@@ -668,7 +669,7 @@ onMounted(async () => {
   await mailboxStore.load()
   await reload()
   await mailboxStore.loadSummary()
-  sharedMailboxAssignees(mailboxId.value).then(rows => { assignees.value = rows || [] }).catch(() => {})
+  if (mailboxId.value) sharedMailboxAssignees(mailboxId.value).then(rows => { assignees.value = rows || [] }).catch(() => {})
   sharedMailboxTags().then(rows => { allTags.value = rows || [] }).catch(() => {})
 })
 
