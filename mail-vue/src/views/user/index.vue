@@ -932,12 +932,19 @@ function delUser(user) {
 }
 
 function delOneUser(user) {
-  ElMessageBox.confirm(t('delConfirm', {msg: user.email}), {
-    confirmButtonText: t('confirm'),
-    cancelButtonText: t('cancel'),
-    type: 'warning'
-  }).then(() => {
-    userDelete([user.userId]).then(() => {
+  ElMessageBox.prompt(
+    `This permanently removes ${user.email}, their sign-in, mailbox access and account data. Type the email address to confirm.`,
+    'Delete member account',
+    {
+      confirmButtonText: 'Delete account',
+      cancelButtonText: t('cancel'),
+      type: 'warning',
+      inputPlaceholder: user.email,
+      inputValidator: (value) => String(value || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase() || 'Enter the exact email address to continue.'
+    }
+  ).then(({ value }) => {
+    if (String(value || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) return
+    return userDelete([user.userId]).then(() => {
       ElMessage({
         message: t('delSuccessMsg'),
         type: "success",
