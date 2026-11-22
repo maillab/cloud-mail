@@ -50,7 +50,8 @@ export const workspaceModules = [
         available: true,
         routeName: 'whatsapp',
         routeNames: ['whatsapp'],
-        requiredPermission: 'whatsapp:query',
+        // Coming-soon teaser: no real backend yet, so it is shown to everyone and
+        // opens the explainer page rather than being gated behind whatsapp:query.
     },
     {
         id: 'finance',

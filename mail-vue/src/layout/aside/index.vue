@@ -321,6 +321,9 @@ function isMailLinkActive(item) {
 }
 
 function isModuleActive(module) {
+  if (route.name === 'coming-soon' && moduleSoon(module)) {
+    return route.params.feature === module.id;
+  }
   return module.routeNames?.includes(route.name) || route.name === module.routeName;
 }
 
@@ -333,6 +336,14 @@ function openModule(module) {
   }
   if (isGroupedModule(module)) {
     expandedGroups.value = {...expandedGroups.value, [module.id]: true};
+  }
+  // Coming-soon modules have no real, permission-gated destination yet. Send
+  // them straight to the explainer page so the click always lands somewhere
+  // instead of being bounced back to Overview by the permission guard.
+  if (moduleSoon(module)) {
+    router.push({name: 'coming-soon', params: {feature: module.id}});
+    if (window.innerWidth < 700) uiStore.asideShow = false;
+    return;
   }
   router.push({name: module.routeName, query: module.query || {}});
   if (window.innerWidth < 700) uiStore.asideShow = false;
