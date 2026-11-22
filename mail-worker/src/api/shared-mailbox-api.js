@@ -219,6 +219,15 @@ app.put('/shared-mailbox/members', async (c) => {
 	)));
 });
 
+app.delete('/shared-mailbox/:mailboxId', async (c) => {
+	const uid = userId(c);
+	const perms = await keys(c);
+	await sharedMailbox.assertRoleMail(c, perms, 'manage');
+	const body = await c.req.json().catch(() => ({}));
+	await sharedMailbox.deleteSharedMailbox(c, uid, c.req.param('mailboxId'), body.confirmEmail);
+	return c.json(result.ok());
+});
+
 app.delete('/shared-mailbox/members', async (c) => {
 	const body = await c.req.json().catch(() => ({}));
 	return c.json(result.ok(await sharedMailbox.removeMember(c, userId(c), body.mailboxId, body.userId)));

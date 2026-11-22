@@ -49,6 +49,7 @@ export const sharedMailboxMemberOptions = () => http.get('/shared-mailbox/member
 export const sharedMailboxCreate = (data) => http.post('/account/sharedMailbox', data)
 
 export const sharedMailboxUpdate = (data) => http.put('/account/sharedMailbox', data)
+export const sharedMailboxDelete = (mailboxId, confirmEmail) => http.delete(`/shared-mailbox/${mailboxId}`, {data: {confirmEmail}})
 
 export const sharedMailboxMemberAdd = (data) => http.post('/shared-mailbox/members', data)
 

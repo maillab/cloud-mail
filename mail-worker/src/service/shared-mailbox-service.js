@@ -135,6 +135,17 @@ export async function listSharedMailboxes(c) {
 	return results;
 }
 
+export async function deleteSharedMailbox(c, userId, mailboxId, confirmEmail) {
+	const id = Number(mailboxId);
+	if (!Number.isSafeInteger(id) || id <= 0) throw new BizError('Invalid mailbox.', 400);
+	const row = await database(c).prepare(`SELECT account_id, email, mailbox_type FROM account WHERE account_id = ? AND COALESCE(is_del, 0) = 0`).bind(id).first();
+	if (!row || !isSharedMailbox(row.mailbox_type)) throw new BizError('Shared mailbox not found.', 404);
+	if (String(confirmEmail || '').trim().toLowerCase() !== String(row.email).toLowerCase()) throw new BizError('Type the mailbox address to confirm deletion.', 400);
+	await database(c).prepare(`UPDATE account SET is_del = 1, mailbox_status = 'disabled' WHERE account_id = ?`).bind(id).run();
+	await database(c).prepare(`UPDATE mailbox_member SET status = 'removed', updated_at = CURRENT_TIMESTAMP WHERE mailbox_id = ?`).bind(id).run();
+	await database(c).prepare(`DELETE FROM mailbox_preference WHERE last_mailbox_id = ?`).bind(id).run();
+}
+
 export async function assertAccess(c, userId, mailboxId, action = 'view') {
 	const id = Number(mailboxId);
 	if (!Number.isSafeInteger(id) || id <= 0) {
@@ -877,6 +888,7 @@ export default {
 	assertAccess,
 	assertManageMembers,
 	listSharedMailboxes,
+	deleteSharedMailbox,
 	assertRoleMail,
 	findMembership,
 	setLastMailbox,

@@ -68,6 +68,7 @@
             :type="box.mailbox_status === 'active' ? 'warning' : 'success'"
             @click="toggleStatus(box)"
           >{{ box.mailbox_status === 'active' ? $t('disable') : $t('enable') }}</el-button>
+          <el-button size="small" text type="danger" @click="deleteMailbox(box)">Delete</el-button>
         </div>
       </article>
     </div>
@@ -209,13 +210,14 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { hasPerm } from '@/perm/perm.js'
 import { useSettingStore } from '@/store/setting.js'
 import {
   sharedMailboxAdminList,
   sharedMailboxCreate,
   sharedMailboxUpdate,
+  sharedMailboxDelete,
   sharedMailboxMembers,
   sharedMailboxMemberOptions,
   sharedMailboxMemberAdd,
@@ -320,6 +322,22 @@ async function toggleStatus(box) {
   }
 }
 
+async function deleteMailbox(box) {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      `This removes ${box.email} from active mailboxes while preserving its message history. Type the full address to confirm.`,
+      'Delete shared mailbox',
+      { confirmButtonText: 'Delete mailbox', cancelButtonText: 'Cancel', inputPlaceholder: box.email, inputPattern: new RegExp('^' + box.email.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&') + '$', 'i'), inputErrorMessage: `Enter ${box.email} exactly`, type: 'warning' }
+    )
+    await sharedMailboxDelete(box.account_id, value)
+    ElMessage({ message: 'Shared mailbox deleted.', type: 'success', plain: true })
+    await load()
+    window.dispatchEvent(new Event('mailbox:shared-updated'))
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage({ message: error?.message || 'Could not delete the shared mailbox.', type: 'error', plain: true })
+  }
+}
+
 // ----- members ----------------------------------------------------------
 const membersVisible = ref(false)
 const membersMailbox = ref(null)
@@ -365,7 +383,7 @@ async function openMembers(box) {
   addUserId.value = null
   addPerms.value = ['view']
   await loadMembers()
-  if (!users.value.length) loadUsers()
+  await loadUsers()
 }
 
 async function loadMembers() {
