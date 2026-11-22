@@ -116,10 +116,16 @@
             <el-input v-model="contactForm.address" placeholder="Street, city, country" />
           </el-form-item>
           <el-form-item label="Source" prop="source">
-            <el-select v-model="contactForm.source">
-              <el-option label="Manual" value="manual" />
+            <el-select v-model="contactForm.source" placeholder="How did you meet this contact?" style="width:100%">
+              <el-option label="Manual entry" value="manual" />
               <el-option label="Email" value="email" />
               <el-option label="WhatsApp" value="whatsapp" />
+              <el-option label="Social media" value="social_media" />
+              <el-option label="Personal referral" value="personal_referral" />
+              <el-option label="Public information" value="public_information" />
+              <el-option label="Website or inbound form" value="website" />
+              <el-option label="Event or networking" value="event_networking" />
+              <el-option label="Imported list" value="import" />
             </el-select>
           </el-form-item>
           <el-form-item label="Notes" prop="notes">
