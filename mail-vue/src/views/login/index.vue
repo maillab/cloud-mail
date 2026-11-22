@@ -20,7 +20,6 @@
             <div class="auth-field">
               <label for="login-username">{{ hideLoginDomain ? $t('emailAccount') : 'Username' }}</label>
               <div class="company-account-field" :class="{ 'is-single-domain': !hideLoginDomain && domainList.length <= 1, 'is-full-account': hideLoginDomain }">
-                <span v-if="!hideLoginDomain" class="company-account-prefix" aria-hidden="true">@</span>
                 <input
                   id="login-username"
                   v-model="form.email"
@@ -33,7 +32,7 @@
                   @keyup.enter="submit"
                 />
                 <template v-if="!hideLoginDomain && domainList.length === 1">
-                  <span class="company-account-domain is-fixed">{{ domainList[0] }}</span>
+                  <span class="company-account-domain is-fixed">@{{ domainList[0] }}</span>
                 </template>
                 <template v-else-if="!hideLoginDomain">
                   <div class="company-account-domain is-picker">
@@ -43,9 +42,9 @@
                       class="company-account-select"
                       :teleported="false"
                     >
-                      <el-option v-for="item in domainList" :key="item" :label="item" :value="item" />
+                      <el-option v-for="item in domainList" :key="item" :label="`@${item}`" :value="item" />
                     </el-select>
-                    <span class="company-account-domain-text">{{ suffix }}</span>
+                    <span class="company-account-domain-text">@{{ suffix }}</span>
                     <Icon icon="mingcute:down-small-fill" width="14" height="14" />
                   </div>
                 </template>
@@ -143,7 +142,6 @@
         <div class="auth-field">
           <label for="bind-username">{{ $t('emailAccount') }}</label>
           <div class="company-account-field" :class="{ 'is-single-domain': !hideLoginDomain && domainList.length <= 1, 'is-full-account': hideLoginDomain }">
-            <span v-if="!hideLoginDomain" class="company-account-prefix" aria-hidden="true">@</span>
             <input
               id="bind-username"
               v-model="bindForm.email"
@@ -156,7 +154,7 @@
               @keyup.enter="bind"
             />
             <template v-if="!hideLoginDomain && domainList.length === 1">
-              <span class="company-account-domain is-fixed">{{ domainList[0] }}</span>
+              <span class="company-account-domain is-fixed">@{{ domainList[0] }}</span>
             </template>
             <template v-else-if="!hideLoginDomain">
               <div class="company-account-domain is-picker">
@@ -166,9 +164,9 @@
                   class="company-account-select"
                   :teleported="false"
                 >
-                  <el-option v-for="item in domainList" :key="item" :label="item" :value="item" />
+                  <el-option v-for="item in domainList" :key="item" :label="`@${item}`" :value="item" />
                 </el-select>
-                <span class="company-account-domain-text">{{ suffix }}</span>
+                <span class="company-account-domain-text">@{{ suffix }}</span>
                 <Icon icon="mingcute:down-small-fill" width="14" height="14" />
               </div>
             </template>
@@ -254,13 +252,21 @@ const emailHint = ref('')
 const mySelect = ref()
 const bindSelect = ref()
 const suffix = ref('')
+
+// The worker stores company domains with or without the leading @ depending on
+// their age. Normalise once so the input always renders and submits one valid
+// address: username + @ + domain. This avoids the old rodneygetxpass.net bug.
+const domainName = (value) => String(value || '').trim().replace(/^@+/, '')
+
 // The domain list comes from the server, but the login page must remain usable
 // while the API is unreachable (worker cold start / network hiccup). Fall back
 // to the build-time domain so the suffix field is never blank.
 const domainList = computed(() => {
   const fromServer = settingStore.domainList
-  if (Array.isArray(fromServer) && fromServer.length) return fromServer
-  const fallback = import.meta.env.VITE_LOGIN_DOMAIN || 'example.com'
+  if (Array.isArray(fromServer) && fromServer.length) {
+    return fromServer.map(domainName).filter(Boolean)
+  }
+  const fallback = domainName(import.meta.env.VITE_LOGIN_DOMAIN || 'example.com')
   return [fallback]
 })
 if (!suffix.value) suffix.value = domainList.value[0]
@@ -268,7 +274,11 @@ if (!suffix.value) suffix.value = domainList.value[0]
 const hideLoginDomain = computed(() => settingStore.settings.loginDomain === 1)
 
 const getFullEmail = (email) => {
-  return hideLoginDomain.value ? email : email + suffix.value
+  const value = String(email || '').trim()
+  if (hideLoginDomain.value) return value
+  const localPart = value.replace(/^@+/, '')
+  const domain = domainName(suffix.value)
+  return localPart && domain ? `${localPart}@${domain}` : value
 }
 
 const getEmailName = (email) => {
@@ -591,10 +601,10 @@ async function saveToken(token) {
 function refreshWebsiteConfig() {
   websiteConfig().then(setting => {
     settingStore.settings = setting
-    settingStore.domainList = setting.domainList || []
-    if (setting.domainList && setting.domainList.length > 0) {
+    settingStore.domainList = (setting.domainList || []).map(domainName).filter(Boolean)
+    if (settingStore.domainList.length > 0) {
       // Adopt the server's first domain once it is known.
-      suffix.value = setting.domainList[0]
+      suffix.value = settingStore.domainList[0]
     }
     document.title = 'Sign in | XPass HQ'
   }).catch(e => {
