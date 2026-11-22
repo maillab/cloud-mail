@@ -140,7 +140,7 @@ export const workspaceModules = [
         available: true,
         routeName: 'people',
         routeNames: ['people'],
-        requiredPermission: 'people:query',
+        requiredPermission: 'team:query',
     },
     {
         id: 'settings',

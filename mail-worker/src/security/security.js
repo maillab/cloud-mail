@@ -533,6 +533,12 @@ function pathToResourcePerm(path, permKeys, suffix) {
 	if (resource === 'user' && path === '/user/access') return true;
 	if (resource === 'user') {
 		const action = path.split('/')[2] || '';
+		// XPass Team is visible to everyone granted the separate team-view
+		// capability. The directory intentionally returns no access plans or
+		// permission data, so this does not expose Access Control.
+		if (path === '/user/directory') {
+			return permKeys.includes('team:query') || permKeys.includes('user:query') || permKeys.includes('*');
+		}
 		// Administrator assignment of role, team and position. Each field is
 		// checked again inside the handler, so this is the outer gate only.
 		if (/\/assignment$/.test(path)) return permKeys.includes('user:set-type') || permKeys.includes('*');

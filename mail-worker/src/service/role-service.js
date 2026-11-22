@@ -32,6 +32,7 @@ const roleService = {
 	async add(c, params, userId) {
 
 		let { name, permIds, banEmail, availDomain } = params;
+		permIds = Array.isArray(permIds) ? permIds : [];
 
 		if (!name) {
 			throw new BizError(t('emptyRoleName'));
@@ -50,6 +51,10 @@ const roleService = {
 		availDomain = availDomain.join(',');
 
 		roleRow = await orm(c).insert(role).values({...params, banEmail, availDomain, userId}).returning().get();
+		const teamView = await c.env.db.prepare(
+			`SELECT perm_id FROM perm WHERE perm_key = 'team:query' LIMIT 1`
+		).first();
+		if (teamView?.perm_id && !permIds.includes(teamView.perm_id)) permIds.push(teamView.perm_id);
 
 		if (permIds.length === 0) {
 			return;
@@ -164,6 +169,13 @@ const roleService = {
 			const previous = await orm(c).select({ permId: rolePerm.permId }).from(rolePerm).where(eq(rolePerm.roleId, roleId)).all();
 			previousIds = (previous || []).map(row => row.permId).sort((a, b) => a - b);
 			nextIds = [...new Set(permIds)].sort((a, b) => a - b);
+			const teamView = await c.env.db.prepare(
+				`SELECT perm_id FROM perm WHERE perm_key = 'team:query' LIMIT 1`
+			).first();
+			if (teamView?.perm_id && !nextIds.includes(teamView.perm_id)) {
+				nextIds.push(teamView.perm_id);
+				nextIds.sort((a, b) => a - b);
+			}
 
 			await orm(c).delete(rolePerm).where(eq(rolePerm.roleId, roleId)).run();
 

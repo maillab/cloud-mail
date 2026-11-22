@@ -76,7 +76,8 @@ const dbInit = {
 			['v3_40', () => this.v3_40DB(c)],
 			['v3_41', () => this.v3_41DB(c)],
 			['v3_42', () => this.v3_42DB(c)],
-			['v3_43', () => this.v3_43DB(c)]
+			['v3_43', () => this.v3_43DB(c)],
+			['v3_44', () => this.v3_44DB(c)]
 		];
 
 		for (const [name, apply] of steps) {
@@ -3407,6 +3408,21 @@ async v3_19DB(c) {
 				`INSERT OR REPLACE INTO user_perm_override (user_id, perm_key, effect) VALUES (?, '*', 'allow')`
 			).bind(member.user_id).run();
 		}
+	},
+
+	// v3_44: the team directory is a standard company surface. Access Control
+	// remains private, but every baseline starts with the ability to see who is
+	// on the team. An administrator can still remove it for one member through
+	// an explicit direct deny when there is a genuine confidentiality reason.
+	async v3_44DB(c) {
+		const teamView = await c.env.db.prepare(
+			`SELECT perm_id FROM perm WHERE perm_key = 'team:query' LIMIT 1`
+		).first();
+		if (!teamView) return;
+		await c.env.db.prepare(`
+			INSERT OR IGNORE INTO role_perm (role_id, perm_id)
+			SELECT role_id, ? FROM role
+		`).bind(teamView.perm_id).run();
 	},
 
 	async v3_29DB(c) {

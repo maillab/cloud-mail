@@ -205,11 +205,11 @@ const AREAS = [
 		]
 	},
 	{
-		key: 'people',
+		key: 'team',
 		label: 'Team directory',
 		actions: [
-			{ key: 'view', perm: 'people:query', allow: 'View the team directory', deny: 'View the team directory' },
-			{ key: 'add', perm: 'people:add', allow: 'Add external people', deny: 'Add external people' }
+			{ key: 'view', perm: 'team:query', allow: 'View the team directory', deny: 'View the team directory' },
+			{ key: 'add', perm: 'user:add', allow: 'Create member accounts', deny: 'Create member accounts' }
 		]
 	},
 	{

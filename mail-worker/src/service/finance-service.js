@@ -3218,7 +3218,7 @@ const RELATION_TYPES = {
 	},
 	member: {
 		label: 'Team member', table: 'user', labelColumn: 'display_name',
-		labelExpr: `COALESCE(NULLIF(u.display_name, ''), u.email)`, perm: 'people:query',
+		labelExpr: `COALESCE(NULLIF(u.display_name, ''), u.email)`, perm: 'team:query',
 		finance: false, deletable: true,
 	},
 };

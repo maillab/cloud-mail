@@ -10,7 +10,7 @@
           </p>
         </div>
         <div class="module-actions">
-          <el-button v-perm="'people:add'" type="primary" icon="plus" @click="openAddMember">Add member</el-button>
+          <el-button v-perm="'user:add'" type="primary" icon="plus" @click="openAddMember">Add member</el-button>
           <el-button @click="reload" text circle icon="refresh" :aria-label="$t('refresh')" :title="$t('refresh')" />
         </div>
       </div>
@@ -95,7 +95,7 @@
               ? 'Try a different name, @username, team or position.'
               : 'Members appear here once they have an XPass Team account.' }}</p>
             <div v-if="!(search || teamFilter)" class="empty-actions">
-              <el-button v-perm="'people:add'" type="primary" icon="plus" @click="openAddMember">Add member</el-button>
+              <el-button v-perm="'user:add'" type="primary" icon="plus" @click="openAddMember">Add member</el-button>
             </div>
           </div>
           <div v-else class="loading-state">Loading members…</div>

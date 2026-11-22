@@ -268,7 +268,7 @@ const routers = {
             menu: true
         }
     }],
-    'people:query': [{
+    'team:query': [{
         path: '/people',
         name: 'people',
         component: () => import('@/views/people/index.vue'),
