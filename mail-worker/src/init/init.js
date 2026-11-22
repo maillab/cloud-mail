@@ -77,7 +77,8 @@ const dbInit = {
 			['v3_41', () => this.v3_41DB(c)],
 			['v3_42', () => this.v3_42DB(c)],
 			['v3_43', () => this.v3_43DB(c)],
-			['v3_44', () => this.v3_44DB(c)]
+			['v3_44', () => this.v3_44DB(c)],
+			['v3_45', () => this.v3_45DB(c)]
 		];
 
 		for (const [name, apply] of steps) {
@@ -3423,6 +3424,17 @@ async v3_19DB(c) {
 			INSERT OR IGNORE INTO role_perm (role_id, perm_id)
 			SELECT role_id, ? FROM role
 		`).bind(teamView.perm_id).run();
+	},
+
+	// v3_45: the seeded Team baseline already allows Finance view/edit/approve.
+	// It must also see the shared company ledger, otherwise members can make
+	// changes that disappear from every other member's Finance screen.
+	async v3_45DB(c) {
+		const roleRow = await c.env.db.prepare(`SELECT role_id FROM role WHERE name = 'Team' LIMIT 1`).first();
+		const permRow = await c.env.db.prepare(`SELECT perm_id FROM perm WHERE perm_key = 'finance:view_all' LIMIT 1`).first();
+		if (!roleRow || !permRow) return;
+		await c.env.db.prepare(`INSERT OR IGNORE INTO role_perm (role_id, perm_id) VALUES (?, ?)`)
+			.bind(roleRow.role_id, permRow.perm_id).run();
 	},
 
 	async v3_29DB(c) {
