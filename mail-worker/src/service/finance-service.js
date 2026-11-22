@@ -256,18 +256,21 @@ export async function updateAccount(c, userId, accountId, body = {}) {
 	assign('source', body.source !== undefined ? text(body.source, 120) : undefined);
 	assign('restrictions', body.restrictions !== undefined ? text(body.restrictions, 500) : undefined);
 	assign('confidential', body.confidential !== undefined ? (body.confidential ? 1 : 0) : undefined);
+	assign('opened_on', body.opened_on !== undefined ? (body.opened_on || null) : undefined);
 
 	// The opening balance is a deliberate, audited event: it is the start of the
 	// ledger, not a number someone can nudge to fix a total.
 	if (body.opening_cents !== undefined || body.opening_balance !== undefined) {
 		const opening = cents(body.opening_cents ?? body.opening_balance);
 		if (opening !== Number(before.opening_cents)) {
+			const reason = text(body.opening_reason ?? body.reason, 300);
+			if (!reason) throw new BizError('Explain why the opening balance is changing so the audit record stays useful.', 400);
 			await db(c).prepare(
 				`UPDATE finance_accounts SET opening_cents = ? WHERE id = ?`
 			).bind(opening, accountId).run();
 			await audit(c, {
 				entityType: 'account', entityId: accountId, action: 'opening_changed', actorId: userId,
-				amountCents: opening, accountId, recordLabel: before.name, reason: body.reason || '',
+				amountCents: opening, accountId, recordLabel: before.name, reason,
 				before: { opening_cents: Number(before.opening_cents) },
 				after: { opening_cents: opening },
 			});
@@ -1371,12 +1374,26 @@ export async function listCommitments(c, userId, params = {}) {
 export async function listDebts(c, userId, params = {}) {
 	const keys = await permKeys(c, userId);
 	assertPerm(keys, 'finance.debts:view', 'Viewing debts');
-	const where = ['is_del = 0'];
+	const where = ['d.is_del = 0'];
 	const args = [];
-	if (params.status) { where.push('status = ?'); args.push(params.status); }
-	if (params.priority) { where.push('priority = ?'); args.push(params.priority); }
+	if (params.status) { where.push('d.status = ?'); args.push(params.status); }
+	if (params.priority) { where.push('d.priority = ?'); args.push(params.priority); }
+	const visibleAccounts = await visibleAccountIds(c, userId, keys);
+	if (!isCompanyScope(keys)) {
+		if (visibleAccounts?.length) {
+			where.push(`(d.created_by = ? OR d.account_id IN (${visibleAccounts.map(() => '?').join(', ')}))`);
+			args.push(userId, ...visibleAccounts);
+		} else {
+			where.push('d.created_by = ?');
+			args.push(userId);
+		}
+	} else if (visibleAccounts !== null) {
+		// Company finance is not a skeleton key into debts tied to a confidential account.
+		where.push(`(d.account_id IS NULL OR d.account_id IN (${visibleAccounts.length ? visibleAccounts.map(() => '?').join(', ') : 'NULL'}))`);
+		args.push(...visibleAccounts);
+	}
 	const { results } = await db(c).prepare(
-		`SELECT * FROM finance_debt WHERE ${where.join(' AND ')} ORDER BY
+		`SELECT d.* FROM finance_debt d WHERE ${where.join(' AND ')} ORDER BY
 			CASE status WHEN 'overdue' THEN 0 WHEN 'open' THEN 1 WHEN 'partial' THEN 2 ELSE 3 END,
 			due_date IS NULL, due_date ASC, id DESC`
 	).bind(...args).all();
@@ -1384,6 +1401,19 @@ export async function listDebts(c, userId, params = {}) {
 	const list = [];
 	for (const row of results || []) list.push(await decorateDebt(c, row));
 	return { list, total: list.length };
+}
+
+async function assertDebtVisible(c, userId, keys, row) {
+	if (!row || row.is_del) throw new BizError('Debt not found.', 404);
+	const visibleAccounts = await visibleAccountIds(c, userId, keys);
+	if (!isCompanyScope(keys)) {
+		if (Number(row.created_by) === Number(userId)) return;
+		if (row.account_id && (visibleAccounts === null || visibleAccounts.includes(Number(row.account_id)))) return;
+		throw new BizError('Debt not found.', 404);
+	}
+	if (row.account_id && visibleAccounts !== null && !visibleAccounts.includes(Number(row.account_id))) {
+		throw new BizError('Debt not found.', 404);
+	}
 }
 
 async function decorateDebt(c, row) {
@@ -1418,7 +1448,7 @@ export async function getDebt(c, userId, debtId) {
 	const keys = await permKeys(c, userId);
 	assertPerm(keys, 'finance.debts:view', 'Viewing a debt');
 	const row = await db(c).prepare(`SELECT * FROM finance_debt WHERE id = ? AND is_del = 0`).bind(debtId).first();
-	if (!row) throw new BizError('Debt not found.', 404);
+	await assertDebtVisible(c, userId, keys, row);
 	const decorated = await decorateDebt(c, row);
 	const { results: payments } = await db(c).prepare(`
 		SELECT p.*, a.name AS account_name FROM finance_payment p
@@ -1441,6 +1471,8 @@ export async function createDebt(c, userId, body = {}) {
 	if (!name) throw new BizError('Debt name is required.', 400);
 	const amount = cents(body.amount_cents ?? body.amount);
 	assertAmount(amount);
+	const accountId = intOrNull(body.account_id);
+	if (accountId) await assertAccountUsable(c, userId, keys, accountId);
 	const { meta } = await db(c).prepare(`
 		INSERT INTO finance_debt
 			(name, creditor, amount_cents, outstanding_cents, paid_cents, currency, due_date,
@@ -1450,7 +1482,7 @@ export async function createDebt(c, userId, body = {}) {
 		name, text(body.creditor, 200), amount, amount,
 		text(body.currency, 8).toUpperCase() || 'KES', body.due_date || null,
 		body.status || 'open', body.priority || 'normal', text(body.category, 80),
-		text(body.notes, 1000), intOrNull(body.account_id), text(body.document_key, 300), userId,
+		text(body.notes, 1000), accountId, text(body.document_key, 300), userId,
 	).run();
 	const debtId = meta.last_row_id;
 	await audit(c, {
@@ -1501,6 +1533,7 @@ export async function updateDebt(c, userId, debtId, body = {}) {
 			patch.outstanding_cents = nextAmount;
 		}
 	}
+	if (patch.account_id) await assertAccountUsable(c, userId, keys, patch.account_id);
 
 	if (!Object.keys(patch).length) return debt;
 	patch.update_time = nowStamp();

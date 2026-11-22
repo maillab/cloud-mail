@@ -144,6 +144,13 @@
             The opening balance is the start of this account's ledger. Changing it is recorded in the audit log.
           </div>
         </el-form-item>
+        <el-form-item v-if="form.id" label="Change reason">
+          <el-input
+            v-model="form.opening_reason"
+            maxlength="300"
+            placeholder="Required only if the opening balance is changed"
+          />
+        </el-form-item>
         <el-form-item label="Opened on">
           <el-date-picker v-model="form.opened_on" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
         </el-form-item>
@@ -316,7 +323,7 @@ const utilization = ref({ by_category: [] })
 
 function blankAccount() {
   return {
-    id: null, name: '', account_type: 'bank', currency: 'KES', opening: 0, opened_on: '',
+    id: null, name: '', account_type: 'bank', currency: 'KES', opening: 0, opening_reason: '', opened_on: '',
     source: '', restrictions: '', description: '', confidential: false, owner_id: null,
   }
 }
@@ -365,6 +372,7 @@ function openAccount(row = null) {
       account_type: row.account_type || 'bank',
       currency: row.currency || 'KES',
       opening: (Number(row.opening_cents) || 0) / 100,
+      opening_reason: '',
       opened_on: row.opened_on || '',
       source: row.source || '',
       restrictions: row.restrictions || '',
@@ -388,12 +396,19 @@ async function saveAccount() {
       name,
       account_type: form.account_type,
       currency: (form.currency || 'KES').toUpperCase(),
+      opening_cents: toCents(form.opening, (form.currency || 'KES').toUpperCase()),
+      opening_reason: form.opening_reason?.trim() || undefined,
       opened_on: form.opened_on || undefined,
       source: form.source,
       restrictions: form.restrictions,
       description: form.description,
       confidential: form.confidential,
       owner_id: form.owner_id || undefined,
+    }
+    const currentOpening = Number((accounts.value.find(row => row.id === form.id)?.opening_cents || 0) / 100)
+    if (form.id && Number(form.opening) !== currentOpening && !payload.opening_reason) {
+      ElMessage({ message: 'Explain why the opening balance is changing so the audit record stays useful.', type: 'warning', plain: true })
+      return
     }
     if (form.id) {
       await financeAccountUpdate(form.id, payload)

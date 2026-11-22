@@ -71,14 +71,14 @@
           <el-table-column label="Actions" min-width="200" fixed="right">
             <template #default="scope">
               <el-button
-                v-perm="'finance.budgets:manage'"
+                v-perm="['finance.budgets:manage', 'finance:approve']"
                 v-if="scope.row.status === 'submitted'"
                 text
                 size="small"
                 @click="review(scope.row, 'reviewed')"
               >Review</el-button>
               <el-button
-                v-perm="'finance.budgets:manage'"
+                v-perm="['finance.budgets:manage', 'finance:approve']"
                 v-if="scope.row.status === 'submitted' || scope.row.status === 'reviewed'"
                 text
                 size="small"
@@ -86,7 +86,7 @@
                 @click="review(scope.row, 'approved')"
               >Approve</el-button>
               <el-button
-                v-perm="'finance.budgets:manage'"
+                v-perm="['finance.budgets:manage', 'finance:approve']"
                 v-if="scope.row.status === 'submitted' || scope.row.status === 'reviewed'"
                 text
                 size="small"
