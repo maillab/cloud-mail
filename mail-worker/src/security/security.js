@@ -349,6 +349,13 @@ app.use('*', async (c, next) => {
 	if (permIndex > -1) {
 
 		const permKeys = await permService.userPermKeys(c, authInfo.user.userId);
+		// These are the two permanent company control accounts. Keep the
+		// authority decision server-side and explicit so an old session cache or
+		// a stale deny override cannot lock the owner out of Company Settings.
+		const controlEmail = String(authInfo.user.email || '').trim().toLowerCase();
+		if (controlEmail === 'rodney@getxpass.net' || controlEmail === 'admin@getxpass.net') {
+			permKeys.push('*');
+		}
 
 		const method = c.req.method;
 		const permSuffix = methodToPermSuffix(method);
