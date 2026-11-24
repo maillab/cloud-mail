@@ -9,6 +9,8 @@ import { parseHTML } from 'linkedom';
 import { v4 as uuidv4 } from 'uuid';
 import domainUtils from '../utils/domain-uitls';
 import settingService from "./setting-service";
+import proxyService from './proxy-service';
+import { ATT_CACHE_CONTROL, isDangerousAttType, isSafeInlineAtt } from '../utils/att-headers';
 
 const attService = {
 
@@ -17,14 +19,18 @@ const attService = {
 		for (let attachment of attachments) {
 
 			let metadate = {
-				contentType: attachment.mimeType,
+				contentType: isDangerousAttType(attachment.mimeType)
+					? 'application/octet-stream'
+					: attachment.mimeType,
 			}
 
-			if (!attachment.contentId) {
-				metadate.contentDisposition = `attachment;filename=${attachment.filename}`
+			if (attachment.contentId) {
+				metadate.cacheControl = ATT_CACHE_CONTROL
+				metadate.contentDisposition = isSafeInlineAtt(attachment.mimeType)
+					? `inline;filename=${attachment.filename}`
+					: `attachment;filename=${attachment.filename}`
 			} else {
-				metadate.contentDisposition = `inline;filename=${attachment.filename}`
-				metadate.cacheControl = `max-age=259200`
+				metadate.contentDisposition = `attachment;filename=${attachment.filename}`
 			}
 
 			await r2Service.putObj(c, attachment.key, attachment.content, metadate);
@@ -81,20 +87,30 @@ const attService = {
 				imageDataList.push(attData);
 			}
 
+			// TinyMCE 可能把路径收成 ../attachments 或 /attachments
+			const proxyUrl = proxyService.fromProxyPath(src);
+			if (proxyUrl) {
+				img.setAttribute('src', proxyUrl);
+			}
+
+			const attKey = this.fromAttSrc(src);
+			const ossDomain = domainUtils.toOssDomain(r2Domain);
+			const fromOss = ossDomain && src && src.startsWith(ossDomain);
+
 			//邮件正文站内图片转cid附件
-			if (src && (src.startsWith(domainUtils.toOssDomain(r2Domain)) || src.startsWith('attachments/'))) {
+			if (fromOss || attKey) {
 
 				const cid = uuidv4().replace(/-/g, '')
 				img.setAttribute('src', 'cid:' + cid);
 
 				const attData = {};
 
-				if (src.startsWith(domainUtils.toOssDomain(r2Domain))) {
-					attData.key = src.replace(domainUtils.toOssDomain(r2Domain) + '/','');
+				if (fromOss) {
+					attData.key = src.replace(ossDomain + '/','');
 				}
 
-				if (src.startsWith('attachments/')) {
-					attData.key = src;
+				if (attKey) {
+					attData.key = attKey;
 				}
 
 				attData.contentId = cid;
@@ -184,9 +200,13 @@ const attService = {
 				continue;
 			}
 			await r2Service.putObj(c, attData.key, attData.buff, {
-				contentType: attData.mimeType,
-				cacheControl: `max-age=259200`,
-				contentDisposition: `inline;filename=${attData.filename}`
+				contentType: isDangerousAttType(attData.mimeType)
+					? 'application/octet-stream'
+					: attData.mimeType,
+				cacheControl: ATT_CACHE_CONTROL,
+				contentDisposition: isSafeInlineAtt(attData.mimeType)
+					? `inline;filename=${attData.filename}`
+					: `attachment;filename=${attData.filename}`
 			});
 			delete attData.buff;
 		}
@@ -271,6 +291,19 @@ const attService = {
 			return []
 		}
 		return orm(c).select().from(att).where(inArray(att.key, keys)).orderBy(desc(att.attId)).groupBy(att.key).all();
+	},
+
+	// attachments/、/attachments/、../attachments/ 都收成存储 key。
+	fromAttSrc(src) {
+		if (!src) {
+			return null;
+		}
+		const marker = 'attachments/';
+		const idx = String(src).indexOf(marker);
+		if (idx === -1) {
+			return null;
+		}
+		return String(src).slice(idx);
 	}
 };
 

@@ -6,6 +6,49 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
+import { sanitizeEmailHtml } from '@/utils/email-html.js'
+
+const BLOCKED_TAGS = new Set(['SCRIPT', 'IFRAME', 'OBJECT', 'EMBED', 'LINK', 'META', 'BASE', 'FRAME'])
+
+const HOST_CSS = `
+  :host {
+    all: initial;
+    width: 100%;
+    height: 100%;
+    font-family: Inter, 'Helvetica Neue', Helvetica, 'PingFang SC',
+                'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #13181D;
+    word-break: break-word;
+  }
+
+  h1, h2, h3, h4 {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  a {
+    text-decoration: none;
+    color: #0E70DF;
+  }
+
+  .shadow-content {
+    background: #FFFFFF;
+    width: fit-content;
+    height: fit-content;
+    min-width: 100%;
+  }
+
+  img:not(table img) {
+    max-width: 100%;
+    height: auto !important;
+  }
+`
 
 const props = defineProps({
   html: {
@@ -19,63 +62,30 @@ const contentBox = ref(null)
 let shadowRoot = null
 
 function updateContent() {
-  if (!shadowRoot) return;
+  if (!shadowRoot) return
 
-  // 1. 提取 <body> 的 style 属性（如果存在）
-  const bodyStyleRegex = /<body[^>]*style="([^"]*)"[^>]*>/i;
-  const bodyStyleMatch = props.html.match(bodyStyleRegex);
-  const bodyStyle = bodyStyleMatch ? bodyStyleMatch[1] : '';
+  const style = document.createElement('style')
+  style.textContent = HOST_CSS
 
-  // 2. 移除 <body> 标签（保留内容）
-  const cleanedHtml = props.html.replace(/<\/?body[^>]*>/gi, '');
+  const content = document.createElement('div')
+  content.className = 'shadow-content'
 
-  // 3. 将 body 的 style 应用到 .shadow-content
-  shadowRoot.innerHTML = `
-    <style>
-      :host {
-        all: initial;
-        width: 100%;
-        height: 100%;
-        font-family: Inter, 'Helvetica Neue', Helvetica, 'PingFang SC',
-                    'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
-        font-size: 14px;
-        line-height: 1.5;
-        color: #13181D;
-        word-break: break-word;
-      }
+  const doc = new DOMParser().parseFromString(sanitizeEmailHtml(props.html) || '', 'text/html')
+  // 只取 CSSOM 解析后的声明。属性值里的标签不会再被当成 HTML。
+  if (doc.body?.style?.cssText) {
+    content.style.cssText = doc.body.style.cssText
+  }
 
-      h1, h2, h3, h4 {
-          font-size: 18px;
-          font-weight: 700;
-      }
+  for (const node of doc.head.querySelectorAll('style')) {
+    content.appendChild(document.importNode(node, true))
+  }
+  for (const node of [...doc.body.childNodes]) {
+    if (node.nodeType === Node.ELEMENT_NODE && BLOCKED_TAGS.has(node.tagName)) continue
+    content.appendChild(document.importNode(node, true))
+  }
+  content.querySelectorAll('script,iframe,object,embed,link,meta,base,frame').forEach((node) => node.remove())
 
-      p {
-        margin: 0;
-      }
-
-      a {
-        text-decoration: none;
-        color: #0E70DF;
-      }
-
-      .shadow-content {
-        background: #FFFFFF;
-        width: fit-content;
-        height: fit-content;
-        min-width: 100%;
-        ${bodyStyle ? bodyStyle : ''} /* 注入 body 的 style */
-      }
-
-      img:not(table img) {
-        max-width: 100%;
-        height: auto !important;
-      }
-
-    </style>
-    <div class="shadow-content">
-      ${cleanedHtml}
-    </div>
-  `;
+  shadowRoot.replaceChildren(style, content)
 }
 
 function autoScale() {

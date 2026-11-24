@@ -26,6 +26,7 @@ export const emailBriefColumns = {
 	subject: email.subject,
 	code: email.code,
 	recipient: email.recipient,
+	cc: email.cc,
 	toEmail: email.toEmail,
 	type: email.type,
 	status: email.status,

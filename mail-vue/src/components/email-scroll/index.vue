@@ -10,8 +10,8 @@
       </el-checkbox>
       <div class="header-left" :style="'padding-left:' + actionLeft">
 
-        <slot name="first"></slot>
         <Icon class="icon reload" icon="ion:reload" width="18" height="18" @click="refresh"/>
+        <slot name="first"></slot>
         <Icon v-perm="'email:delete'" class="icon delete" icon="uiw:delete" width="16" height="16"
               v-if="getSelectedMailsIds().length > 0"
               @click="handleDelete"/>
@@ -302,7 +302,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['jump', 'refresh-before', 'delete-draft', 'right-search'])
+const emit = defineEmits(['jump', 'refresh-before', 'refresh-success', 'delete-draft', 'right-search'])
 
 const {t} = useI18n()
 const settingStore = useSettingStore()
@@ -791,6 +791,13 @@ function updateCheckStatus() {
   isIndeterminate.value = checkedCount > 0 && !checkAll.value;
 }
 
+function toggleRowChecked(email) {
+  if (!email.checked && isSelectMax.value) {
+    return
+  }
+  email.checked = !email.checked
+}
+
 function jumpDetails(email) {
 
   if (dropdownShow.value) {
@@ -804,13 +811,19 @@ function jumpDetails(email) {
       return
     }
   }
+
+  if (checkedEmailCount.value > 0) {
+    toggleRowChecked(email)
+    return
+  }
+
   emit('jump', email)
 }
 
 
 function getEmailList(refresh = false) {
 
-  if (reqLock) return;
+  if (reqLock) return Promise.resolve(false);
 
   let emailId = emailList.length > 0 ? emailList.at(-1).emailId : 0;
 
@@ -820,7 +833,7 @@ function getEmailList(refresh = false) {
 
     if (loading.value || noLoading.value) {
       reqLock = false
-      return
+      return Promise.resolve(false)
     }
 
   } else {
@@ -837,7 +850,7 @@ function getEmailList(refresh = false) {
   }
   let start = Date.now();
 
-  props.getEmailList(emailId, queryParam.size).then(async data => {
+  return props.getEmailList(emailId, queryParam.size).then(async data => {
     let end = Date.now();
     let duration = end - start;
     if (duration < 300 && !emailId) {
@@ -865,6 +878,7 @@ function getEmailList(refresh = false) {
     followLoading.value = data.list.length >= queryParam.size;
 
     total.value = data.total;
+    return true;
   }).finally(() => {
     loading.value = false
     reqLock = false
@@ -912,7 +926,11 @@ function refresh() {
   if (props.skeleton) {
     scrollbarRef.value.setScrollTop(0)
   }
-  refreshList()
+  checkAll.value = false;
+  isIndeterminate.value = false;
+  getEmailList(true).then(ok => {
+    if (ok) emit('refresh-success')
+  }).catch(() => {})
 }
 
 function refreshList() {
@@ -1290,9 +1308,12 @@ function renderHighlight(value) {
     background-color: var(--email-right-click-background);
   }
 
-  /*&[data-checked="true"] {
-    background-color: #c2dbff;
-  }*/
+  &[data-checked="true"],
+  &[data-checked="true"]:hover,
+  &.right-checked[data-checked="true"],
+  &.right-checked[data-checked="true"]:hover {
+    background-color: var(--email-hover-background);
+  }
 }
 
 

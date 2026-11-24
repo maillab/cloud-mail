@@ -21,21 +21,44 @@ bucket_name = "wuemail"		#r2对象存储桶的名字
 
 [[send_email]]
 name = "email"			#CF发件, 配置后优先使用
+#[[d1_databases]]
+#binding = "db"			# D1 binding name; do not change
+#database_name = ""		# D1 database name
+#database_id = ""		# D1 database id
+
+#[[kv_namespaces]]
+#binding = "kv"			# KV binding name; do not change
+#id = ""					# KV namespace id
+
+#[[r2_buckets]]
+#binding = "r2"			# R2 binding name; do not change
+#bucket_name = ""		# R2 bucket name
+
+#[[send_email]]
+#name = "email"			# Cloudflare Email Sending; used first if configured
 
 [[send_email]]
-name = "forward"		#站内转发到已验证的其他邮箱，不限制单个地址
+name = "forward"		# Forward in-app mail to other verified addresses; not limited to one address
 
 [ai]
 binding = "ai"
 
 [assets]
-binding = "assets"		#静态资源绑定名默认不可修改
-directory = "./dist"	#前端vue项目打包的静态资源存放位置,默认dist
+binding = "assets"		# Assets binding name; do not change
+directory = "./dist"	# Built Vue assets directory, default dist
 not_found_handling = "single-page-application"
-run_worker_first = true
+run_worker_first = [ "/api/*", "/oss/*", "/static/*", "/attachments/*", "/proxy", "/realtime" ]
 
 [triggers]
-crons = ["0 * * * *"]	#每小时执行；resetDaySendCount 仅在 UTC 0 点生效
+crons = ["0 * * * *"]	# Hourly cron; resetDaySendCount only runs at UTC 0
+
+[[durable_objects.bindings]]
+name = "ws"
+class_name = "MailHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MailHub"]
 
 
 [vars]
@@ -46,6 +69,13 @@ orm_log = false			#是否sql日志
 domain = ["wuename.com"]				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
 admin = "admin@wuename.com"					#管理员的邮箱	示例: admin@example.com
 jwt_secret = "wFNCr7SqBweumtosxpSKhtBKyB97HGjb"			#jwt令牌的密钥,随便填一串字符串
+#ai_model = ""			# AI model; defaults to @cf/meta/llama-3.1-8b-instruct-fast
+#analysis_cache = false			# Enable analytics cache
+#orm_log = false			# SQL logging
+#domain = []				# Mail domains; multiple allowed, e.g. ["example1.com","example2.com"]
+#admin = ""					# Admin email, e.g. admin@example.com
+#password = ""				# Admin password; used on init if the admin user does not exist
+#jwt_secret = ""			# JWT secret; any random string
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"

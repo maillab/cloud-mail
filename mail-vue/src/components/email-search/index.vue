@@ -1,7 +1,7 @@
 <template>
   <div ref="searchRef" class="email-search">
     <div class="search-placeholder" @click="openSearch">
-      <Icon icon="akar-icons:search" width="20" height="20"/>
+      <Icon icon="bytesize:search" width="20" height="20"/>
       <span class="search-placeholder-text" :class="{ 'has-search-text': savedSearchSummary }" :title="savedSearchSummary">
         {{ savedSearchSummary || t('searchMail') }}
       </span>
@@ -14,7 +14,7 @@
       @click="openSearch"
     >
       <el-icon :size="20">
-        <Icon icon="akar-icons:search"/>
+        <Icon icon="bytesize:search"/>
       </el-icon>
     </el-button>
     <Transition name="search-panel-fade" @after-enter="focusInputOnDesktop">
@@ -31,13 +31,15 @@
           </div>
           <div class="search-content">
             <div class="search-content-title">{{ t('searchType') }}</div>
-            <div class="custom-style">
-              <el-segmented
-                v-model="searchType"
-                :options="searchOptions"
-                :props="{ label: 'label', value: 'type' }"
-              />
-            </div>
+            <el-radio-group v-model="searchType" class="search-options" :aria-label="t('searchType')">
+              <el-radio-button
+                v-for="option in searchOptions"
+                :key="option.type"
+                :value="option.type"
+              >
+                {{ option.label }}
+              </el-radio-button>
+            </el-radio-group>
             <div class="search-date-range">
               <div class="search-date-field">
                 <div class="search-date-label">{{ t('searchDateFrom') }}</div>
@@ -125,7 +127,7 @@ const savedSearchSummary = computed(() => {
   return parts.join('\u00a0\u00a0')
 })
 const searchPlaceholder = computed(() =>
-  t('searchMailBy', {field: selectedSearchOption.value?.label || t('titleDesc')})
+  t('searchMailBy', {field: selectedSearchOption.value?.label || t('subject')})
 )
 
 watch(
@@ -392,7 +394,7 @@ onBeforeUnmount(() => {
   background-color: var(--el-card-bg-color) !important;
   border-radius: 6px !important;
   border: 1px solid var(--el-border-color) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
   overflow: hidden;
   isolation: isolate;
 }
@@ -440,14 +442,23 @@ onBeforeUnmount(() => {
   text-align: left !important;
 }
 
-.custom-style {
+.search-options {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start;
+  gap: 8px;
   margin-top: 8px;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.custom-style .el-segmented {
-  --el-border-radius-base: 6px;
+.search-options :deep(.el-radio-button .el-radio-button__inner) {
+  border-radius: var(--el-border-radius-base);
+}
+
+.search-options :deep(.el-radio-button.is-active .el-radio-button__inner) {
+  box-shadow: none;
+  outline-color: var(--el-color-primary);
 }
 
 .search-date-range {

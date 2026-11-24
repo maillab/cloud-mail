@@ -29,7 +29,8 @@ id = "2io01d4b299e481b9de060ece9e7785c"
 binding = "assets"
 directory = "./dist"
 not_found_handling = "single-page-application"
-run_worker_first = true
+# Only these paths invoke the Worker; /assets/ and other frontend files are served directly
+run_worker_first = [ "/api/*", "/oss/*", "/static/*", "/attachments/*", "/proxy", "/realtime" ]
 
 #[[send_email]]
 #name = "email"
@@ -37,10 +38,19 @@ run_worker_first = true
 [[send_email]]
 name = "forward"
 
+[[durable_objects.bindings]]
+name = "ws"
+class_name = "MailHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MailHub"]
+
 [vars]
 ai_model = ""
 analysis_cache = false
 orm_log = true
 domain = ["example.com", "example2.com", "example3.com", "example4.com"]
 admin = "admin@example.com"
+password = ""
 jwt_secret = "b7f29a1d-18e2-4d3b-941f-f6b2c97c02fd"

@@ -6,7 +6,7 @@
         <div>{{settingStore.settings.title}}</div>
       </div>
       <button v-perm="'email:send'" class="compose-bar" type="button" @click="openCompose">
-        <Icon icon="material-symbols:edit-outline-sharp" width="22" height="22" />
+        <Icon icon="hugeicons:quill-write-01" width="22" height="22" />
         <span>{{ $t('compose') }}</span>
       </button>
       <el-menu :collapse="false" text-color="#fff" active-text-color="#fff" style="margin-top: 6px">
