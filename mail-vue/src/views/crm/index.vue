@@ -26,9 +26,29 @@
           </div>
         </template>
 
+        <div v-if="contacts.length" class="contact-cards-mobile">
+          <article v-for="contact in contacts" :key="contact.id" class="contact-card-mobile" @click="openContact(contact)">
+            <div class="contact-card-head">
+              <span class="contact-avatar">{{ avatarInitial(contact.name) }}</span>
+              <div class="contact-card-title">
+                <strong>{{ contact.name }}</strong>
+                <span>{{ contact.organization_name || 'Independent contact' }}</span>
+              </div>
+              <el-tag size="small" effect="plain">{{ sourceLabel(contact.source) }}</el-tag>
+            </div>
+            <div class="contact-card-details">
+              <span v-if="contact.email">{{ contact.email }}</span>
+              <span v-if="contact.phone">{{ contact.phone }}</span>
+            </div>
+            <div v-if="(contact.tags || []).length" class="contact-card-tags">
+              <el-tag v-for="tag in contact.tags" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
+            </div>
+          </article>
+        </div>
         <el-table
           v-if="contacts.length"
           :data="contacts"
+          class="contact-table-desktop"
           style="width: 100%"
           @row-dblclick="row => openContact(row)"
         >
@@ -45,7 +65,7 @@
             </template>
           </el-table-column>
           <el-table-column prop="source" label="Source" min-width="100">
-            <template #default="scope">{{ scope.row.source }}</template>
+            <template #default="scope">{{ sourceLabel(scope.row.source) }}</template>
           </el-table-column>
           <el-table-column label="Organization" min-width="160">
             <template #default="scope">{{ scope.row.organization_name || 'Independent contact' }}</template>
@@ -266,6 +286,14 @@ function avatarInitial(name) {
   return String(name || '?').trim()[0]?.toUpperCase() || '?'
 }
 
+function sourceLabel(source) {
+  return {
+    manual: 'Manual entry', email: 'Email', whatsapp: 'WhatsApp', social_media: 'Social media',
+    personal_referral: 'Personal referral', public_information: 'Public information',
+    website: 'Website or form', event_networking: 'Event or networking', import: 'Imported list',
+  }[source] || source || 'Manual entry'
+}
+
 function openContact(contact) {
   router.push({ name: 'crm-contact', params: { id: contact.id } })
 }
@@ -438,4 +466,23 @@ onMounted(() => {
   gap: 10px;
 }
 .form-hint { margin-top: 6px; color: var(--hq-muted); font-size: 12px; line-height: 1.4; }
+.contact-cards-mobile { display: none; }
+
+@media (max-width: 700px) {
+  .crm-container { padding: 20px 14px 28px; }
+  .crm-header { align-items: flex-start; gap: 12px; }
+  .crm-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .crm-actions :deep(.el-button) { margin-left: 0; }
+  .card-header { align-items: stretch; flex-direction: column; gap: 10px; }
+  .contact-table-desktop { display: none; }
+  .contact-cards-mobile { display: grid; gap: 10px; }
+  .contact-card-mobile { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--hq-border); border-radius: 12px; background: var(--hq-surface); cursor: pointer; }
+  .contact-card-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .contact-card-title { display: grid; min-width: 0; flex: 1; gap: 2px; }
+  .contact-card-title strong { overflow: hidden; color: var(--hq-text); text-overflow: ellipsis; white-space: nowrap; }
+  .contact-card-title span, .contact-card-details { color: var(--hq-text-secondary); font-size: 12px; }
+  .contact-card-details { display: grid; gap: 3px; overflow: hidden; }
+  .contact-card-details span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .contact-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+}
 </style>

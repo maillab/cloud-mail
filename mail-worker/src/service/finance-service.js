@@ -2923,11 +2923,11 @@ export async function listCategories(c, kind = 'expense') {
 // a category without being able to redefine the company's chart of accounts.
 
 const CONFIG_KINDS = {
-	expense: 'Expense category',
+	expense: 'Spending category',
 	income: 'Income category',
-	account_type: 'Account type',
+	account_type: 'Where money is held',
 	payment_method: 'Payment method',
-	tag: 'Tag',
+	tag: 'Internal label',
 };
 
 export function listConfigKinds() {

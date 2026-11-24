@@ -175,7 +175,10 @@
               <div class="card-box">
                 <div class="accounts-header">
                   <span class="accounts-count">{{ accountsList.length }} sending {{ accountsList.length === 1 ? 'address' : 'addresses' }}</span>
+                  <el-button size="small" type="primary" @click="openAddAddress">Add sending address</el-button>
                 </div>
+
+                <p class="accounts-help">Add an additional address for yourself. Company-wide addresses such as support@ belong in Shared Mailboxes, where the team and access are managed together.</p>
 
                 <div class="accounts-list">
                   <div v-for="acc in accountsList" :key="acc.accountId" class="account-card">
@@ -428,6 +431,19 @@
         <el-button type="primary" :loading="setPwdLoading" @click="submitPwd">{{ $t('save') }}</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="addAddressOpen" title="Add a sending address" width="420px">
+      <p class="dialog-intro">This adds an address to your own account. Use a shared mailbox for an address that more than one person will work from.</p>
+      <el-form label-position="top" @submit.prevent="addAddress">
+        <el-form-item label="Email address" required>
+          <el-input v-model="newAddress" type="email" autocomplete="email" placeholder="name@getxpass.net" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="addAddressOpen = false">Cancel</el-button>
+        <el-button type="primary" :loading="addingAddress" @click="addAddress">Add address</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -443,7 +459,7 @@ import { useAccountStore } from '@/store/account.js'
 import { useUiStore } from '@/store/ui.js'
 import router from '@/router/index.js'
 import { resetPassword, updateSignature, userDelete } from '@/request/my.js'
-import { accountList, accountSetName, accountSetSignature } from '@/request/account.js'
+import { accountAdd, accountList, accountSetName, accountSetSignature } from '@/request/account.js'
 import { fileToBase64 } from '@/utils/file-utils.js'
 import HqAvatar from '@/components/hq-avatar/index.vue'
 import HqSecurityPanel from '@/components/hq-security/index.vue'
@@ -703,12 +719,39 @@ async function saveName() {
 
 // ACCOUNTS TAB
 const accountsList = ref([])
+const addAddressOpen = ref(false)
+const addingAddress = ref(false)
+const newAddress = ref('')
 async function fetchAccounts() {
   try {
     const res = await accountList(null, 50)
     accountsList.value = Array.isArray(res) ? res : (res?.list || [])
   } catch (err) {
     console.error('Failed to load accounts list in settings:', err)
+  }
+}
+
+function openAddAddress() {
+  newAddress.value = ''
+  addAddressOpen.value = true
+}
+
+async function addAddress() {
+  const email = newAddress.value.trim().toLowerCase()
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    ElMessage({ message: 'Enter a complete email address.', type: 'warning', plain: true })
+    return
+  }
+  addingAddress.value = true
+  try {
+    await accountAdd(email)
+    addAddressOpen.value = false
+    await fetchAccounts()
+    ElMessage({ message: 'Sending address added.', type: 'success', plain: true })
+  } catch (error) {
+    ElMessage({ message: error.message || 'Could not add this address.', type: 'error', plain: true })
+  } finally {
+    addingAddress.value = false
   }
 }
 
@@ -955,6 +998,14 @@ function deleteConfirm() {
   width: 100%;
   overflow: hidden;
   background: var(--hq-page);
+}
+
+.accounts-help,
+.dialog-intro {
+  margin: 10px 0 16px;
+  color: var(--hq-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .settings-shell {

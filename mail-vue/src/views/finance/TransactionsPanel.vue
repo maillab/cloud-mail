@@ -176,6 +176,8 @@
         <el-form-item label="Date">
           <el-date-picker v-model="form.txn_date" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
         </el-form-item>
+        <el-collapse class="fin-form-optional">
+          <el-collapse-item title="Receipt, payment method & allocation" name="details">
         <el-form-item label="Method">
           <el-select v-model="form.method" style="width: 100%" filterable allow-create clearable placeholder="Bank transfer, M-Pesa, cash…">
             <el-option v-for="method in paymentMethods" :key="method" :label="method" :value="method" />
@@ -192,6 +194,8 @@
         <el-form-item label="Notes">
           <el-input v-model="form.notes" type="textarea" :rows="2" maxlength="1000" />
         </el-form-item>
+          </el-collapse-item>
+        </el-collapse>
       </el-form>
       <template #footer>
         <el-button @click="entryDialog = false">Cancel</el-button>

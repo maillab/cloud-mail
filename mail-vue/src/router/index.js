@@ -135,8 +135,8 @@ const routes = [
             {
                 path: '/crm/companies',
                 name: 'crm-companies',
-                component: () => import('@/views/crm/companies.vue'),
-                meta: {title: 'crmCompanies', name: 'crm-companies', menu: true}
+                redirect: { name: 'crm-contacts' },
+                meta: {title: 'crmContacts', name: 'crm-companies', menu: false}
             },
             {
                 path: '/crm/pipelines',

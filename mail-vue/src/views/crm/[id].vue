@@ -192,10 +192,16 @@
             <el-input v-model="editForm.address" />
           </el-form-item>
           <el-form-item :label="$t('crmSource')" prop="source">
-            <el-select v-model="editForm.source">
-              <el-option label="Manual" value="manual" />
+            <el-select v-model="editForm.source" style="width:100%">
+              <el-option label="Manual entry" value="manual" />
               <el-option label="Email" value="email" />
               <el-option label="WhatsApp" value="whatsapp" />
+              <el-option label="Social media" value="social_media" />
+              <el-option label="Personal referral" value="personal_referral" />
+              <el-option label="Public information" value="public_information" />
+              <el-option label="Website or inbound form" value="website" />
+              <el-option label="Event or networking" value="event_networking" />
+              <el-option label="Imported list" value="import" />
             </el-select>
           </el-form-item>
           <el-form-item :label="$t('crmNotesLabel')" prop="notes">

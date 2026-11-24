@@ -2,11 +2,16 @@
   <div class="fin-panel">
     <header class="fin-head">
       <div>
-        <div class="fin-kicker">Finance settings</div>
-        <h2>Configuration</h2>
+        <div class="fin-kicker">XPass finance setup</div>
+        <h2>Finance lists</h2>
       </div>
       <span class="fin-scope">{{ data.canManage ? 'You can edit these lists' : 'Read only' }}</span>
     </header>
+
+    <section class="fin-guidance">
+      <strong>Keep this simple.</strong>
+      <span>Use a short list that matches how XPass actually earns, spends and holds money. These lists drive the transaction forms; changing a list never changes past records.</span>
+    </section>
 
     <div v-loading="loading" class="fin-config">
       <section v-for="kind in data.kinds" :key="kind.key" class="fin-card">
@@ -69,8 +74,16 @@ const data = reactive({
 
 const form = reactive({ kind: 'expense', name: '' })
 
+const xpassLabels = {
+  expense: 'Spending categories',
+  income: 'Income categories',
+  account_type: 'Where money is held',
+  payment_method: 'Ways XPass pays or gets paid',
+  tag: 'Internal labels',
+}
+
 function kindLabel(key) {
-  return (data.kinds.find(k => k.key === key) || {}).label || key
+  return xpassLabels[key] || (data.kinds.find(k => k.key === key) || {}).label || key
 }
 
 function openCreate(kind) {
@@ -187,6 +200,20 @@ onMounted(load)
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
 }
+
+.fin-guidance {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--hq-accent, #ff5a1f) 28%, var(--hq-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--hq-accent, #ff5a1f) 7%, var(--hq-surface));
+  color: var(--hq-text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.fin-guidance strong { color: var(--hq-text); font-size: 12.5px; }
 
 .fin-card {
   padding: 14px 16px 16px;

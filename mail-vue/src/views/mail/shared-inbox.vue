@@ -89,7 +89,7 @@
             <div class="si-detail-sub">
               <span class="si-status" :class="`is-${detail.conversation.status}`">{{ statusLabel(detail.conversation.status) }}</span>
               <span v-if="detail.conversation.priority === 'urgent'" class="si-flag is-urgent">Urgent</span>
-              <span class="si-detail-from">from {{ mailboxAddress }}</span>
+              <span class="si-detail-from">from {{ detailMailboxLabel }}</span>
             </div>
           </div>
           <button type="button" class="si-icon-btn" title="Close" aria-label="Close" @click="closeDetail">
@@ -339,7 +339,11 @@ const eventLabels = {
 const mailbox = computed(() => mailboxStore.mailboxById(mailboxId.value))
 const mailboxLabel = computed(() => mailboxId.value === 0 ? 'All shared inboxes' : (mailbox.value?.display_name || mailbox.value?.email || 'Shared inbox'))
 const mailboxAddress = computed(() => mailboxId.value === 0 ? 'Every shared inbox you can access' : (mailbox.value?.email || ''))
-const isSupportMailbox = computed(() => `${mailboxLabel.value} ${mailboxAddress.value}`.toLowerCase().includes('support'))
+const detailMailboxLabel = computed(() => {
+  const email = detail.value?.email || {}
+  const title = email.mailbox_display_name || email.mailbox_email || 'Shared inbox'
+  return email.mailbox_email && title !== email.mailbox_email ? `${title} · ${email.mailbox_email}` : title
+})
 
 // The inbox a conversation arrived at. In a single-mailbox view every row shares
 // the current address; the helper still resolves per row so the label stays
@@ -361,11 +365,6 @@ function inboxSourceLabel(row) {
   return `${title} · ${box.email || 'address unavailable'}`
 }
 
-function changeInbox(event) {
-  const next = Number(event.target.value)
-  if (Number.isNaN(next) || next === mailboxId.value) return
-  router.replace({ name: 'mail-shared-inbox', params: { mailboxId: String(next) } })
-}
 const counts = computed(() => mailboxStore.countsFor(mailboxId.value))
 const hasMore = computed(() => list.value.length < total.value)
 const composerEnabled = computed(() => Boolean(detail.value) && (can('reply') || can('send') || can('internal_note')))
@@ -526,6 +525,14 @@ async function openDetail(emailId) {
   try {
     const res = await sharedMailboxConversation(emailId)
     detail.value = res
+    const sourceMailboxId = Number(res?.email?.account_id)
+    if (sourceMailboxId) {
+      sharedMailboxAssignees(sourceMailboxId)
+        .then(rows => { assignees.value = rows || [] })
+        .catch(() => { assignees.value = [] })
+    } else {
+      assignees.value = []
+    }
     body.value = ''
     mode.value = 'reply'
   } catch (error) {
@@ -621,14 +628,16 @@ async function submit() {
       return
     }
     await emailSend({
-      accountId: mailboxId.value,
+      // The unified queue is only a view. Replies still leave through the
+      // actual mailbox that received the conversation.
+      accountId: detail.value?.email?.account_id,
       sendType: 'reply',
       emailId: selectedId.value,
       receiveEmail: [to],
       subject: detail.value.email.subject ? `Re: ${detail.value.email.subject.replace(/^Re:\s*/i, '')}` : '',
       text,
       content: `<p>${text.replace(/\n/g, '<br>')}</p>`,
-      name: mailboxLabel.value,
+      name: detail.value?.email?.mailbox_display_name || detail.value?.email?.mailbox_email || mailboxLabel.value,
     })
     body.value = ''
     await afterChange('Reply sent.')
@@ -661,7 +670,6 @@ onMounted(async () => {
   }
   await reload()
   await mailboxStore.loadSummary()
-  if (mailboxId.value) sharedMailboxAssignees(mailboxId.value).then(rows => { assignees.value = rows || [] }).catch(() => {})
   sharedMailboxTags().then(rows => { allTags.value = rows || [] }).catch(() => {})
 })
 
