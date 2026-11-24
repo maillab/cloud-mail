@@ -3,11 +3,11 @@
     <header class="fin-head">
       <div>
         <div class="fin-kicker">Where the money sits</div>
-        <h2>Accounts &amp; funds</h2>
+        <h2>Cash &amp; accounts</h2>
       </div>
       <div class="fin-head-actions">
         <el-button v-perm="'finance.accounts:manage'" size="small" type="primary" icon="plus" @click="openAccount()">
-          New account
+          Add account
         </el-button>
         <el-button size="small" text circle icon="refresh" title="Refresh" aria-label="Refresh" @click="load" />
       </div>
@@ -17,13 +17,13 @@
       <div class="fin-stats">
         <StatCard label="Available cash" :value="money(totalBalance)" :hint="`${accounts.length} account${accounts.length === 1 ? '' : 's'}`" />
         <StatCard
-          label="Overdrawn"
+          label="Below zero"
           :value="String(overdrawn.length)"
           :tone="overdrawn.length ? 'negative' : 'default'"
           hint="Balances below zero"
         />
         <StatCard
-          label="Restricted"
+          label="Limited access"
           :value="String(restricted.length)"
           :tone="restricted.length ? 'warning' : 'default'"
           hint="Accounts with access limits"
@@ -86,9 +86,9 @@
 
       <section class="fin-card">
         <div class="fin-card-head">
-          <h3>Funding</h3>
+        <h3>Funding &amp; capital</h3>
           <div class="fin-card-tools">
-            <span class="fin-card-note">Grants, loans and equity, with what is committed against what arrived</span>
+            <span class="fin-card-note">Only record this when money is invested, granted or borrowed by XPass</span>
             <el-button
               v-perm="'finance.transactions:create'"
               size="small"
@@ -118,7 +118,7 @@
       </section>
     </div>
 
-    <el-dialog v-model="accountDialog" :title="form.id ? 'Edit account' : 'New account'" width="520px">
+    <el-dialog v-model="accountDialog" :title="form.id ? 'Edit account' : 'Add account'" width="520px">
       <el-form :model="form" label-width="130px">
         <el-form-item label="Name" required>
           <el-input v-model="form.name" maxlength="120" placeholder="e.g. Equity Bank KES" />
@@ -131,7 +131,7 @@
         <el-form-item label="Currency">
           <el-input v-model="form.currency" maxlength="8" placeholder="KES" />
         </el-form-item>
-        <el-form-item label="Starting balance">
+        <el-form-item label="Opening balance">
           <el-input-number
             v-model="form.opening"
             :precision="2"
@@ -324,7 +324,7 @@ const utilization = ref({ by_category: [] })
 
 function blankAccount() {
   return {
-    id: null, name: '', account_type: 'bank', currency: 'KES', opening: 0, opening_reason: '', opened_on: '',
+    id: null, name: '', account_type: 'Bank', currency: 'KES', opening: 0, opening_reason: '', opened_on: '',
     source: '', restrictions: '', description: '', confidential: false, owner_id: null,
   }
 }
@@ -370,7 +370,7 @@ function openAccount(row = null) {
     Object.assign(form, {
       id: row.id,
       name: row.name,
-      account_type: row.account_type || 'bank',
+      account_type: row.account_type || 'Bank',
       currency: row.currency || 'KES',
       opening: (Number(row.opening_cents) || 0) / 100,
       opening_reason: '',
