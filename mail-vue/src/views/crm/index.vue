@@ -4,10 +4,11 @@
       <div class="crm-header">
         <div class="crm-title">
           <div class="crm-eyebrow">XPASS HQ / CRM</div>
-          <h1>Contacts</h1>
+          <h1>People &amp; organizations</h1>
         </div>
         <div class="crm-actions">
-          <el-button v-perm="'contacts:add'" type="primary" icon="plus" @click="openContactDialog">New contact</el-button>
+          <el-button v-perm="'contacts:add'" type="primary" icon="plus" @click="openContactDialog">New person</el-button>
+          <el-button v-perm="'organizations:add'" @click="router.push({ name: 'crm-organizations' })">New organization</el-button>
           <el-button  @click="loadContacts" text circle icon="refresh" :aria-label="$t('refresh')" :title="$t('refresh')" />
         </div>
       </div>
@@ -45,6 +46,9 @@
           </el-table-column>
           <el-table-column prop="source" label="Source" min-width="100">
             <template #default="scope">{{ scope.row.source }}</template>
+          </el-table-column>
+          <el-table-column label="Organization" min-width="160">
+            <template #default="scope">{{ scope.row.organization_name || 'Independent contact' }}</template>
           </el-table-column>
           <el-table-column label="Tags" min-width="120">
             <template #default="scope">
@@ -91,8 +95,8 @@
           </el-table-column>
         </el-table>
         <div v-else class="empty-state">
-          <p>No contacts yet.</p>
-          <el-button v-perm="'contacts:add'" type="primary" @click="openContactDialog">Add your first contact</el-button>
+          <p>No people yet. Add an individual, then optionally link them to an organization.</p>
+          <el-button v-perm="'contacts:add'" type="primary" @click="openContactDialog">Add your first person</el-button>
         </div>
       </el-card>
 
@@ -107,9 +111,19 @@
           <el-form-item label="Phone" prop="phone">
             <el-input v-model="contactForm.phone" placeholder="Include country code" />
           </el-form-item>
-          <el-form-item label="Company" prop="company_id">
-            <el-select v-model="contactForm.company_id" placeholder="Select or add a company" filterable allow-create style="width:100%">
-              <el-option v-for="c in companies" :key="c.id" :label="c.name" :value="c.id" />
+          <el-form-item label="Organization">
+            <el-select v-model="contactForm.organization_id" placeholder="Independent contact" filterable clearable style="width:100%">
+              <el-option v-for="organization in organizations" :key="organization.id" :label="organization.name" :value="organization.id" />
+            </el-select>
+            <div class="form-hint">Create organizations separately, then link their people here. A person can later be linked to more than one organization.</div>
+          </el-form-item>
+          <el-form-item v-if="contactForm.organization_id" label="Relationship">
+            <el-select v-model="contactForm.organization_role" style="width:100%">
+              <el-option label="Primary contact" value="Primary contact" />
+              <el-option label="Decision maker" value="Decision Maker" />
+              <el-option label="Operations contact" value="Operations contact" />
+              <el-option label="Finance contact" value="Finance contact" />
+              <el-option label="Partner contact" value="Partner contact" />
             </el-select>
           </el-form-item>
           <el-form-item label="Address" prop="address">
@@ -152,7 +166,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { hasPerm } from '@/perm/perm.js'
 import { contactsList, contactsCreate, contactsUpdate, contactsDelete, contactsAssign } from '@/request/contacts.js'
-import { companiesList } from '@/request/companies.js'
+import { organizationsList } from '@/request/organizations.js'
+import { contactOrganizationsCreate } from '@/request/contact-organizations.js'
 import { useCreateIntent } from '@/composables/useCreateIntent.js'
 import { useTeamMembers } from '@/composables/use-team-members.js'
 
@@ -167,7 +182,7 @@ const { members, loadMembers } = useTeamMembers()
 
 const search = ref('')
 const contacts = ref([])
-const companies = ref([])
+const organizations = ref([])
 const total = ref(0)
 const loading = ref(false)
 const saving = ref(false)
@@ -179,7 +194,8 @@ const contactForm = ref({
   name: '',
   email: '',
   phone: '',
-  company_id: null,
+  organization_id: null,
+  organization_role: 'Primary contact',
   address: '',
   tags: [],
   tagsInput: '',
@@ -206,10 +222,10 @@ async function loadContacts() {
   try {
     const [contactsResp, companiesResp] = await Promise.all([
       contactsList({ page: 1, pageSize: 100, search: search.value || undefined }),
-      companiesList({ page: 1, pageSize: 100 })
+      organizationsList({ page: 1, pageSize: 100 })
     ])
     contacts.value = contactsResp.list || []
-    companies.value = companiesResp.list || []
+    organizations.value = companiesResp.list || []
     total.value = contactsResp.total ?? 0
   } catch (error) {
     ElMessage({ message: error.message || 'Failed to load contacts.', type: 'error', plain: true })
@@ -255,7 +271,7 @@ function openContact(contact) {
 }
 
 function openContactDialog() {
-  contactForm.value = { id: null, name: '', email: '', phone: '', company_id: null, address: '', tags: [], tagsInput: '', source: 'manual', notes: '' }
+  contactForm.value = { id: null, name: '', email: '', phone: '', organization_id: null, organization_role: 'Primary contact', address: '', tags: [], tagsInput: '', source: 'manual', notes: '' }
   contactDialogVisible.value = true
 }
 
@@ -270,12 +286,17 @@ async function saveContact() {
     const payload = {
       ...contactForm.value,
       tags,
-      tagsInput: undefined
+      tagsInput: undefined,
+      organization_id: undefined,
+      organization_role: undefined,
     }
     if (contactForm.value.id) {
       await contactsUpdate(contactForm.value.id, payload)
     } else {
-      await contactsCreate(payload)
+      const created = await contactsCreate(payload)
+      if (contactForm.value.organization_id && created?.id) {
+        await contactOrganizationsCreate({ contact_id: created.id, organization_id: contactForm.value.organization_id, role: contactForm.value.organization_role, is_primary: 1 })
+      }
     }
     contactDialogVisible.value = false
     await loadContacts()
@@ -416,4 +437,5 @@ onMounted(() => {
   justify-content: flex-end;
   gap: 10px;
 }
+.form-hint { margin-top: 6px; color: var(--hq-muted); font-size: 12px; line-height: 1.4; }
 </style>

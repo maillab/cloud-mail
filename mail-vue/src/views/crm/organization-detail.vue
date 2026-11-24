@@ -253,7 +253,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { hasPerm } from '@/perm/perm.js'
-import { organizationsList, organizationsUpdate } from '@/request/organizations.js'
+import { organizationsGet, organizationsUpdate } from '@/request/organizations.js'
 import { contactsList } from '@/request/contacts.js'
 import { dealsList } from '@/request/deals.js'
 import { activitiesList, activitiesCreate } from '@/request/activities.js'
@@ -314,7 +314,7 @@ async function loadOrganization() {
   loading.value = true
   try {
     const [orgResp, contactsResp, dealsResp, activitiesResp, linksResp, allContactsResp] = await Promise.all([
-      organizationsList({ page: 1, pageSize: 1 }),
+      organizationsGet(id),
       contactsList({ page: 1, pageSize: 200 }),
       dealsList({ page: 1, pageSize: 100 }),
       activitiesList({ page: 1, pageSize: 100, entity_type: 'organization', entity_id: Number(id) }),
@@ -322,8 +322,7 @@ async function loadOrganization() {
       contactsList({ page: 1, pageSize: 200 })
     ])
 
-    const allOrgs = orgResp.list || []
-    organization.value = allOrgs.find(o => String(o.id) === String(id)) || null
+    organization.value = orgResp || null
 
     allContacts.value = allContactsResp.list || []
     deals.value = (dealsResp.list || []).filter(d => String(d.company_id) === String(id))

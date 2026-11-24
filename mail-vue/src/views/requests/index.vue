@@ -224,6 +224,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/store/user.js'
 import { teamList } from '@/request/profile.js'
@@ -239,6 +240,7 @@ const ACTION_STATUSES = ['pending', 'accepted', 'in_progress', 'needs_clarificat
 const APPROVAL_STATUSES = ['pending_approval', 'approved', 'rejected', 'changes_requested', 'cancelled']
 
 const userStore = useUserStore()
+const route = useRoute()
 const myId = computed(() => userStore.user?.userId)
 
 const ACTION_TEXT = {
@@ -361,6 +363,8 @@ async function loadList() {
   try {
     const params = { scope: scope.value, page: 1, pageSize: 100 }
     if (kind.value) params.kind = kind.value
+    if (type.value) params.type = type.value
+    if (search.value) params.search = search.value
     if (status.value) params.status = status.value
     if (overdue.value) params.overdue = '1'
     const resp = await requestList(params)
@@ -467,7 +471,10 @@ async function addComment() {
   } catch (e) { /* ignore */ }
 }
 
-onMounted(() => { loadDirectory(); loadTeams(); loadList() })
+onMounted(async () => {
+  await Promise.all([loadDirectory(), loadTeams(), loadList()])
+  if (route.params.id) await openDetail({ id: Number(route.params.id) })
+})
 </script>
 
 <style scoped>

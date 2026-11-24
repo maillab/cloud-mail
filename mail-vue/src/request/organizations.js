@@ -4,6 +4,10 @@ export function organizationsList(params) {
     return http.get('/crm/organizations', { params });
 }
 
+export function organizationsGet(id) {
+    return http.get(`/crm/organizations/${id}`);
+}
+
 export function organizationsCreate(data) {
     return http.post('/crm/organizations', data);
 }

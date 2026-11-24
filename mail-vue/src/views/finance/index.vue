@@ -58,19 +58,15 @@ import ConfigPanel from './ConfigPanel.vue'
 // is already gated on finance:view, so this only narrows what is reachable.
 const CATALOG = [
   { id: 'overview', label: 'Overview', icon: 'solar:widget-2-line-duotone', perm: 'finance:view', component: OverviewPanel },
-  { id: 'accounts', label: 'Accounts & funds', icon: 'fluent:wallet-credit-card-20-regular', perm: 'finance.accounts:view', component: AccountsPanel },
-  { id: 'transactions', label: 'Transactions', icon: 'fluent:arrow-swap-20-regular', perm: 'finance.transactions:view', component: TransactionsPanel },
-  // Expenses, income and funding are views of the same ledger, filtered by the
-  // panel itself. They are not three more transaction models.
-  { id: 'expenses', label: 'Expenses', icon: 'fluent:receipt-money-20-regular', perm: 'finance.transactions:view', component: TransactionsPanel, props: { initialType: 'expense' } },
-  { id: 'income', label: 'Income & funding', icon: 'fluent:arrow-trending-20-regular', perm: 'finance.transactions:view', component: TransactionsPanel, props: { initialDirection: 'in' } },
+  { id: 'accounts', label: 'Cash & accounts', icon: 'fluent:wallet-credit-card-20-regular', perm: 'finance.accounts:view', component: AccountsPanel },
+  { id: 'transactions', label: 'Cash flow', icon: 'fluent:arrow-swap-20-regular', perm: 'finance.transactions:view', component: TransactionsPanel },
   { id: 'budgets', label: 'Budgets', icon: 'fluent:chart-multiple-20-regular', perm: 'finance.budgets:view', component: BudgetsPanel },
   { id: 'debts', label: 'Debts', icon: 'fluent:receipt-20-regular', perm: 'finance.debts:view', component: DebtsPanel },
-  { id: 'subscriptions', label: 'Subscriptions', icon: 'fluent:arrow-repeat-all-20-regular', perm: 'finance.subscriptions:view', component: SubscriptionsPanel },
-  { id: 'payments', label: 'Payments', icon: 'fluent:wallet-20-regular', perm: 'finance.transactions:view', component: PaymentsPanel },
-  { id: 'invoices', label: 'Invoices', icon: 'fluent:document-text-20-regular', perm: 'finance.invoices:view', component: InvoicesPanel },
+  { id: 'subscriptions', label: 'Recurring costs', icon: 'fluent:arrow-repeat-all-20-regular', perm: 'finance.subscriptions:view', component: SubscriptionsPanel },
+  { id: 'payments', label: 'Team payments', icon: 'fluent:wallet-20-regular', perm: 'finance.transactions:view', component: PaymentsPanel },
+  { id: 'invoices', label: 'Invoices & bills', icon: 'fluent:document-text-20-regular', perm: 'finance.invoices:view', component: InvoicesPanel },
   { id: 'reports', label: 'Reports', icon: 'fluent:data-bar-horizontal-20-regular', perm: 'finance.transactions:view', component: ReportsPanel },
-  { id: 'config', label: 'Configuration', icon: 'fluent:settings-20-regular', perm: 'finance:view', component: ConfigPanel },
+  { id: 'config', label: 'Lists & categories', icon: 'fluent:settings-20-regular', perm: 'finance:view', component: ConfigPanel },
   { id: 'audit', label: 'Audit log', icon: 'fluent:history-20-regular', perm: 'finance.audit:view', component: AuditPanel },
 ]
 

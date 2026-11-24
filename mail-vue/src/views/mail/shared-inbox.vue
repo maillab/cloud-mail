@@ -13,20 +13,6 @@
           </div>
         </div>
         <div class="si-heading-actions">
-          <select
-            v-if="mailboxStore.sharedMailboxes.length > 1"
-            class="si-inbox-select"
-            :value="mailboxId"
-            aria-label="Filter by source inbox"
-            @change="changeInbox"
-          >
-            <option
-              v-for="box in mailboxStore.sharedMailboxes"
-              :key="box.account_id"
-              :value="box.account_id"
-            >{{ box.display_name || box.email }}</option>
-            <option v-if="mailboxStore.sharedMailboxes.length > 1" :value="0">All shared inboxes</option>
-          </select>
           <button type="button" class="si-icon-btn" title="Refresh" aria-label="Refresh" @click="reload">
             <Icon icon="fluent:arrow-clockwise-20-regular" width="15" height="15" />
           </button>
@@ -667,11 +653,9 @@ function tabCount(key) {
 
 onMounted(async () => {
   await mailboxStore.load()
-  // Shared Inbox is a unified queue by default. A direct link to one mailbox
-  // (including the old Support Mail link) is still available through the
-  // selector, but never becomes the user's default view when several inboxes
-  // are accessible.
-  if (mailboxStore.sharedMailboxes.length > 1 && mailboxId.value !== 0) {
+  // Shared Inbox is one company queue. Sources are labelled on each message,
+  // while the server still enforces access separately for every mailbox.
+  if (mailboxId.value !== 0) {
     await router.replace({ name: 'mail-shared-inbox', params: { mailboxId: '0' } })
     return
   }

@@ -46,7 +46,7 @@ onMounted(async () => {
     const box = findSupportMailbox()
     if (box) {
       resolved.value = true
-      router.replace({ name: 'mail-shared-inbox', params: { mailboxId: String(box.account_id) } })
+      router.replace({ name: 'mail-shared-inbox', params: { mailboxId: '0' } })
       return
     }
   } catch {

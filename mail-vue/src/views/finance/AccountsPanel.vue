@@ -15,7 +15,7 @@
 
     <div v-loading="loading" class="fin-body">
       <div class="fin-stats">
-        <StatCard label="Total balance" :value="money(totalBalance)" :hint="`${accounts.length} account${accounts.length === 1 ? '' : 's'}`" />
+        <StatCard label="Available cash" :value="money(totalBalance)" :hint="`${accounts.length} account${accounts.length === 1 ? '' : 's'}`" />
         <StatCard
           label="Overdrawn"
           :value="String(overdrawn.length)"
@@ -43,11 +43,11 @@
               <span v-if="scope.row.confidential" class="fin-tag">Restricted</span>
             </template>
           </el-table-column>
-          <el-table-column prop="account_type" label="Where it is held" min-width="130" />
+          <el-table-column prop="account_type" label="Account type" min-width="130" />
           <el-table-column label="Opened" min-width="110">
             <template #default="scope">{{ scope.row.opened_on || '—' }}</template>
           </el-table-column>
-          <el-table-column label="Starting balance" min-width="130" align="right">
+          <el-table-column label="Opening balance" min-width="130" align="right">
             <template #default="scope">{{ money(scope.row.opening_cents, scope.row.currency) }}</template>
           </el-table-column>
           <el-table-column label="Balance" min-width="140" align="right">
@@ -154,6 +154,11 @@
         <el-form-item label="Opened on">
           <el-date-picker v-model="form.opened_on" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
         </el-form-item>
+        <el-form-item label="Description">
+          <el-input v-model="form.description" type="textarea" :rows="2" maxlength="500" placeholder="Optional: what this account is used for" />
+        </el-form-item>
+        <el-collapse class="fin-form-optional">
+          <el-collapse-item title="Optional controls" name="controls">
         <el-form-item label="Account owner">
           <el-select
             v-model="form.owner_id"
@@ -170,19 +175,15 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="Funding source">
-          <el-input v-model="form.source" maxlength="120" placeholder="e.g. sales, founder funds, grant" />
-        </el-form-item>
         <el-form-item label="Use of funds">
           <el-input v-model="form.restrictions" type="textarea" :rows="2" maxlength="500" placeholder="What this money is reserved for, if anything" />
-        </el-form-item>
-        <el-form-item label="Description">
-          <el-input v-model="form.description" type="textarea" :rows="2" maxlength="500" />
         </el-form-item>
         <el-form-item label="Restricted access">
           <el-switch v-model="form.confidential" />
           <span class="fin-hint">Only granted members see a restricted account.</span>
         </el-form-item>
+          </el-collapse-item>
+        </el-collapse>
       </el-form>
       <LinkedRecords
         v-if="form.id"

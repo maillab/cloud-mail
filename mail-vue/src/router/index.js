@@ -239,6 +239,12 @@ const routes = [
                 meta: {title: 'internalRequests', name: 'requests', menu: true}
             },
             {
+                path: '/requests/:id',
+                name: 'request-detail',
+                component: () => import('@/views/requests/index.vue'),
+                meta: {title: 'internalRequests', name: 'requests', menu: false}
+            },
+            {
                 path: '/documents',
                 name: 'documents',
                 component: () => import('@/views/documents/index.vue'),

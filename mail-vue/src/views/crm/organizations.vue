@@ -43,7 +43,7 @@
           </div>
         </template>
 
-        <el-table v-if="organizations.length" :data="organizations" style="width: 100%">
+        <el-table v-if="organizations.length" :data="organizations" style="width: 100%" @row-dblclick="openOrganization">
           <el-table-column prop="name" label="Name" min-width="200">
             <template #default="scope">{{ scope.row.name }}</template>
           </el-table-column>
@@ -63,6 +63,7 @@
           </el-table-column>
           <el-table-column label="Actions" fixed="right" min-width="160">
             <template #default="scope">
+              <el-button type="text" size="small" @click="openOrganization(scope.row)">Open</el-button>
               <el-button v-perm="'organizations:edit'" type="text" size="small" icon="edit" @click="editOrg(scope.row)" />
               <el-button v-perm="'organizations:delete'" type="text" size="small" icon="delete" @click="deleteOrg(scope.row)" />
             </template>
@@ -114,8 +115,10 @@
           <el-form-item label="Commercial Terms" prop="commercial_terms">
             <el-input v-model="orgForm.commercial_terms" type="textarea" rows="2" />
           </el-form-item>
-          <el-form-item label="Assigned To" prop="assigned_to">
-            <el-input v-model="orgForm.assigned_to" placeholder="User ID" />
+          <el-form-item label="Relationship owner">
+            <el-select v-model="orgForm.assigned_to" clearable filterable placeholder="Choose a team member" style="width:100%">
+              <el-option v-for="member in members" :key="member.userId" :label="member.label" :value="member.userId" />
+            </el-select>
           </el-form-item>
         </el-form>
         <template #footer>
@@ -131,14 +134,18 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { hasPerm } from '@/perm/perm.js'
 import { useCreateIntent } from '@/composables/useCreateIntent.js'
 import { organizationsList, organizationsCreate, organizationsUpdate, organizationsDelete } from '@/request/organizations.js'
+import { useTeamMembers } from '@/composables/use-team-members.js'
 
 import { useConfirm } from '@/composables/use-confirm.js'
 
 const { confirm } = useConfirm()
+const router = useRouter()
+const { members, loadMembers } = useTeamMembers()
 const search = ref('')
 const typeFilter = ref('')
 const statusFilter = ref('')
@@ -234,6 +241,10 @@ function editOrg(org) {
   openOrgDialog(org)
 }
 
+function openOrganization(org) {
+  router.push({ name: 'crm-organization-detail', params: { id: org.id } })
+}
+
 async function deleteOrg(org) {
   if (!await confirm(`Delete organization "${org.name}"?`)) return
   try {
@@ -245,7 +256,7 @@ async function deleteOrg(org) {
   }
 }
 
-onMounted(loadOrganizations)
+onMounted(() => { loadOrganizations(); loadMembers() })
 </script>
 
 <style scoped>

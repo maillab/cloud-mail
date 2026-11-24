@@ -39,7 +39,8 @@
                 <el-button v-perm="'notes:delete'" size="small" link type="danger" @click="deleteNote(note.id)">{{ $t('delete') }}</el-button>
               </div>
             </div>
-            <p class="note-body">{{ note.content }}</p>
+            <p class="note-body">{{ notePreview(note.content) }}</p>
+            <el-button v-if="isLongNote(note.content)" size="small" text class="note-preview-action" @click="openDialog(note)">Open full note</el-button>
             <div class="note-meta">
               <el-tag v-if="note.priority && note.priority !== 'normal'" size="small" :type="priorityType(note.priority)">{{ note.priority }}</el-tag>
               <el-tag v-for="label in parseLabels(note.labels)" :key="label" size="small" type="info">{{ label }}</el-tag>
@@ -131,6 +132,11 @@ function loadCustomLabels() {
 function parseLabels(v) {
   try { const a = typeof v === 'string' ? JSON.parse(v) : v; return Array.isArray(a) ? a : [] } catch { return [] }
 }
+function notePreview(value) {
+  const text = String(value || '').trim()
+  return text.length > 260 ? `${text.slice(0, 260).trimEnd()}…` : text
+}
+function isLongNote(value) { return String(value || '').trim().length > 260 }
 function fmt(v) { return v ? String(v).slice(0, 16) : '' }
 function priorityType(p) { return ({ critical: 'danger', high: 'warning', low: 'info' })[p] || '' }
 
@@ -211,7 +217,8 @@ onMounted(() => { loadCustomLabels(); loadNotes() })
 .note-card.is-pinned { border-left: 3px solid var(--hq-accent); }
 .note-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .note-actions { display: flex; gap: 2px; flex-shrink: 0; }
-.note-body { margin: 0; color: var(--hq-text-secondary); font-size: 13px; white-space: pre-wrap; }
+.note-body { margin: 0; color: var(--hq-text-secondary); font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; }
+.note-preview-action { width: fit-content; margin: -2px 0 0; padding: 0; }
 .note-meta { display: flex; flex-wrap: wrap; gap: 4px; }
 .note-date { color: var(--hq-muted); font-size: 11px; }
 .note-label-hint { margin-top: 5px; color: var(--hq-muted); font-size: 11px; line-height: 1.4; }

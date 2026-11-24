@@ -6,8 +6,8 @@ app.get('/crm/organizations', async (c) => {
 	const userId = userContext.getUserId(c);
 	const { page = 1, pageSize = 50, search, organization_type, relationship_status } = c.req.query();
 
-	let sql = `SELECT * FROM crm_organizations WHERE user_id = ? AND is_del = 0`;
-	const params = [userId];
+	let sql = `SELECT * FROM crm_organizations WHERE is_del = 0`;
+	const params = [];
 
 	if (search) {
 		sql += ` AND (name LIKE ? OR legal_name LIKE ? OR brand_name LIKE ? OR address LIKE ?)`;
@@ -27,8 +27,8 @@ app.get('/crm/organizations', async (c) => {
 	params.push(Number(pageSize), (Number(page) - 1) * Number(pageSize));
 
 	const { results } = await c.env.db.prepare(sql).bind(...params).all();
-	let countSql = `SELECT COUNT(*) as cnt FROM crm_organizations WHERE user_id = ? AND is_del = 0`;
-	const countParams = [userId];
+	let countSql = `SELECT COUNT(*) as cnt FROM crm_organizations WHERE is_del = 0`;
+	const countParams = [];
 	if (search) {
 		countSql += ` AND (name LIKE ? OR legal_name LIKE ? OR brand_name LIKE ? OR address LIKE ?)`;
 		const like = `%${search}%`;
@@ -39,6 +39,13 @@ app.get('/crm/organizations', async (c) => {
 	const countRow = await c.env.db.prepare(countSql).bind(...countParams).first();
 
 	return c.json(result.ok({ list: results, total: countRow?.cnt ?? 0 }));
+});
+
+app.get('/crm/organizations/:id', async (c) => {
+	const row = await c.env.db.prepare(`SELECT * FROM crm_organizations WHERE id = ? AND is_del = 0`)
+		.bind(c.req.param('id')).first();
+	if (!row) return c.json(result.fail('Organization not found', 404), 404);
+	return c.json(result.ok(row));
 });
 
 app.post('/crm/organizations', async (c) => {
@@ -60,8 +67,8 @@ app.put('/crm/organizations/:id', async (c) => {
 	const { parent_id, name, legal_name, brand_name, organization_type, website, social_links, address, relationship_status, commercial_terms, assigned_to, updated_by, version } = body;
 
 	await c.env.db.prepare(
-		`UPDATE crm_organizations SET parent_id = COALESCE(?, parent_id), name = COALESCE(?, name), legal_name = COALESCE(?, legal_name), brand_name = COALESCE(?, brand_name), organization_type = COALESCE(?, organization_type), website = COALESCE(?, website), social_links = COALESCE(?, social_links), address = COALESCE(?, address), relationship_status = COALESCE(?, relationship_status), commercial_terms = COALESCE(?, commercial_terms), assigned_to = COALESCE(?, assigned_to), updated_by = COALESCE(?, updated_by), version = version + 1, update_time = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ? AND is_del = 0`
-	).bind(parent_id ?? null, name ?? null, legal_name ?? null, brand_name ?? null, organization_type ?? null, website ?? null, social_links ?? null, address ?? null, relationship_status ?? null, commercial_terms ?? null, assigned_to ?? null, updated_by ?? null, id, userId).run();
+		`UPDATE crm_organizations SET parent_id = COALESCE(?, parent_id), name = COALESCE(?, name), legal_name = COALESCE(?, legal_name), brand_name = COALESCE(?, brand_name), organization_type = COALESCE(?, organization_type), website = COALESCE(?, website), social_links = COALESCE(?, social_links), address = COALESCE(?, address), relationship_status = COALESCE(?, relationship_status), commercial_terms = COALESCE(?, commercial_terms), assigned_to = COALESCE(?, assigned_to), updated_by = COALESCE(?, updated_by), version = version + 1, update_time = CURRENT_TIMESTAMP WHERE id = ? AND is_del = 0`
+	).bind(parent_id ?? null, name ?? null, legal_name ?? null, brand_name ?? null, organization_type ?? null, website ?? null, social_links ?? null, address ?? null, relationship_status ?? null, commercial_terms ?? null, assigned_to ?? null, updated_by ?? null, id).run();
 
 	return c.json(result.ok());
 });
@@ -70,7 +77,7 @@ app.delete('/crm/organizations/:id', async (c) => {
 	const userId = userContext.getUserId(c);
 	const id = c.req.param('id');
 
-	await c.env.db.prepare(`UPDATE crm_organizations SET is_del = 1 WHERE id = ? AND user_id = ?`).bind(id, userId).run();
+	await c.env.db.prepare(`UPDATE crm_organizations SET is_del = 1 WHERE id = ?`).bind(id).run();
 
 	return c.json(result.ok());
 });

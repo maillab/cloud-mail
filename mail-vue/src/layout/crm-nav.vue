@@ -62,8 +62,7 @@ const moreOpen = ref(false)
 
 const primaryLinks = computed(() => [
   { id: 'overview', label: 'Overview', icon: 'solar:widget-2-line-duotone', routeName: 'crm-overview' },
-  { id: 'contacts', label: 'Contacts', icon: 'fluent:person-20-regular', routeName: 'crm-contacts', permission: 'contacts:query' },
-  { id: 'organizations', label: 'Organizations', icon: 'fluent:building-bank-20-regular', routeName: 'crm-organizations', permission: 'organizations:query' },
+  { id: 'contacts', label: 'People & organizations', icon: 'fluent:people-community-20-regular', routeName: 'crm-contacts', permission: 'contacts:query' },
   { id: 'leads', label: 'Leads', icon: 'fluent:arrow-trending-20-regular', routeName: 'crm-leads', permission: 'leads:query' },
   { id: 'deals', label: 'Opportunities', icon: 'fluent:briefcase-20-regular', routeName: 'crm-deals', permission: 'deals:query' },
   { id: 'pipelines', label: 'Pipelines', icon: 'fluent:slide-grid-20-regular', routeName: 'crm-pipelines', permission: 'pipelines:query' },

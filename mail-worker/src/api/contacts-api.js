@@ -50,6 +50,13 @@ const ASSIGNEE_JOIN = `
 	LEFT JOIN user u ON u.user_id = crm_contacts.assignee_id
 `;
 
+const ORGANIZATION_SELECT = `
+	, (SELECT o.name FROM crm_contact_organizations r
+	   JOIN crm_organizations o ON o.id = r.organization_id AND o.is_del = 0
+	   WHERE r.contact_id = crm_contacts.id AND r.is_del = 0
+	   ORDER BY r.is_primary DESC, r.id ASC LIMIT 1) AS organization_name
+`;
+
 app.get('/crm/contacts/:id', async (c) => {
 	const userId = userContext.getUserId(c);
 	const id = c.req.param('id');
@@ -61,7 +68,7 @@ app.get('/crm/contacts/:id', async (c) => {
 		teamJoin: 'SELECT team_id FROM user_team WHERE user_id = ?'
 	});
 
-	let sql = `SELECT crm_contacts.* ${ASSIGNEE_SELECT} FROM crm_contacts ${ASSIGNEE_JOIN} WHERE crm_contacts.id = ? AND crm_contacts.is_del = 0`;
+	let sql = `SELECT crm_contacts.* ${ASSIGNEE_SELECT} ${ORGANIZATION_SELECT} FROM crm_contacts ${ASSIGNEE_JOIN} WHERE crm_contacts.id = ? AND crm_contacts.is_del = 0`;
 	const params = [id];
 	if (filter.clause) {
 		sql += ` AND ${filter.clause.replace(/crm_contacts\./g, 'crm_contacts.')}`;
@@ -89,7 +96,7 @@ app.get('/crm/contacts', async (c) => {
 		teamJoin: 'SELECT team_id FROM user_team WHERE user_id = ?'
 	});
 
-	let sql = `SELECT crm_contacts.* ${ASSIGNEE_SELECT} FROM crm_contacts ${ASSIGNEE_JOIN} WHERE crm_contacts.is_del = 0`;
+	let sql = `SELECT crm_contacts.* ${ASSIGNEE_SELECT} ${ORGANIZATION_SELECT} FROM crm_contacts ${ASSIGNEE_JOIN} WHERE crm_contacts.is_del = 0`;
 	const params = [];
 	if (filter.clause) {
 		sql += ` AND ${filter.clause}`;

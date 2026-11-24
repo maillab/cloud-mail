@@ -134,7 +134,7 @@ app.get('/requests', async (c) => {
 	const keys = await getPermKeys(c, userId);
 	if (!has(keys, 'requests:query')) return c.json(result.fail('unauthorized', 403), 403);
 
-	const {scope = 'received', status, kind, overdue, page = 1, pageSize = 50} = c.req.query();
+	const {scope = 'received', status, kind, type, search, overdue, page = 1, pageSize = 50} = c.req.query();
 	const where = ['is_del = 0'];
 	const params = [];
 
@@ -168,6 +168,12 @@ app.get('/requests', async (c) => {
 	}
 	if (status) { where.push('status = ?'); params.push(status); }
 	if (kind) { where.push('kind = ?'); params.push(normalizeKind(kind)); }
+	if (type) { where.push('type = ?'); params.push(normalizeType(type)); }
+	if (search) {
+		where.push('(title LIKE ? OR description LIKE ?)');
+		const term = `%${String(search).trim()}%`;
+		params.push(term, term);
+	}
 	if (overdue === '1' || overdue === 'true') {
 		where.push(`due_date IS NOT NULL AND due_date < CURRENT_TIMESTAMP AND status NOT IN ('completed','declined','cancelled','approved','rejected')`);
 	}

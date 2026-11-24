@@ -27,6 +27,7 @@
                   type="text"
                   :placeholder="hideLoginDomain ? 'name@company.com' : 'your.name'"
                   autocomplete="username"
+                  inputmode="email"
                   autocapitalize="none"
                   spellcheck="false"
                   @keyup.enter="submit"
@@ -266,7 +267,10 @@ const domainList = computed(() => {
   if (Array.isArray(fromServer) && fromServer.length) {
     return fromServer.map(domainName).filter(Boolean)
   }
-  const fallback = domainName(import.meta.env.VITE_LOGIN_DOMAIN || 'example.com')
+  // Never fall back to a demo address on the real XPass sign-in screen. The
+  // configured list replaces this as soon as it loads, but a worker cold start
+  // must still leave mobile users with a usable company address.
+  const fallback = domainName(import.meta.env.VITE_LOGIN_DOMAIN || 'getxpass.net')
   return [fallback]
 })
 if (!suffix.value) suffix.value = domainList.value[0]
