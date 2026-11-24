@@ -18,6 +18,10 @@ export default defineConfig(({mode}) => {
         plugins: [vue(),
             VitePWA({
                 injectRegister: 'script-defer',
+                // Phones frequently keep a previously installed app shell open
+                // for days. Activate a deployed fix as soon as it is available
+                // instead of leaving a member on stale login/auth code.
+                registerType: 'autoUpdate',
                 manifest: {
                     name: env.VITE_PWA_NAME,
                     short_name: env.VITE_PWA_NAME,
@@ -38,6 +42,8 @@ export default defineConfig(({mode}) => {
                 },
                 workbox: {
                     disableDevLogs: true,
+                    clientsClaim: true,
+                    skipWaiting: true,
                     globPatterns: [],
                     runtimeCaching: [],
                     navigateFallback: null,

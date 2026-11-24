@@ -577,7 +577,10 @@ async function saveToken(token) {
   // Sign-in has to end in one of three states: the shell, the sign-in page with
   // a reason, or a cleared token. It must not leave the button spinning.
   try {
-    const user = await loginUserInfo({ timeout: 10000 });
+    // Mobile connections and a waking service worker can take longer than a
+    // desktop request. Do not discard a freshly issued, valid session just
+    // because its first identity lookup needs a few more seconds.
+    const user = await loginUserInfo({ timeout: 20000 });
     if (!user) throw new Error('No identity was returned for that token.')
     accountStore.currentAccountId = user.account ? user.account.accountId : null;
     accountStore.currentAccount = user.account || null;
