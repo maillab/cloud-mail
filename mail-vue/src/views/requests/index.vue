@@ -64,29 +64,9 @@
           <el-table-column :label="$t('dueDate')" min-width="140">
             <template #default="s">{{ fmt(s.row.due_date) }}</template>
           </el-table-column>
-          <el-table-column :label="$t('actions')" min-width="230" fixed="right">
+          <el-table-column :label="$t('actions')" width="118">
             <template #default="s">
-              <el-button size="small" @click="openDetail(s.row)">{{ $t('view') }}</el-button>
-              <template v-if="isRecipient(s.row) && s.row.kind === 'action' && openAction(s.row.status)">
-                <el-button v-perm="'requests:act'" size="small" type="success" @click="act(s.row, 'accept')">{{ $t('accept') }}</el-button>
-                <el-button v-perm="'requests:act'" size="small" @click="act(s.row, 'start')">{{ $t('start') }}</el-button>
-                <el-button v-perm="'requests:act'" size="small" type="primary" @click="act(s.row, 'complete')">{{ $t('complete') }}</el-button>
-                <el-button v-perm="'requests:act'" size="small" type="danger" @click="decline(s.row)">{{ $t('decline') }}</el-button>
-              </template>
-              <template v-if="isRecipient(s.row) && s.row.kind === 'approval' && s.row.status === 'pending_approval'">
-                <el-button v-perm="'requests:act'" size="small" type="success" @click="act(s.row, 'approve')">{{ $t('approve') }}</el-button>
-                <el-button v-perm="'requests:act'" size="small" type="danger" @click="actWithReason(s.row, 'reject')">{{ $t('reject') }}</el-button>
-              </template>
-              <!-- Approval authorises spending; the commitment reserves the
-                   budget. Paying is a separate Finance action. -->
-              <el-button
-                v-if="s.row.category === 'finance' && s.row.status === 'approved'"
-                v-perm="'finance.budgets:create'"
-                size="small"
-                type="primary"
-                @click="openCommit(s.row)"
-              >Commit to budget</el-button>
-              <el-button v-if="isSender(s.row) && canCancel(s.row.status)" v-perm="'requests:act'" size="small" @click="act(s.row, 'cancel')">{{ $t('cancel') }}</el-button>
+              <el-button size="small" @click="openDetail(s.row)">Open</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -96,11 +76,48 @@
         </div>
       </el-card>
 
-      <el-dialog v-model="detailVisible" :title="$t('requestDetail')" width="640px">
-        <div v-if="detail">
-          <p><strong>{{ $t('requestTitle') }}:</strong> {{ detail.title }}</p>
-          <p><strong>{{ $t('requestDescription') }}:</strong> {{ detail.description || '—' }}</p>
-          <p><strong>{{ $t('status') }}:</strong> <el-tag size="small" :type="statusType(detail.status)">{{ detail.status }}</el-tag></p>
+      <el-dialog v-model="detailVisible" class="request-detail-dialog" :title="detail?.title || $t('requestDetail')" width="680px">
+        <div v-if="detail" class="request-detail">
+          <div class="request-detail-meta">
+            <el-tag size="small" effect="plain">{{ typeLabel(detail) }}</el-tag>
+            <el-tag size="small" :type="priorityType(detail.priority)">{{ detail.priority }} priority</el-tag>
+            <el-tag size="small" :type="statusType(detail.status)">{{ String(detail.status).replace(/_/g, ' ') }}</el-tag>
+          </div>
+          <div class="request-detail-grid">
+            <div><span>From</span><strong>{{ userName(detail.sender_id) }}</strong></div>
+            <div><span>To</span><strong>{{ userName(detail.recipient_id) }}</strong></div>
+            <div><span>Due</span><strong>{{ fmt(detail.due_date) }}</strong></div>
+            <div><span>Team</span><strong>{{ teamName(detail.team_id) }}</strong></div>
+          </div>
+          <section class="request-description">
+            <span>Request</span>
+            <p>{{ detail.description || 'No additional details were provided.' }}</p>
+          </section>
+          <div v-if="attachmentLinks(detail).length" class="request-links">
+            <span>Links</span>
+            <a v-for="file in attachmentLinks(detail)" :key="file.url" :href="file.url" target="_blank" rel="noopener noreferrer">{{ file.name || file.url }}</a>
+          </div>
+
+          <section v-if="canTakeRequestAction(detail) || canCancelRequest(detail) || canCommitRequest(detail)" class="request-decision">
+            <div>
+              <strong>{{ detail.kind === 'approval' ? 'Decision needed' : 'Next step' }}</strong>
+              <p>{{ actionGuidance(detail) }}</p>
+            </div>
+            <div class="request-decision-actions">
+              <template v-if="canTakeRequestAction(detail)">
+                <el-button v-if="actionAvailable(detail, 'accept')" type="primary" @click="act(detail, 'accept')">Accept request</el-button>
+                <el-button v-if="actionAvailable(detail, 'start')" type="primary" @click="act(detail, 'start')">Start work</el-button>
+                <el-button v-if="actionAvailable(detail, 'complete')" type="primary" @click="act(detail, 'complete')">Mark complete</el-button>
+                <el-button v-if="actionAvailable(detail, 'approve')" type="primary" @click="act(detail, 'approve')">Approve</el-button>
+                <el-button v-if="actionAvailable(detail, 'clarify')" @click="clarify(detail)">Ask a question</el-button>
+                <el-button v-if="actionAvailable(detail, 'request-changes')" @click="actWithReason(detail, 'request-changes')">Request changes</el-button>
+                <el-button v-if="actionAvailable(detail, 'decline')" type="danger" plain @click="decline(detail)">Decline</el-button>
+                <el-button v-if="actionAvailable(detail, 'reject')" type="danger" plain @click="actWithReason(detail, 'reject')">Reject</el-button>
+              </template>
+              <el-button v-if="canCommitRequest(detail)" type="primary" @click="openCommit(detail)">Commit to budget</el-button>
+              <el-button v-if="canCancelRequest(detail)" plain @click="act(detail, 'cancel')">Cancel request</el-button>
+            </div>
+          </section>
           <div class="timeline-title">{{ $t('history') }}</div>
           <el-timeline>
             <el-timeline-item v-for="h in detail.events" :key="h.id" :timestamp="fmt(h.create_time)">
@@ -113,9 +130,11 @@
         </div>
       </el-dialog>
 
-      <el-dialog v-model="createVisible" class="request-dialog" :title="$t('newRequest')" width="560px" :close-on-click-modal="false">
-        <el-form label-width="110px">
-          <el-form-item :label="$t('recipient')">
+      <el-dialog v-model="createVisible" class="request-dialog" :title="$t('newRequest')" width="640px" :close-on-click-modal="false">
+        <div class="request-form-intro">Send a clear, owned piece of work to one person. They will see the request, its due date, and the next action.</div>
+        <el-form label-position="top" class="request-form">
+          <div class="request-form-grid">
+          <el-form-item label="Send to" required>
             <el-select v-model="form.recipient_id" filterable style="width: 100%" placeholder="Choose a team member" :loading="directoryLoading">
               <el-option
                 v-for="u in directory"
@@ -133,26 +152,33 @@
               </el-option>
             </el-select>
           </el-form-item>
-          <el-form-item :label="$t('kind')">
-            <el-select v-model="form.kind" style="width: 100%">
-              <el-option :label="$t('kindAction')" value="action" />
-              <el-option :label="$t('kindApproval')" value="approval" />
+          <el-form-item label="What is needed?" required>
+            <el-select v-model="form.type" style="width: 100%">
+              <el-option v-for="option in TYPE_OPTIONS" :key="option.value" :label="option.label" :value="option.value">
+                <div class="request-type-option"><strong>{{ option.label }}</strong><span>{{ option.description }}</span></div>
+              </el-option>
             </el-select>
           </el-form-item>
-          <el-form-item :label="$t('requestTitle')"><el-input v-model="form.title" /></el-form-item>
-          <el-form-item :label="$t('requestDescription')"><el-input v-model="form.description" type="textarea" :rows="3" /></el-form-item>
+          </div>
+          <el-form-item label="Title" required><el-input v-model="form.title" placeholder="State the outcome you need" maxlength="140" show-word-limit /></el-form-item>
+          <el-form-item label="Details"><el-input v-model="form.description" type="textarea" :rows="4" placeholder="Give the context, expected result, and anything the recipient needs to know." maxlength="2000" show-word-limit /></el-form-item>
+          <div class="request-form-section">Planning <span>Optional, but useful when this needs ownership or a deadline.</span></div>
+          <div class="request-form-grid request-form-grid--three">
           <el-form-item :label="$t('priority')">
             <el-select v-model="form.priority" style="width: 100%">
               <el-option v-for="p in PRIORITIES" :key="p" :label="p" :value="p" />
             </el-select>
           </el-form-item>
+          <el-form-item label="Due date"><el-date-picker v-model="form.due_date" type="datetime" placeholder="No deadline" style="width: 100%" /></el-form-item>
           <el-form-item label="Team">
           <el-select v-model="form.team_id" placeholder="Optional" clearable filterable style="width: 100%">
             <el-option v-for="team in teams" :key="team.team_id" :label="team.name" :value="team.team_id" />
           </el-select>
         </el-form-item>
-        <el-form-item :label="$t('dueDate')"><el-date-picker v-model="form.due_date" type="datetime" style="width: 100%" /></el-form-item>
-        <el-form-item label="Related record">
+          </div>
+        <el-collapse class="request-form-optional">
+          <el-collapse-item title="Link a related record or supporting file" name="links">
+          <el-form-item label="Related record">
           <div class="related-row">
             <el-select v-model="form.related_type" placeholder="Module" clearable style="width: 150px">
               <el-option v-for="option in RELATED_TYPES" :key="option" :label="option" :value="option" />
@@ -176,6 +202,8 @@
             >{{ file.name || file.url }}</el-tag>
           </div>
         </el-form-item>
+          </el-collapse-item>
+        </el-collapse>
         </el-form>
         <template #footer>
           <el-button @click="createVisible = false">{{ $t('cancel') }}</el-button>
@@ -235,6 +263,7 @@ import { financeBudgets, financeRequestCommitment } from '@/request/finance.js'
 import { formatCents } from '@/utils/money.js'
 import { useCreateIntent } from '@/composables/useCreateIntent.js'
 import HqAvatar from '@/components/hq-avatar/index.vue'
+import { hasPerm } from '@/perm/perm.js'
 
 const PRIORITIES = ['critical', 'high', 'normal', 'low']
 const ACTION_STATUSES = ['pending', 'accepted', 'in_progress', 'needs_clarification', 'completed', 'declined', 'cancelled']
@@ -243,6 +272,7 @@ const APPROVAL_STATUSES = ['pending_approval', 'approved', 'rejected', 'changes_
 const userStore = useUserStore()
 const route = useRoute()
 const myId = computed(() => userStore.user?.userId)
+const canActRequests = computed(() => hasPerm('requests:act'))
 
 const ACTION_TEXT = {
 	create: 'created this request',
@@ -307,7 +337,7 @@ const typeLabelValue = (row) => (TYPE_OPTIONS.find(option => option.value === (r
 
 const typeLabel = typeLabelValue
 
-const waitingCount = computed(() => rows.value.filter(row => row.recipient_id === myId.value && openAction(row.status)).length)
+const waitingCount = computed(() => rows.value.filter(row => Number(row.recipient_id) === Number(myId.value) && openAction(row.status)).length)
 
 const emptyTitle = computed(() => {
 	if (scope.value === 'history') return 'No finished requests yet'
@@ -326,10 +356,6 @@ const emptyBody = computed(() => {
 function onScopeChange() {
 	status.value = ''
 	loadList()
-}
-
-function onFormTypeChange() {
-	// The type decides which actions exist, so the composer reflects it immediately.
 }
 
 function addAttachment() {
@@ -355,12 +381,42 @@ function userName(id) {
   if (!u) return id
   return u.username ? `${u.displayName} (@${u.username})` : u.displayName
 }
-function isRecipient(row) { return row.recipient_id === myId.value }
-function isSender(row) { return row.sender_id === myId.value }
+function isRecipient(row) { return Number(row?.recipient_id) === Number(myId.value) }
+function isSender(row) { return Number(row?.sender_id) === Number(myId.value) }
 function openAction(s) { return ['pending', 'accepted', 'in_progress', 'needs_clarification'].includes(s) }
 function canCancel(s) { return ['pending', 'pending_approval', 'accepted', 'in_progress'].includes(s) }
 function statusType(s) { return ({ pending: 'warning', pending_approval: 'warning', accepted: '', in_progress: '', needs_clarification: 'warning', completed: 'success', approved: 'success', rejected: 'danger', declined: 'danger', changes_requested: 'warning', cancelled: 'info' })[s] || 'info' }
 function priorityType(p) { return ({ critical: 'danger', high: 'warning' })[p] || 'info' }
+function teamName(id) { return teams.value.find(team => Number(team.team_id) === Number(id))?.name || 'Not assigned' }
+function attachmentLinks(row) {
+  try {
+    const items = Array.isArray(row?.attachments) ? row.attachments : JSON.parse(row?.attachments || '[]')
+    return Array.isArray(items) ? items.filter(item => item?.url) : []
+  } catch { return [] }
+}
+function actionAvailable(row, action) {
+  const allowed = {
+    accept: ['pending', 'needs_clarification'],
+    start: ['pending', 'accepted'],
+    clarify: ['pending', 'accepted', 'in_progress'],
+    complete: ['pending', 'accepted', 'in_progress', 'needs_clarification'],
+    decline: ['pending', 'accepted'],
+    approve: ['pending_approval'],
+    reject: ['pending_approval'],
+    'request-changes': ['pending_approval']
+  }
+  return isRecipient(row) && Array.isArray(row?.actions) && row.actions.includes(action) && (allowed[action] || []).includes(row.status)
+}
+function canTakeRequestAction(row) { return canActRequests.value && isRecipient(row) && (openAction(row.status) || row.status === 'pending_approval') }
+function canCancelRequest(row) { return isSender(row) && canCancel(row.status) }
+function canCommitRequest(row) { return row?.category === 'finance' && row.status === 'approved' && hasPerm('finance.budgets:create') }
+function actionGuidance(row) {
+  if (row.kind === 'approval') return 'Review the information, then approve, reject, or ask the sender to make changes.'
+  if (row.status === 'pending') return 'Accept this request when you are ready to take ownership.'
+  if (row.status === 'accepted') return 'Start work when you begin. Mark it complete once the outcome is delivered.'
+  if (row.status === 'in_progress') return 'Mark this complete when the requested outcome has been delivered.'
+  return 'Review the request history and add a comment if more context is needed.'
+}
 
 async function loadList() {
   try {
@@ -431,7 +487,7 @@ async function saveCommit() {
 }
 
 function openCreate() {
-  form.value = { recipient_id: null, kind: 'action', type: 'action', title: '', description: '', priority: 'normal', due_date: null, team_id: null, related_type: '', attachments: [] }
+  form.value = { recipient_id: null, type: 'action', title: '', description: '', priority: 'normal', due_date: null, team_id: null, related_type: '', attachments: [] }
   attachmentUrl.value = ''
   relatedId.value = ''
   if (!directory.value.length && !directoryLoading.value) loadDirectory()
@@ -495,6 +551,16 @@ async function decline(row) {
   } catch (e) { /* ignore */ }
 }
 
+async function clarify(row) {
+  try {
+    const { value } = await ElMessageBox.prompt('What information do you need before you can proceed?', 'Ask a question', {
+      inputType: 'textarea',
+      inputValidator: value => String(value || '').trim() ? true : 'Add the question for the sender.'
+    })
+    await act(row, 'clarify', { comment: value })
+  } catch (e) { /* cancelled */ }
+}
+
 async function addComment() {
   if (!comment.value.trim() || !detail.value) return
   try {
@@ -541,6 +607,28 @@ onMounted(async () => {
 .empty-state p { margin: 0; font-size: 13px; line-height: 1.55; }
 .empty-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
 .timeline-title { margin: 16px 0 8px; font-weight: 650; }
+.request-detail { display: grid; gap: 18px; }
+.request-detail-meta { display: flex; gap: 7px; flex-wrap: wrap; }
+.request-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px; border: 1px solid var(--hq-border); border-radius: 10px; background: var(--hq-selected); }
+.request-detail-grid div, .request-description, .request-links { display: grid; gap: 4px; min-width: 0; }
+.request-detail-grid span, .request-description > span, .request-links > span { color: var(--hq-muted); font-size: 11px; font-weight: 650; letter-spacing: .03em; text-transform: uppercase; }
+.request-detail-grid strong { color: var(--hq-text); font-size: 13px; overflow-wrap: anywhere; }
+.request-description { padding: 0 2px; }
+.request-description p { margin: 0; color: var(--hq-text-secondary); line-height: 1.6; white-space: pre-wrap; }
+.request-links { padding: 12px 14px; border-radius: 10px; background: var(--hq-hover); }
+.request-links a { width: fit-content; max-width: 100%; color: var(--hq-accent); overflow-wrap: anywhere; }
+.request-decision { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px; border: 1px solid color-mix(in srgb, var(--hq-accent) 34%, var(--hq-border)); border-radius: 10px; background: color-mix(in srgb, var(--hq-accent) 6%, var(--hq-surface)); }
+.request-decision strong { color: var(--hq-text); font-size: 13px; }
+.request-decision p { margin: 3px 0 0; color: var(--hq-text-secondary); font-size: 12px; line-height: 1.45; }
+.request-decision-actions { display: flex; justify-content: flex-end; gap: 7px; flex-wrap: wrap; flex: 0 0 auto; }
+.request-form-intro { margin: -4px 0 18px; color: var(--hq-text-secondary); font-size: 13px; line-height: 1.55; }
+.request-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.request-form-grid--three { grid-template-columns: 1fr 1fr 1fr; }
+.request-form-section { display: flex; align-items: baseline; gap: 8px; margin: 6px 0 2px; color: var(--hq-text); font-size: 13px; font-weight: 650; }
+.request-form-section span { color: var(--hq-muted); font-size: 11.5px; font-weight: 400; }
+.request-form-optional { margin-top: 2px; border-top: 1px solid var(--hq-border); }
+.request-type-option { display: grid; gap: 2px; padding: 3px 0; }
+.request-type-option span { color: var(--hq-muted); font-size: 11.5px; }
 
 .commit-copy {
   margin: 0 0 12px;
@@ -584,7 +672,13 @@ onMounted(async () => {
   .filter-bar > * { width: 100% !important; }
   .related-row { flex-direction: column; }
   .related-row > * { width: 100% !important; }
+  .request-form-grid, .request-form-grid--three, .request-detail-grid { grid-template-columns: 1fr; }
+  .request-form-section { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .request-decision { align-items: flex-start; flex-direction: column; }
+  .request-decision-actions { justify-content: flex-start; }
   :deep(.request-dialog) { width: calc(100vw - 24px) !important; margin-top: 5vh !important; }
+  :deep(.request-detail-dialog) { width: calc(100vw - 24px) !important; margin-top: 5vh !important; }
+  :deep(.request-detail-dialog .el-dialog__body) { max-height: calc(100svh - 160px); overflow-y: auto; }
   :deep(.request-dialog .el-dialog__body) { max-height: calc(100svh - 190px); }
   :deep(.request-dialog .el-form-item__label) { float: none; display: block; width: auto !important; text-align: left; line-height: 1.3; margin-bottom: 6px; }
   :deep(.request-dialog .el-form-item__content) { margin-left: 0 !important; }
