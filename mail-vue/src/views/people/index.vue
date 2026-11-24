@@ -15,7 +15,7 @@
         </div>
       </div>
 
-      <el-tabs v-model="activeTab" class="people-tabs">
+      <el-tabs v-model="activeTab" class="people-tabs" @tab-change="loadTab">
         <el-tab-pane name="members">
           <template #label>
             <span>Members</span>
@@ -36,7 +36,36 @@
             <span class="directory-count">{{ directoryTotal }} {{ directoryTotal === 1 ? 'member' : 'members' }}</span>
           </div>
 
-          <el-table v-if="members.length" v-loading="directoryLoading" :data="members" style="width: 100%">
+          <div v-if="members.length" class="member-cards" v-loading="directoryLoading">
+            <article v-for="member in members" :key="member.userId" class="member-card">
+              <div class="member-card-top">
+                <hq-avatar
+                  :src="member.avatarUrl"
+                  :name="member.displayName"
+                  :username="member.username"
+                  :size="38"
+                  :show-presence="true"
+                  :presence="member.isOnline ? 'online' : 'offline'"
+                />
+                <div class="person-copy">
+                  <span class="person-name">{{ member.displayName }}</span>
+                  <span class="person-handle">{{ member.username ? '@' + member.username : member.email }}</span>
+                </div>
+                <span class="presence" :class="member.isOnline ? 'is-online' : 'is-offline'">{{ member.isOnline ? 'Online' : 'Offline' }}</span>
+              </div>
+              <div class="member-card-details">
+                <span>{{ member.email }}</span>
+                <span v-if="member.jobTitle || member.team">{{ [member.jobTitle, member.team?.name].filter(Boolean).join(' · ') }}</span>
+                <span>{{ presenceLabel(member) }}</span>
+              </div>
+              <div class="member-card-actions">
+                <el-button v-perm="'role:set'" size="small" @click="openMemberAccess(member)">Permissions</el-button>
+                <el-button v-perm="'user:reset-mfa'" size="small" @click="openMemberSecurity(member)">Security</el-button>
+              </div>
+            </article>
+          </div>
+
+          <el-table v-if="members.length" v-loading="directoryLoading" class="members-table" :data="members" style="width: 100%">
             <el-table-column label="Member" min-width="240">
               <template #default="scope">
                 <div class="person-cell">
@@ -51,28 +80,20 @@
                   <div class="person-copy">
                     <span class="person-name">{{ scope.row.displayName }}</span>
                     <span class="person-handle">{{ scope.row.username ? '@' + scope.row.username : '—' }}</span>
+                    <span v-if="scope.row.jobTitle || scope.row.team" class="person-meta">{{ [scope.row.jobTitle, scope.row.team?.name].filter(Boolean).join(' · ') }}</span>
                   </div>
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="Position" min-width="150">
-              <template #default="scope">{{ scope.row.jobTitle || '—' }}</template>
-            </el-table-column>
-            <el-table-column label="Team" min-width="140">
-              <template #default="scope">
-                <el-tag v-if="scope.row.team" size="small" effect="plain" type="info">{{ scope.row.team.name }}</el-tag>
-                <span v-else class="muted">—</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="email" :label="$t('crmEmail')" min-width="200" />
-            <el-table-column label="Presence" min-width="130">
+            <el-table-column prop="email" :label="$t('crmEmail')" min-width="190" />
+            <el-table-column label="Presence" min-width="120">
               <template #default="scope">
                 <span class="presence" :class="scope.row.isOnline ? 'is-online' : 'is-offline'">
                   {{ presenceLabel(scope.row) }}
                 </span>
               </template>
             </el-table-column>
-            <el-table-column label="Access" width="200" fixed="right">
+            <el-table-column label="Access" width="165">
               <template #default="scope">
                 <el-button
                   v-perm="'role:set'"
@@ -378,7 +399,14 @@ async function loadRoles() {
 function reload() {
   loadDirectory()
   loadTeams()
-  if (canSeeAccessControl.value) loadRoles()
+  if (canSeeAccessControl.value && activeTab.value === 'roles') loadRoles()
+}
+
+function loadTab(name) {
+  // Roles are a separate, heavier administration payload. Do not make every
+  // visit to XPass Team wait for it when the member directory is all that is
+  // being viewed.
+  if (name === 'roles' && !roles.value.length) loadRoles()
 }
 
 function openRoleBuilder() {
@@ -486,7 +514,6 @@ async function submitMember() {
 onMounted(() => {
   loadDirectory()
   loadTeams()
-  if (canSeeAccessControl.value) loadRoles()
 })
 </script>
 
@@ -513,6 +540,7 @@ onMounted(() => {
 .person-copy { display: grid; min-width: 0; }
 .person-name { color: var(--hq-text); font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .person-handle { color: var(--hq-muted); font-size: 12px; }
+.person-meta { color: var(--hq-muted); font-size: 11.5px; margin-top: 2px; }
 .presence { font-size: 12px; font-weight: 550; }
 .presence.is-online { color: var(--hq-success); }
 .presence.is-offline { color: var(--hq-muted); }
@@ -522,9 +550,18 @@ onMounted(() => {
 .empty-title { color: var(--hq-text); font-size: 15px; font-weight: 650; }
 .empty-state p { margin: 0; font-size: 13px; line-height: 1.55; }
 .empty-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+.member-cards { display: none; }
 @media (max-width: 640px) {
   .module-container { padding: 20px 16px 28px; }
   .module-header { flex-direction: column; }
   .member-form-grid { grid-template-columns: 1fr; gap: 0; }
+  .members-table { display: none; }
+  .member-cards { display: grid; gap: 10px; }
+  .member-card { padding: 13px; border: 1px solid var(--hq-border); border-radius: 12px; background: var(--hq-surface); }
+  .member-card-top { display: flex; align-items: center; gap: 10px; }
+  .member-card-top .person-copy { flex: 1; }
+  .member-card-details { display: grid; gap: 4px; margin: 12px 0; color: var(--hq-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+  .member-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .directory-toolbar > * { width: 100% !important; max-width: none !important; }
 }
 </style>

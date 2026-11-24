@@ -290,10 +290,15 @@ app.use('*', async (c, next) => {
 		}
 
 		const onboardingComplete = Boolean(liveUser.onboardingCompletedAt);
+		// Do not replace the complete KV token list with whichever phone happened
+		// to reach this Worker first. That race made one active device appear to
+		// expire immediately after another device signed in. D1 has already
+		// confirmed this token, so merge it into the cache instead.
+		const cachedTokens = Array.isArray(authInfo?.tokens) ? authInfo.tokens : [];
 		authInfo = {
-			tokens: [token],
-			user: liveUser,
-			scope: onboardingComplete ? 'full' : 'onboarding',
+			tokens: [...new Set([...cachedTokens, token])].slice(-10),
+			user: authInfo?.user || liveUser,
+			scope: authInfo?.scope || (onboardingComplete ? 'full' : 'onboarding'),
 			refreshTime: dayjs().toISOString(),
 			lastLoginAt: dayjs().toISOString()
 		};

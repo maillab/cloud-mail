@@ -41,7 +41,8 @@ export async function queryDirectory(c, query = {}) {
 	const db = c.env.db;
 	const from = `FROM user u LEFT JOIN team t ON t.team_id = u.team_id`;
 
-	const { results } = await db.prepare(
+	const [listed, countRow] = await Promise.all([
+		db.prepare(
 		`SELECT u.user_id, u.display_name, u.username, u.email, u.job_title, u.avatar_key,
 			u.team_id, u.last_seen_at,
 			CASE WHEN u.last_seen_at IS NOT NULL
@@ -52,11 +53,12 @@ export async function queryDirectory(c, query = {}) {
 		 WHERE ${where}
 		 ORDER BY COALESCE(NULLIF(u.display_name, ''), u.email) ASC
 		 LIMIT ? OFFSET ?`
-	).bind(...params, limit, offset).all();
+		).bind(...params, limit, offset).all(),
+		db.prepare(`SELECT COUNT(*) AS cnt ${from} WHERE ${where}`).bind(...params).first()
+	]);
+	const results = listed.results || [];
 
-	const countRow = await db.prepare(`SELECT COUNT(*) AS cnt ${from} WHERE ${where}`).bind(...params).first();
-
-	const list = (results || []).map(row => {
+	const list = results.map(row => {
 		const identity = identityService.toIdentity(c, row, {
 			team: row.team_id ? { team_id: row.team_id, name: row.team_name, slug: row.team_slug } : null
 		});

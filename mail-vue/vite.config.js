@@ -17,6 +17,10 @@ export default defineConfig(({mode}) => {
         base: env.VITE_STATIC_URL || '/',
         plugins: [vue(),
             VitePWA({
+                // The Worker serves ../mail-worker/dist, not this package's
+                // default ./dist directory. Keep the service worker beside the
+                // deployed index.html so a phone receives the new worker too.
+                outDir: env.VITE_OUT_DIR || 'dist',
                 injectRegister: 'script-defer',
                 // Phones frequently keep a previously installed app shell open
                 // for days. Activate a deployed fix as soon as it is available
@@ -47,6 +51,12 @@ export default defineConfig(({mode}) => {
                     globPatterns: [],
                     runtimeCaching: [],
                     navigateFallback: null,
+                    // XPass HQ is an online workspace. A stale service worker
+                    // is worse than no offline shell: it can keep phones on
+                    // old sign-in code and make a valid session look expired.
+                    // This deployment retires any existing PWA cache and lets
+                    // the browser load the current hosted application.
+                    selfDestroying: true,
                     cleanupOutdatedCaches: true,
                 }
             }),

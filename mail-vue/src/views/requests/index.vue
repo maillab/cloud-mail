@@ -113,15 +113,16 @@
         </div>
       </el-dialog>
 
-      <el-dialog v-model="createVisible" :title="$t('newRequest')" width="560px">
+      <el-dialog v-model="createVisible" class="request-dialog" :title="$t('newRequest')" width="560px" :close-on-click-modal="false">
         <el-form label-width="110px">
           <el-form-item :label="$t('recipient')">
-            <el-select v-model="form.recipient_id" filterable style="width: 100%" placeholder="Choose a team member">
+            <el-select v-model="form.recipient_id" filterable style="width: 100%" placeholder="Choose a team member" :loading="directoryLoading">
               <el-option
                 v-for="u in directory"
-                :key="u.user_id"
+                :key="u.userId"
                 :label="personLabel(u)"
-                :value="u.user_id"
+                :value="u.userId"
+                :disabled="Number(u.userId) === Number(myId)"
               >
                 <span class="person-option">
                   <hq-avatar :src="u.avatarUrl" :name="u.displayName" :username="u.username" :size="22" />
@@ -178,7 +179,7 @@
         </el-form>
         <template #footer>
           <el-button @click="createVisible = false">{{ $t('cancel') }}</el-button>
-          <el-button type="primary" @click="saveCreate">{{ $t('save') }}</el-button>
+          <el-button type="primary" :loading="creating" @click="saveCreate">{{ $t('save') }}</el-button>
         </template>
       </el-dialog>
 
@@ -272,10 +273,12 @@ const status = ref('')
 const overdue = ref(false)
 const rows = ref([])
 const directory = ref([])
+const directoryLoading = ref(false)
 const detail = ref(null)
 const detailVisible = ref(false)
 const comment = ref('')
 const createVisible = ref(false)
+const creating = ref(false)
 const commitVisible = ref(false)
 const committing = ref(false)
 const commitBudgets = ref([])
@@ -348,7 +351,7 @@ function personLabel(u) {
   return u.username ? `${u.displayName} (@${u.username})` : `${u.displayName} <${u.email}>`
 }
 function userName(id) {
-  const u = directory.value.find(x => x.user_id === id)
+  const u = directory.value.find(x => Number(x.userId) === Number(id))
   if (!u) return id
   return u.username ? `${u.displayName} (@${u.username})` : u.displayName
 }
@@ -381,7 +384,15 @@ async function loadTeams() {
 }
 
 async function loadDirectory() {
-  try { const resp = await directoryList(); directory.value = resp.list || [] } catch (e) { /* ignore */ }
+  directoryLoading.value = true
+  try {
+    const resp = await directoryList({ page: 1, pageSize: 200 })
+    directory.value = resp.list || []
+  } catch (e) {
+    directory.value = []
+  } finally {
+    directoryLoading.value = false
+  }
 }
 
 // An approved finance request becomes a budget reservation, never a payment.
@@ -420,18 +431,40 @@ async function saveCommit() {
 }
 
 function openCreate() {
-  form.value = { recipient_id: null, type: 'action', title: '', description: '', priority: 'normal', due_date: null, team_id: null, related_type: '', attachments: [] }
+  form.value = { recipient_id: null, kind: 'action', type: 'action', title: '', description: '', priority: 'normal', due_date: null, team_id: null, related_type: '', attachments: [] }
   attachmentUrl.value = ''
+  relatedId.value = ''
+  if (!directory.value.length && !directoryLoading.value) loadDirectory()
   createVisible.value = true
 }
 
 async function saveCreate() {
+  const recipientId = Number(form.value.recipient_id)
+  const title = String(form.value.title || '').trim()
+  if (!recipientId) {
+    ElMessage({ message: 'Choose the team member who should receive this request.', type: 'warning', plain: true })
+    return
+  }
+  if (!title) {
+    ElMessage({ message: 'Add a clear request title.', type: 'warning', plain: true })
+    return
+  }
+  creating.value = true
   try {
-    await requestCreate(form.value)
+    await requestCreate({
+      ...form.value,
+      recipient_id: recipientId,
+      title,
+      description: String(form.value.description || '').trim(),
+      related_id: relatedId.value ? Number(relatedId.value) : null
+    })
     createVisible.value = false
     ElMessage.success('Request created.')
-    loadList()
-  } catch (e) { /* ignore */ }
+    await loadList()
+  } catch (e) { /* the HTTP layer presents the server message */
+  } finally {
+    creating.value = false
+  }
 }
 
 async function openDetail(row) {
@@ -537,4 +570,23 @@ onMounted(async () => {
   margin-left: auto;
   color: var(--hq-muted);
   font-size: 12px;
-}</style>
+}
+
+:deep(.request-dialog .el-dialog__body) {
+  max-height: min(65vh, 680px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 640px) {
+  .module-container { padding: 20px 16px 28px; }
+  .module-header { align-items: flex-start; gap: 10px; }
+  .filter-bar > * { width: 100% !important; }
+  .related-row { flex-direction: column; }
+  .related-row > * { width: 100% !important; }
+  :deep(.request-dialog) { width: calc(100vw - 24px) !important; margin-top: 5vh !important; }
+  :deep(.request-dialog .el-dialog__body) { max-height: calc(100svh - 190px); }
+  :deep(.request-dialog .el-form-item__label) { float: none; display: block; width: auto !important; text-align: left; line-height: 1.3; margin-bottom: 6px; }
+  :deep(.request-dialog .el-form-item__content) { margin-left: 0 !important; }
+}
+</style>
