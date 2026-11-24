@@ -10,7 +10,7 @@
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.7.5",
-		"vitest": "~3.0.7",
+		"vitest": "~3.2.6",
 		"wrangler": "^4.90.0"
 	},
 	"dependencies": {
@@ -18,12 +18,12 @@
 		"@cloudflare/vite-plugin": "1.6.0",
 		"dayjs": "^1.11.13",
 		"drizzle-orm": "^0.42.0",
-		"hono": "4.12.16",
+		"hono": "4.13.5",
 		"i18next": "^25.3.2",
 		"linkedom": "^0.18.10",
 		"postal-mime": "^2.4.3",
 		"resend": "^6.4.1",
-		"ua-parser-js": "^2.0.3",
+		"ua-parser-js": "^2.0.10",
 		"uuid": "^11.1.0"
 	}
 }
