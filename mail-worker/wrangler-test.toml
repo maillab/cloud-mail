@@ -30,7 +30,8 @@ binding = "ai"
 binding = "assets"		#静态资源绑定名默认不可修改
 directory = "./dist"	#前端vue项目打包的静态资源存放位置,默认dist
 not_found_handling = "single-page-application"
-run_worker_first = true
+# Only these paths invoke the Worker; /assets/ and other frontend files are served directly
+run_worker_first = [ "/api/*", "/oss/*", "/static/*", "/attachments/*" ]
 
 [triggers]
 crons = ["0 * * * *"]	#每小时执行；resetDaySendCount 仅在 UTC 0 点生效
