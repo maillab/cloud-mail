@@ -84,20 +84,30 @@ const attService = {
 				imageDataList.push(attData);
 			}
 
+			// TinyMCE 可能把路径收成 ../attachments 或 /attachments
+			const proxyUrl = this.fromProxySrc(src);
+			if (proxyUrl) {
+				img.setAttribute('src', proxyUrl);
+			}
+
+			const attKey = this.fromAttSrc(src);
+			const ossDomain = domainUtils.toOssDomain(r2Domain);
+			const fromOss = ossDomain && src && src.startsWith(ossDomain);
+
 			//邮件正文站内图片转cid附件
-			if (src && (src.startsWith(domainUtils.toOssDomain(r2Domain)) || src.startsWith('attachments/'))) {
+			if (fromOss || attKey) {
 
 				const cid = uuidv4().replace(/-/g, '')
 				img.setAttribute('src', 'cid:' + cid);
 
 				const attData = {};
 
-				if (src.startsWith(domainUtils.toOssDomain(r2Domain))) {
-					attData.key = src.replace(domainUtils.toOssDomain(r2Domain) + '/','');
+				if (fromOss) {
+					attData.key = src.replace(ossDomain + '/','');
 				}
 
-				if (src.startsWith('attachments/')) {
-					attData.key = src;
+				if (attKey) {
+					attData.key = attKey;
 				}
 
 				attData.contentId = cid;
@@ -278,6 +288,36 @@ const attService = {
 			return []
 		}
 		return orm(c).select().from(att).where(inArray(att.key, keys)).orderBy(desc(att.attId)).groupBy(att.key).all();
+	},
+
+	// attachments/、/attachments/、../attachments/ 都收成存储 key。
+	fromAttSrc(src) {
+		if (!src) {
+			return null;
+		}
+		const marker = 'attachments/';
+		const idx = String(src).indexOf(marker);
+		if (idx === -1) {
+			return null;
+		}
+		return String(src).slice(idx);
+	},
+
+	// proxy?url=、/proxy?url=、../proxy?url= 解出原始外链。
+	fromProxySrc(src) {
+		if (!src) {
+			return null;
+		}
+		const marker = 'proxy?url=';
+		const idx = String(src).indexOf(marker);
+		if (idx === -1) {
+			return null;
+		}
+		try {
+			return decodeURIComponent(String(src).slice(idx + marker.length));
+		} catch {
+			return null;
+		}
 	}
 };
 
