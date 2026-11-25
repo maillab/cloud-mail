@@ -29,7 +29,8 @@ id = "2io01d4b299e481b9de060ece9e7785c"
 binding = "assets"
 directory = "./dist"
 not_found_handling = "single-page-application"
-run_worker_first = true
+# Only these paths invoke the Worker; /assets/ and other frontend files are served directly
+run_worker_first = [ "/api/*", "/oss/*", "/static/*", "/attachments/*" ]
 
 #[[send_email]]
 #name = "email"
