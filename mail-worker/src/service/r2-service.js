@@ -1,6 +1,7 @@
 import s3Service from './s3-service';
 import settingService from './setting-service';
 import kvObjService from './kv-obj-service';
+import { publicFileHeaders } from '../utils/att-headers';
 
 const r2Service = {
 
@@ -74,11 +75,11 @@ const r2Service = {
 					return null;
 				}
 				return new Response(obj.body, {
-					headers: {
-						'Content-Type': obj.httpMetadata?.contentType || 'application/octet-stream',
-						'Content-Disposition': obj.httpMetadata?.contentDisposition || null,
-						'Cache-Control': obj.httpMetadata?.cacheControl || null
-					}
+					headers: publicFileHeaders({
+						contentType: obj.httpMetadata?.contentType,
+						contentDisposition: obj.httpMetadata?.contentDisposition,
+						cacheControl: obj.httpMetadata?.cacheControl
+					})
 				});
 			}
 
