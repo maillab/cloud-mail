@@ -71,6 +71,14 @@ const permService = {
 	},
 
 	async userPermKeys(c, userId) {
+		// Security resolves the effective access plan before every protected
+		// request. Route handlers also need that plan for record-level checks.
+		// Reuse the exact result for the lifetime of this request instead of
+		// asking D1 to resolve the same roles and overrides a second time.
+		const requestCache = c.get?.('permissionKeys');
+		if (requestCache?.userId === userId && Array.isArray(requestCache.keys)) {
+			return [...requestCache.keys];
+		}
 		const userRow = await c.env.db.prepare(`SELECT email FROM user WHERE user_id = ?`).bind(userId).first();
 		if (!userRow) {
 			return [];
@@ -97,7 +105,9 @@ const permService = {
 			}
 		}
 
-		return [...keys];
+		const resolved = [...keys];
+		c.set?.('permissionKeys', { userId, keys: resolved });
+		return [...resolved];
 	}
 }
 

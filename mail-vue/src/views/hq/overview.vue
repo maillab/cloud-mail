@@ -686,17 +686,15 @@ async function loadSource(key, fn) {
 }
 
 async function loadWorkspace() {
-  const tasks = []
-  if (hasPerm('support:query')) tasks.push(loadSource('support', async () => { const r = await supportList({page: 1, pageSize: 8}); myRequests.value = r.list || [] }))
-  if (hasPerm('tasks:query')) tasks.push(loadSource('tasks', async () => { const r = await tasksList({page: 1, pageSize: 12}); myTasks.value = r.list || [] }))
-  if (hasPerm('activities:query')) tasks.push(loadSource('activities', async () => { const r = await activitiesList({page: 1, pageSize: 8}); myActivities.value = r.list || [] }))
-  if (hasPerm('notifications:query')) tasks.push(loadSource('notifications', async () => { const r = await notificationsList({page: 1, pageSize: 8}); myNotifications.value = r.list || [] }))
-  if (hasPerm('calendar:query')) tasks.push(loadSource('calendar', async () => { const r = await calendarList({page: 1, pageSize: 12, from: startOfTodayISO()}); myEvents.value = r.list || [] }))
-  if (hasPerm('notes:query')) tasks.push(loadSource('notes', async () => { const r = await notesList({page: 1, pageSize: 6}); myNotes.value = r.list || [] }))
-  if (hasPerm('projects:query')) tasks.push(loadSource('projects', async () => { const r = await projectsList({page: 1, pageSize: 6}); myProjects.value = r.list || [] }))
-  if (hasPerm('finance:view')) tasks.push(loadSource('finance', async () => { financeTotals.value = await financeOverview({ period: 'month' }) }))
-  if (hasPerm('approvals:query')) tasks.push(loadSource('approvals', async () => { const r = await approvalList({scope: 'inbox', status: 'pending', pageSize: 8}); myApprovals.value = r.list || [] }))
-  if (hasPerm('requests:query')) tasks.push(loadSource('requests', async () => {
+  // The old overview opened every widget request at once. Each is protected
+  // and performs its own data work, so that stampede delayed first paint and
+  // made the Worker compete with itself. Load the information people need to
+  // act on first, then hydrate the remaining cards in a small queue.
+  const first = []
+  const later = []
+  if (hasPerm('calendar:query')) first.push(() => loadSource('calendar', async () => { const r = await calendarList({page: 1, pageSize: 12, from: startOfTodayISO()}); myEvents.value = r.list || [] }))
+  if (hasPerm('notifications:query')) first.push(() => loadSource('notifications', async () => { const r = await notificationsList({page: 1, pageSize: 8}); myNotifications.value = r.list || [] }))
+  if (hasPerm('requests:query')) first.push(() => loadSource('requests', async () => {
     const [recv, sent, dir] = await Promise.all([
       requestList({scope: 'received', pageSize: 12}),
       requestList({scope: 'sent', pageSize: 12}),
@@ -706,8 +704,25 @@ async function loadWorkspace() {
     mySentRequests.value = sent.list || []
     directory.value = dir.list || []
   }))
-  if (hasPerm('ai:use')) tasks.push(loadSource('ai', async () => { const r = await aiSuggestionsList(); aiSuggestions.value = r.list || [] }))
-  await Promise.all(tasks)
+  if (hasPerm('support:query')) later.push(() => loadSource('support', async () => { const r = await supportList({page: 1, pageSize: 8}); myRequests.value = r.list || [] }))
+  if (hasPerm('tasks:query')) later.push(() => loadSource('tasks', async () => { const r = await tasksList({page: 1, pageSize: 12}); myTasks.value = r.list || [] }))
+  if (hasPerm('activities:query')) later.push(() => loadSource('activities', async () => { const r = await activitiesList({page: 1, pageSize: 8}); myActivities.value = r.list || [] }))
+  if (hasPerm('notes:query')) later.push(() => loadSource('notes', async () => { const r = await notesList({page: 1, pageSize: 6}); myNotes.value = r.list || [] }))
+  if (hasPerm('projects:query')) later.push(() => loadSource('projects', async () => { const r = await projectsList({page: 1, pageSize: 6}); myProjects.value = r.list || [] }))
+  if (hasPerm('finance:view')) later.push(() => loadSource('finance', async () => { financeTotals.value = await financeOverview({ period: 'month' }) }))
+  if (hasPerm('approvals:query')) later.push(() => loadSource('approvals', async () => { const r = await approvalList({scope: 'inbox', status: 'pending', pageSize: 8}); myApprovals.value = r.list || [] }))
+  if (hasPerm('ai:use')) later.push(() => loadSource('ai', async () => { const r = await aiSuggestionsList(); aiSuggestions.value = r.list || [] }))
+
+  await Promise.all(first.map(run => run()))
+  // Limit background work to two requests at a time. The cards still hydrate
+  // automatically, but the core workspace is usable before optional widgets
+  // begin competing for a cold Worker and D1 connection.
+  const drain = async () => {
+    const pending = [...later]
+    const worker = async () => { while (pending.length) await pending.shift()() }
+    await Promise.all([worker(), worker()])
+  }
+  if (later.length) window.setTimeout(() => { drain().catch(() => {}) }, 0)
 }
 
 function go(name, query) {

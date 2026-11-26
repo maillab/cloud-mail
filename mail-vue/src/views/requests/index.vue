@@ -59,7 +59,7 @@
             <template #default="s"><el-tag size="small" :type="priorityType(s.row.priority)">{{ s.row.priority }}</el-tag></template>
           </el-table-column>
           <el-table-column :label="$t('status')" min-width="140">
-            <template #default="s"><el-tag size="small" :type="statusType(s.row.status)">{{ s.row.status }}</el-tag></template>
+            <template #default="s"><el-tag size="small" :type="statusType(s.row.status)">{{ statusLabel(s.row.status) }}</el-tag></template>
           </el-table-column>
           <el-table-column :label="$t('dueDate')" min-width="140">
             <template #default="s">{{ fmt(s.row.due_date) }}</template>
@@ -81,7 +81,7 @@
           <div class="request-detail-meta">
             <el-tag size="small" effect="plain">{{ typeLabel(detail) }}</el-tag>
             <el-tag size="small" :type="priorityType(detail.priority)">{{ detail.priority }} priority</el-tag>
-            <el-tag size="small" :type="statusType(detail.status)">{{ String(detail.status).replace(/_/g, ' ') }}</el-tag>
+            <el-tag size="small" :type="statusType(detail.status)">{{ statusLabel(detail.status) }}</el-tag>
           </div>
           <div class="request-detail-grid">
             <div><span>From</span><strong>{{ userName(detail.sender_id) }}</strong></div>
@@ -107,7 +107,7 @@
             <div class="request-decision-actions">
               <template v-if="canTakeRequestAction(detail)">
                 <el-button v-if="actionAvailable(detail, 'accept')" type="primary" @click="act(detail, 'accept')">Accept request</el-button>
-                <el-button v-if="actionAvailable(detail, 'start')" type="primary" @click="act(detail, 'start')">Start work</el-button>
+                <el-button v-if="actionAvailable(detail, 'start')" type="primary" @click="act(detail, 'start')">Working on it</el-button>
                 <el-button v-if="actionAvailable(detail, 'complete')" type="primary" @click="act(detail, 'complete')">Mark complete</el-button>
                 <el-button v-if="actionAvailable(detail, 'approve')" type="primary" @click="act(detail, 'approve')">Approve</el-button>
                 <el-button v-if="actionAvailable(detail, 'clarify')" @click="clarify(detail)">Ask a question</el-button>
@@ -126,8 +126,8 @@
               <span v-if="h.comment">: {{ h.comment }}</span>
             </el-timeline-item>
           </el-timeline>
-          <el-input v-model="comment" type="textarea" :rows="2" :placeholder="$t('addComment')" style="margin-top: 12px" />
-          <el-button type="primary" size="small" style="margin-top: 8px" @click="addComment">{{ $t('addComment') }}</el-button>
+          <el-input v-model="comment" type="textarea" :rows="2" :placeholder="detail.status === 'in_progress' ? 'Share a progress update with the requester' : $t('addComment')" style="margin-top: 12px" />
+          <el-button type="primary" size="small" style="margin-top: 8px" @click="addComment">{{ detail.status === 'in_progress' ? 'Post update' : $t('addComment') }}</el-button>
         </div>
       </el-dialog>
 
@@ -387,6 +387,21 @@ function isSender(row) { return Number(row?.sender_id) === Number(myId.value) }
 function openAction(s) { return ['pending', 'accepted', 'in_progress', 'needs_clarification'].includes(s) }
 function canCancel(s) { return ['pending', 'pending_approval', 'accepted', 'in_progress'].includes(s) }
 function statusType(s) { return ({ pending: 'warning', pending_approval: 'warning', accepted: '', in_progress: '', needs_clarification: 'warning', completed: 'success', approved: 'success', rejected: 'danger', declined: 'danger', changes_requested: 'warning', cancelled: 'info' })[s] || 'info' }
+function statusLabel(s) {
+  return ({
+    pending: 'Waiting for acceptance',
+    pending_approval: 'Awaiting decision',
+    accepted: 'Accepted',
+    in_progress: 'Working on it',
+    needs_clarification: 'Needs clarification',
+    completed: 'Completed',
+    approved: 'Approved',
+    rejected: 'Rejected',
+    declined: 'Declined',
+    changes_requested: 'Changes requested',
+    cancelled: 'Cancelled'
+  })[s] || String(s || '').replace(/_/g, ' ')
+}
 function priorityType(p) { return ({ critical: 'danger', high: 'warning' })[p] || 'info' }
 function teamName(id) { return teams.value.find(team => Number(team.team_id) === Number(id))?.name || 'Not assigned' }
 function attachmentLinks(row) {
@@ -414,15 +429,15 @@ function canCommitRequest(row) { return row?.category === 'finance' && row.statu
 function nextStepTitle(row) {
   if (row.kind === 'approval') return 'Review and decide'
   if (row.status === 'pending' || row.status === 'needs_clarification') return 'Accept this request to take ownership'
-  if (row.status === 'accepted') return 'Start work when you begin'
-  if (row.status === 'in_progress') return 'Mark it complete once the outcome is delivered'
+  if (row.status === 'accepted') return 'Mark it as in progress when you begin'
+  if (row.status === 'in_progress') return 'Keep the requester updated, then mark it complete'
   return 'Review the request history'
 }
 function actionGuidance(row) {
   if (row.kind === 'approval') return 'Review the information, then approve, reject, or ask the sender to make changes.'
   if (row.status === 'pending') return 'Accept this request when you are ready to take ownership.'
-  if (row.status === 'accepted') return 'Start work when you begin. Mark it complete once the outcome is delivered.'
-  if (row.status === 'in_progress') return 'Mark this complete when the requested outcome has been delivered.'
+  if (row.status === 'accepted') return 'Select Working on it when you begin. This lets the requester know the work is underway.'
+  if (row.status === 'in_progress') return 'Post updates here if the work takes time, then mark it complete when the requested outcome is delivered.'
   return 'Review the request history and add a comment if more context is needed.'
 }
 

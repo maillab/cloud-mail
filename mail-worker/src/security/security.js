@@ -361,6 +361,9 @@ app.use('*', async (c, next) => {
 		if (controlEmail === 'rodney@getxpass.net' || controlEmail === 'admin@getxpass.net') {
 			permKeys.push('*');
 		}
+		// Hand the already-resolved plan to the route handler. This only lives for
+		// this request, so a permission change still applies on the next request.
+		c.set('permissionKeys', { userId: authInfo.user.userId, keys: [...new Set(permKeys)] });
 
 		const method = c.req.method;
 		const permSuffix = methodToPermSuffix(method);

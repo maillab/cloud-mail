@@ -180,10 +180,16 @@ app.get('/requests', async (c) => {
 
 	const whereSql = where.join(' AND ');
 	const listParams = [...params, Number(pageSize), (Number(page) - 1) * Number(pageSize)];
-	const {results} = await c.env.db.prepare(
-		`SELECT * FROM internal_requests WHERE ${whereSql} ORDER BY (status IN ('pending','pending_approval')) DESC, (priority = 'critical') DESC, due_date ASC, create_time DESC LIMIT ? OFFSET ?`
-	).bind(...listParams).all();
-	const countRow = await c.env.db.prepare(`SELECT COUNT(*) as cnt FROM internal_requests WHERE ${whereSql}`).bind(...params).first();
+	// D1 can run these independent reads together. Previously the count did not
+	// begin until the list returned, which made every Requests refresh feel like
+	// two round trips.
+	const [listed, countRow] = await Promise.all([
+		c.env.db.prepare(
+			`SELECT * FROM internal_requests WHERE ${whereSql} ORDER BY (status IN ('pending','pending_approval')) DESC, (priority = 'critical') DESC, due_date ASC, create_time DESC LIMIT ? OFFSET ?`
+		).bind(...listParams).all(),
+		c.env.db.prepare(`SELECT COUNT(*) as cnt FROM internal_requests WHERE ${whereSql}`).bind(...params).first()
+	]);
+	const results = listed.results || [];
 	return c.json(result.ok({list: results, total: countRow?.cnt ?? 0}));
 });
 

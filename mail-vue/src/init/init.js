@@ -55,10 +55,16 @@ export async function init() {
     let setting = null;
 
     if (token) {
-        // An authenticated shell needs both the identity and the company
-        // configuration. The sign-in screen loads its own configuration after
-        // it renders, so an unauthenticated first paint has no network wait.
-        const safeSetting = websiteConfig({timeout: CALL_TIMEOUT}).catch(e => {
+        // Identity is required to build the authorized workspace. Company
+        // appearance is not. Do not make a slow settings row hold the whole
+        // product behind the opening screen; update it as soon as it arrives.
+        const safeSetting = websiteConfig({timeout: CALL_TIMEOUT}).then(s => {
+            setting = s;
+            settingStore.settings = s;
+            settingStore.domainList = s.domainList;
+            bootstrapState.configReady = true;
+            return s;
+        }).catch(e => {
             console.error('website config failed', e);
             bootstrapState.error = e;
             return null;
@@ -69,26 +75,14 @@ export async function init() {
             return null;
         });
 
-        let s = null;
         let user = null;
         try {
-            [s, user] = await withTimeout(
-                Promise.all([safeSetting, userPromise]),
-                CALL_TIMEOUT + 1500,
-                'startup'
-            );
+            user = await withTimeout(userPromise, CALL_TIMEOUT + 1500, 'startup identity');
         } catch (e) {
-            // The deadline is the last line of defence: if either call ignored
-            // its own timeout, startup still proceeds.
+            // The deadline is the last line of defence: if identity ignored
+            // its own timeout, startup still proceeds to a safe sign-in.
             console.error('startup timed out', e);
             bootstrapState.error = e;
-        }
-
-        setting = s;
-        if (setting) {
-            settingStore.settings = setting;
-            settingStore.domainList = setting.domainList;
-            bootstrapState.configReady = true;
         }
         document.title = 'XPass HQ';
 
