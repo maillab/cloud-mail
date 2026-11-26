@@ -17,17 +17,6 @@
         </div>
       </header>
 
-      <div v-if="showOnboarding" class="onboard-banner">
-        <div class="onboard-copy">
-          <strong>Welcome, {{ firstName }}</strong>
-          <p>Widgets are arranged for your role. Personalize them anytime.</p>
-        </div>
-        <div class="onboard-actions">
-          <el-button type="primary" @click="openCustomize">Personalize</el-button>
-          <el-button text @click="dismissOnboarding">Start with default</el-button>
-        </div>
-      </div>
-
       <div class="widget-grid">
         <section
           v-for="widget in store.layout"
@@ -437,7 +426,6 @@ const greeting = computed(() => {
   return 'Good evening'
 })
 const todayLabel = computed(() => new Intl.DateTimeFormat(undefined, {weekday: 'long', month: 'long', day: 'numeric'}).format(new Date()))
-const showOnboarding = computed(() => !store.onboarded && store.loaded)
 
 const notificationPreview = computed(() => {
   const seen = new Set()
@@ -870,14 +858,6 @@ async function saveCustomize() {
   customizeMode.value = false
   customizeOpen.value = false
   ElMessage({message: 'Workspace saved.', type: 'success', plain: true})
-}
-
-async function dismissOnboarding() {
-  try {
-    await store.completeOnboarding()
-  } catch (e) {
-    // non-blocking
-  }
 }
 
 function nudge(id, dir) {

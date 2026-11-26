@@ -11,6 +11,17 @@ let http = axios.create({
     timeout: 12000
 });
 
+// A busy connection can cause several widgets to expire together. One useful
+// message is enough; a stack of duplicate red toasts makes the product look
+// broken and hides the page-level recovery state that each screen provides.
+const recentFailures = new Map();
+function showFailureOnce(key, options) {
+    const now = Date.now();
+    if (now - (recentFailures.get(key) || 0) < 8000) return;
+    recentFailures.set(key, now);
+    ElMessage({ plain: true, grouping: true, repeatNum: -4, ...options });
+}
+
 http.interceptors.request.use(config => {
     config.headers.Authorization = `${localStorage.getItem('token')}`
     config.headers['accept-language'] = 'en'
@@ -100,36 +111,24 @@ http.interceptors.response.use((res) => {
         if (noMsg) {
             return Promise.reject(error)
         } else if (error.message.includes('Network Error')) {
-            ElMessage({
+            showFailureOnce(`network:${error.config?.url || ''}`, {
                 message: i18n.global.t('networkErrorMsg'),
                 type: 'error',
-                plain: true,
-                grouping: true,
-                repeatNum: -4,
             })
         } else if (error.code === 'ECONNABORTED') {
-            ElMessage({
-                message: i18n.global.t('timeoutErrorMsg'),
+            showFailureOnce(`timeout:${error.config?.url || ''}`, {
+                message: 'This section is taking longer than expected. You can keep working and retry it when ready.',
                 type: 'error',
-                plain: true,
-                grouping: true
             })
-            ElMessage.error('')
         } else if (error.response) {
-            ElMessage({
+            showFailureOnce(`server:${error.config?.url || error.response?.status || ''}`, {
                 message: i18n.global.t('serverBusyErrorMsg'),
                 type: 'error',
-                plain: true,
-                grouping: true,
-                repeatNum: -4,
             })
         } else {
-            ElMessage({
+            showFailureOnce(`request:${error.config?.url || ''}`, {
                 message: i18n.global.t('reqFailErrorMsg'),
                 type: 'error',
-                plain: true,
-                grouping: true,
-                repeatNum: -4,
             })
         }
         return Promise.reject(error)
