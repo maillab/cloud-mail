@@ -1,37 +1,52 @@
 <template>
   <div class="user-box">
-    <div class="header-actions">
-      <Icon class="icon" icon="ion:add-outline" width="23" height="23" @click="openAdd"/>
-      <div class="search">
-        <el-input
-            v-model="params.email"
-            class="search-input"
-            :placeholder="$t('searchByEmail')"
-        >
-        </el-input>
-      </div>
-      <el-select v-model="params.status" placeholder="Select" class="status-select"
-                 :style="`width: ${locale === 'en' ? 95 : 80 }px`">
+  <div class="user-header">
+    <div class="user-header-main">
+      <h1 class="user-title">{{ $t('allUsers') }}</h1>
+      <p class="user-count">{{ total }} {{ $t('totalUsers') }}</p>
+    </div>
+    <div class="user-controls">
+      <el-input
+          v-model="params.email"
+          class="search-input"
+          :placeholder="$t('searchByEmail')"
+          clearable
+      />
+      <el-select v-model="params.status" placeholder="$t('all')" class="status-select"
+                 :style="`width: ${locale === 'en' ? 100 : 88 }px`">
         <el-option :key="-1" :label="$t('all')" :value="-1"/>
         <el-option :key="0" :label="$t('active')" :value="0"/>
         <el-option :key="1" :label="$t('banned')" :value="1"/>
         <el-option :key="-2" :label="$t('deleted')" :value="-2"/>
       </el-select>
-      <Icon class="icon" icon="iconoir:search" @click="search" width="20" height="20"/>
-      <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline"
-            v-if="params.timeSort === 1" width="28" height="28"/>
-      <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-up-outline" v-else width="28"
-            height="28"/>
-      <Icon class="icon" icon="ion:reload" width="18" height="18" @click="refresh"/>
-      <Icon class="icon" icon="uiw:delete" width="16" height="16" @click="delUser"/>
+      <el-button type="primary" @click="openAdd">{{ $t('addUser') }}</el-button>
+      <div class="control-icons">
+        <Icon class="icon" icon="iconoir:search" @click="search" width="20" height="20"/>
+        <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline"
+              v-if="params.timeSort === 1" width="28" height="28"/>
+        <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-up-outline" v-else width="28"
+              height="28"/>
+        <Icon class="icon" icon="ion:reload" width="18" height="18" @click="refresh"/>
+        <Icon class="icon" icon="uiw:delete" width="16" height="16" @click="delUser"/>
+      </div>
     </div>
+  </div>
     <el-scrollbar ref="scrollbarRef" class="scrollbar">
-      <div>
-        <div class="loading" :class="tableLoading ? 'loading-show' : 'loading-hide'"
-             :style="first ? 'background: transparent' : ''">
+      <div class="table-wrap">
+        <div class="loading" v-if="first" :class="tableLoading ? 'loading-show' : 'loading-hide'">
           <loading/>
         </div>
+        <div v-if="!first && users.length === 0" class="user-empty">
+          <hq-empty-state
+            icon="fluent:people-20-regular"
+            :title="$t('noUsers')"
+            :description="$t('noUsersDesc')"
+            action-label="$t('addUser')"
+            @action="openAdd"
+          />
+        </div>
         <el-table
+            v-if="!first && users.length > 0"
             @filter-change="tableFilter"
             :empty-text="first ? '' : null"
             :data="users"
@@ -194,6 +209,27 @@
         <el-select v-model="addForm.type" :placeholder="$t('perm')">
           <el-option v-for="item in roleList" :label="item.name" :value="item.roleId" :key="item.roleId"/>
         </el-select>
+        <div class="signature-fields">
+          <label>{{ $t('signaturePictureOptional') }}</label>
+          <input
+            ref="signatureFileRef"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            class="signature-file-input"
+            @change="selectSignatureImage"
+          />
+          <div class="signature-image-row">
+            <img v-if="signaturePreview" :src="signaturePreview" alt="Signature preview" />
+            <el-button @click="signatureFileRef?.click()">{{ $t('chooseImage') }}</el-button>
+            <el-button v-if="signaturePreview" @click="clearSignatureImage">{{ $t('removeImage') }}</el-button>
+          </div>
+          <div class="signature-helper">{{ $t('signatureHelper') }}</div>
+          <label>{{ $t('signatureTextLabel') }}</label>
+          <el-input v-model="addForm.signatureText" type="textarea" :rows="3" maxlength="2000" show-word-limit />
+          <label>{{ $t('signatureHtmlLabel') }}</label>
+          <el-input v-model="addForm.signature" type="textarea" :rows="5" maxlength="10000" show-word-limit />
+          <div class="signature-helper">{{ $t('signatureHtmlHelper') }}</div>
+        </div>
         <el-button class="btn" type="primary" @click="submit" :loading="addLoading"
         >{{ $t('add') }}
         </el-button>
@@ -393,12 +429,14 @@ import {
 import {roleSelectUse} from "@/request/role.js";
 import {Icon} from "@iconify/vue";
 import loading from "@/components/loading/index.vue";
+import hqEmptyState from "@/components/hq-empty-state/index.vue";
 import {tzDayjs} from "@/utils/day.js";
 import {useSettingStore} from "@/store/setting.js";
 import {isEmail} from "@/utils/verify-utils.js";
 import {useRoleStore} from "@/store/role.js";
 import {useUserStore} from "@/store/user.js";
 import {useI18n} from 'vue-i18n';
+import {fileToBase64} from '@/utils/file-utils.js';
 
 defineOptions({
   name: 'user'
@@ -466,7 +504,12 @@ const addForm = reactive({
   suffix: settingStore.domainList[0],
   password: '',
   type: null,
+  signatureText: '',
+  signatureImageData: '',
+  signature: '',
 })
+const signatureFileRef = ref()
+const signaturePreview = ref('')
 
 const params = reactive({
   email: '',
@@ -708,6 +751,38 @@ const openSelect = () => {
 function resetAddForm() {
   addForm.email = ''
   addForm.password = ''
+  addForm.type = null
+  addForm.signatureText = ''
+  addForm.signatureImageData = ''
+  addForm.signature = ''
+  signaturePreview.value = ''
+}
+
+async function selectSignatureImage(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    ElMessage({message: t('signatureImageTypeError'), type: 'error', plain: true})
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage({message: t('signatureImageSizeError'), type: 'error', plain: true})
+    return
+  }
+  try {
+    const imageData = await fileToBase64(file, true)
+    addForm.signatureImageData = imageData
+    signaturePreview.value = imageData
+  } catch (error) {
+    console.error('Failed to read signature image:', error)
+    ElMessage({message: t('signatureImageTypeError'), type: 'error', plain: true})
+  }
+}
+
+function clearSignatureImage() {
+  addForm.signatureImageData = ''
+  signaturePreview.value = ''
 }
 
 function openAdd() {
@@ -857,12 +932,19 @@ function delUser(user) {
 }
 
 function delOneUser(user) {
-  ElMessageBox.confirm(t('delConfirm', {msg: user.email}), {
-    confirmButtonText: t('confirm'),
-    cancelButtonText: t('cancel'),
-    type: 'warning'
-  }).then(() => {
-    userDelete([user.userId]).then(() => {
+  ElMessageBox.prompt(
+    `This permanently removes ${user.email}, their sign-in, mailbox access and account data. Type the email address to confirm.`,
+    'Delete member account',
+    {
+      confirmButtonText: 'Delete account',
+      cancelButtonText: t('cancel'),
+      type: 'warning',
+      inputPlaceholder: user.email,
+      inputValidator: (value) => String(value || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase() || 'Enter the exact email address to continue.'
+    }
+  ).then(({ value }) => {
+    if (String(value || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) return
+    return userDelete([user.userId]).then(() => {
       ElMessage({
         message: t('delSuccessMsg'),
         type: "success",
@@ -1084,64 +1166,162 @@ function adjustWidth() {
 <style lang="scss" scoped>
 
 :deep(.el-table .checked-row) {
-  background: var(--el-color-warning-light-9);
+  background: var(--hq-selected);
 }
 
 .user-box {
   overflow: hidden;
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 :deep(.el-dialog) {
-  width: 400px !important;
-  @media (max-width: 440px) {
-    width: calc(100% - 40px) !important;
-    margin-right: 20px !important;
-    margin-left: 20px !important;
+  width: 420px !important;
+  @media (max-width: 460px) {
+    width: calc(100% - 32px) !important;
+    margin-right: 16px !important;
+    margin-left: 16px !important;
   }
 }
 
 :deep(.account-dialog) {
-  width: 500px !important;
-  @media (max-width: 540px) {
-    width: calc(100% - 40px) !important;
-    margin-right: 20px !important;
-    margin-left: 20px !important;
+  width: 520px !important;
+  @media (max-width: 560px) {
+    width: calc(100% - 32px) !important;
+    margin-right: 16px !important;
+    margin-left: 16px !important;
   }
 }
 
-.header-actions {
-  padding: 9px 15px;
+.user-header {
   display: flex;
-  gap: 15px;
-  flex-wrap: wrap;
+  justify-content: space-between;
   align-items: center;
-  box-shadow: var(--header-actions-border);
-  font-size: 18px;
+  padding: 14px 18px;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--hq-border);
+  background: var(--hq-surface);
+  z-index: 1;
 
-  .search-input {
-    width: min(200px, calc(100vw - 140px));
+  .user-header-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 
-  .search {
-    :deep(.el-input-group) {
-      height: 28px;
+  .user-title {
+    margin: 0;
+    font-family: var(--hq-font-heading);
+    font-size: 18px;
+    font-weight: 650;
+    letter-spacing: -.01em;
+    color: var(--hq-text);
+  }
+
+  .user-count {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--hq-muted);
+  }
+
+  .user-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+
+    .search-input {
+      width: min(220px, calc(100vw - 260px));
+      :deep(.el-input__inner) {
+        height: 28px;
+        background: var(--el-bg-color);
+      }
     }
 
-    :deep(.el-input__inner) {
-      height: 28px;
+    .status-select {
+      :deep(.el-select__wrapper) {
+        height: 28px;
+        min-height: 28px;
+        background: var(--el-bg-color);
+      }
+    }
+
+    .control-icons {
+      display: flex;
+      gap: 10px;
+
+      .icon {
+        cursor: pointer;
+        color: var(--hq-muted);
+
+        &:hover {
+          color: var(--hq-text);
+        }
+      }
     }
   }
+}
 
-  .icon {
-    cursor: pointer;
-  }
+.table-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--hq-border);
+  border-radius: var(--hq-radius-md);
+  background: var(--hq-surface);
+  overflow: hidden;
+}
+
+.user-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  gap: 10px;
+  color: var(--hq-muted);
 }
 
 .container {
   display: grid;
   grid-template-columns: 1fr;
   gap: 15px;
+}
+
+.signature-fields {
+  display: grid;
+  gap: 9px;
+  color: var(--hq-text);
+  font-size: 13px;
+}
+
+.signature-file-input {
+  display: none;
+}
+
+.signature-image-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+
+  img {
+    width: min(250px, 100%);
+    max-height: 100px;
+    object-fit: contain;
+    object-position: left center;
+    border: 1px solid var(--hq-border);
+    border-radius: 6px;
+  }
+}
+
+.signature-helper {
+  color: var(--hq-muted);
+  font-size: 12px;
 }
 
 .type {
@@ -1151,16 +1331,14 @@ function adjustWidth() {
 }
 
 .choose-star {
-  color: var(--el-color-primary)
+  color: var(--hq-accent)
 }
 
 .scrollbar {
   width: 100%;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
-  height: calc(100% - 50px);
-  @media (max-width: 464px) {
-    height: calc(100% - 90px);
-  }
 }
 
 .details {
@@ -1169,8 +1347,8 @@ function adjustWidth() {
   gap: 10px;
   .details-item-title {
     white-space: pre;
-    color: #909399;
-    font-weight: bold;
+    color: var(--hq-muted);
+    font-weight: 600;
     padding-right: 10px;
   }
 }
@@ -1197,8 +1375,8 @@ function adjustWidth() {
 }
 
 .pagination {
-  margin-top: 15px;
-  margin-bottom: 20px;
+  margin-top: 14px;
+  margin-bottom: 18px;
   padding-right: 30px;
   width: 100%;
   display: flex;
@@ -1214,17 +1392,10 @@ function adjustWidth() {
   }
 }
 
-
 .email-row {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.status-select {
-  :deep(.el-select__wrapper) {
-    min-height: 28px;
-  }
 }
 
 .dialog {
@@ -1284,13 +1455,13 @@ function adjustWidth() {
 
 :deep(.el-pagination .el-select) {
   width: 100px;
-  background: var(--el-bg-color);
+  background: var(--hq-surface);
 }
 
 :deep(.el-input-group__append) {
   padding: 0 !important;
   padding-left: 8px !important;
-  background: var(--el-bg-color);
+  background: var(--hq-surface);
 }
 
 :deep(.cell) {
@@ -1311,6 +1482,28 @@ function adjustWidth() {
   white-space: nowrap;
 }
 
+:deep(.el-table thead th) {
+  background: var(--hq-surface);
+  color: var(--hq-text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  border-bottom: 1px solid var(--hq-border);
+  padding: 12px 10px;
+}
+
+:deep(.el-table td) {
+  border-bottom: 1px solid var(--hq-border);
+  padding: 12px 10px;
+  font-size: 13px;
+  color: var(--hq-text);
+}
+
+:deep(.el-table tr:hover td) {
+  background: var(--hq-hover);
+}
+
 :deep(.el-table) {
   @media (pointer: coarse) {
     /* 触屏 */
@@ -1319,11 +1512,17 @@ function adjustWidth() {
 }
 
 :deep(.el-table th.el-table__cell>.cell.highlight) {
-  color: #909399;
+  color: var(--hq-muted);
 }
 
 :deep(.el-table__inner-wrapper:before) {
-  background: var(--el-bg-color);
+  background: var(--hq-surface);
+}
+
+:deep(.el-table .el-tag) {
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 :deep(.el-message-box__container) {

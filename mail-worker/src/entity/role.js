@@ -14,6 +14,7 @@ export const role = sqliteTable('role', {
 	userId: integer('user_id'),
 	sendCount: integer('send_count'),
 	sendType: text('send_type').default('count'),
+	dataScope: text('data_scope').notNull().default('own'),
 	accountCount: integer('account_count')
 });
 export default role

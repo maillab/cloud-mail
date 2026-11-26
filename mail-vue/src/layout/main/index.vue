@@ -94,7 +94,7 @@ const handleResize = () => {
   if (['content','email','send'].includes(route.meta.name)) {
     if (innerWidth !==  window.innerWidth) {
       innerWidth = window.innerWidth;
-      uiStore.accountShow = window.innerWidth >= 767;
+      uiStore.accountShow = false;
     }
   }
 }
@@ -104,16 +104,14 @@ const handleResize = () => {
 
 .block-show {
   position: fixed;
+  inset: 60px 0 0 260px;
+  z-index: 89;
+  background: rgba(0, 0, 0, .28);
   @media (max-width: 767px) {
-    position: absolute;
-    right: 0;
+    inset: 50px 0 0;
+  }
+  @media (max-width: 767px) {
     border: 0;
-    height: 100%;
-    width: 100%;
-    background: #000000;
-    opacity: 0.6;
-    z-index: 10;
-    transition: all 300ms;
   }
 }
 
@@ -124,43 +122,60 @@ const handleResize = () => {
 }
 
 .show {
-  transition: all 100ms;
+  position: fixed;
+  top: 60px;
+  bottom: 0;
+  left: 260px;
+  z-index: 90;
+  width: 280px;
+  transition: transform 160ms ease, opacity 160ms ease;
+  box-shadow: 12px 0 24px rgba(0, 0, 0, .2);
   @media (max-width: 767px) {
-    position: fixed;
-    z-index: 100;
-    width: 260px;
+    top: 50px;
+    left: 0;
+    width: min(320px, calc(100vw - 42px));
   }
 }
 
 .hide {
-  transition: all 100ms;
+  transition: transform 160ms ease, opacity 160ms ease;
   position: fixed;
-  transform: translateX(-100%);
+  top: 60px;
+  bottom: 0;
+  left: 260px;
+  z-index: 90;
+  width: 280px;
+  transform: translateX(calc(-100% - 260px));
   opacity: 0;
   @media (max-width: 1024px) {
-    width: 260px;
-    z-index: 100;
+    left: 0;
+    top: 50px;
+    width: min(320px, calc(100vw - 42px));
+    transform: translateX(-110%);
   }
 }
 
 
 .main-box-show {
+  position: relative;
   display: grid;
-  grid-template-columns: 260px  1fr;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
   height: calc(100% - 60px);
-  @media (max-width: 767px) {
-    grid-template-columns: 1fr;
-  }
 }
 
 .main-box-hide {
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
   height: calc(100% - 60px);
 }
 
 
 .main-view {
+  min-height: 0;
+  overflow: hidden;
   background: var(--el-bg-color);
 }
 

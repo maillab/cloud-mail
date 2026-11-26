@@ -4,13 +4,27 @@ import i18n from "@/i18n/index.js";
 import {useSettingStore} from "@/store/setting.js";
 
 let http = axios.create({
-    baseURL: import.meta.env.VITE_BASE_URL
+    baseURL: import.meta.env.VITE_BASE_URL,
+    // A request that never answers must fail instead of hanging. Without this a
+    // single stalled call during startup kept the splash on screen forever,
+    // because everything downstream was awaiting a promise that never settled.
+    timeout: 12000
 });
 
+// A busy connection can cause several widgets to expire together. One useful
+// message is enough; a stack of duplicate red toasts makes the product look
+// broken and hides the page-level recovery state that each screen provides.
+const recentFailures = new Map();
+function showFailureOnce(key, options) {
+    const now = Date.now();
+    if (now - (recentFailures.get(key) || 0) < 8000) return;
+    recentFailures.set(key, now);
+    ElMessage({ plain: true, grouping: true, repeatNum: -4, ...options });
+}
+
 http.interceptors.request.use(config => {
-    const { lang } = useSettingStore();
     config.headers.Authorization = `${localStorage.getItem('token')}`
-    config.headers['accept-language'] = lang
+    config.headers['accept-language'] = 'en'
     return config
 })
 
@@ -26,6 +40,7 @@ http.interceptors.response.use((res) => {
                 data.code === 200 ? resolve(data.data) : reject(data)
 
             } else if (data.code === 401) {
+                console.log('[startup] 401 from', res.config && res.config.url, data.message)
                 ElMessage({
                     message: data.message,
                     type: 'error',
@@ -34,7 +49,14 @@ http.interceptors.response.use((res) => {
                     repeatNum: -4,
                 })
                 localStorage.removeItem('token')
-                router.replace('/login')
+                // The router may not be installed yet when a startup call comes
+                // back 401; guard so a rejected identity check cannot throw
+                // inside the interceptor and leave the caller hanging.
+                try {
+                    router.replace('/login')
+                } catch (e) {
+                    console.error('could not redirect to login', e)
+                }
                 reject(data)
             } else if (data.code === 403) {
                 ElMessage({
@@ -44,6 +66,14 @@ http.interceptors.response.use((res) => {
                     grouping: true,
                     repeatNum: -4,
                 })
+                reject(data)
+
+            } else if (data.code === 428) {
+                // 428 means the session is valid but unfinished: either the
+                // password was right and the authenticator step is still owed,
+                // or the member has not completed first-login security. Both are
+                // handled by the caller (login view / router), so this is not an
+                // error toast.
                 reject(data)
 
             } else if (data.code === 502) {
@@ -81,41 +111,28 @@ http.interceptors.response.use((res) => {
         if (noMsg) {
             return Promise.reject(error)
         } else if (error.message.includes('Network Error')) {
-            ElMessage({
+            showFailureOnce(`network:${error.config?.url || ''}`, {
                 message: i18n.global.t('networkErrorMsg'),
                 type: 'error',
-                plain: true,
-                grouping: true,
-                repeatNum: -4,
             })
         } else if (error.code === 'ECONNABORTED') {
-            ElMessage({
-                message: i18n.global.t('timeoutErrorMsg'),
+            showFailureOnce(`timeout:${error.config?.url || ''}`, {
+                message: 'This section is taking longer than expected. You can keep working and retry it when ready.',
                 type: 'error',
-                plain: true,
-                grouping: true
             })
-            ElMessage.error('')
         } else if (error.response) {
-            ElMessage({
+            showFailureOnce(`server:${error.config?.url || error.response?.status || ''}`, {
                 message: i18n.global.t('serverBusyErrorMsg'),
                 type: 'error',
-                plain: true,
-                grouping: true,
-                repeatNum: -4,
             })
         } else {
-            ElMessage({
+            showFailureOnce(`request:${error.config?.url || ''}`, {
                 message: i18n.global.t('reqFailErrorMsg'),
                 type: 'error',
-                plain: true,
-                grouping: true,
-                repeatNum: -4,
             })
         }
         return Promise.reject(error)
     })
 
 export default http
-
 

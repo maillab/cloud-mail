@@ -21,6 +21,17 @@ const emailUtils = {
 		return localPart + '@' + parts[1];
 	},
 
+	classifyIncomingEmail(sender, headers = []) {
+		const hasListUnsubscribe = Array.isArray(headers)
+			&& headers.some(header => String(header?.key || '').toLowerCase() === 'list-unsubscribe');
+		if (hasListUnsubscribe) return 'newsletter';
+
+		const localPart = String(sender || '').split('@')[0].toLowerCase();
+		return /(^|[._+-])(no[-._]?reply|notifications?|alerts?|system|updates?|mailer-daemon)([._+-]|$)/.test(localPart)
+			? 'notification'
+			: 'primary';
+	},
+
 	formatText(text) {
 		if (!text) return ''
 		return text

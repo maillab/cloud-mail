@@ -3,10 +3,13 @@
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
-		"dev": "wrangler dev --config wrangler-dev.toml",
+		"dev": "wrangler dev --config wrangler-dev.toml --local --ip 127.0.0.1 --port 8787 --persist-to .wrangler/local",
+		"setup:local": "node scripts/setup-local.mjs",
+		"init:local": "node scripts/init-local.mjs",
+		"reset:local": "node scripts/reset-local.mjs",
 		"test": "wrangler deploy --config wrangler-test.toml",
 		"deploy": "wrangler deploy",
-		"start": "wrangler dev"
+		"start": "pnpm run dev"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.7.5",

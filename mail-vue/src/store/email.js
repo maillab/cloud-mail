@@ -23,6 +23,9 @@ export const useEmailStore = defineStore('email', {
             type: 'subject',
             startDate: '',
             endDate: '',
+            unreadOnly: false,
+            starredOnly: false,
+            hasAttachments: false,
         },
     }),
     persist: {

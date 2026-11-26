@@ -1,11 +1,13 @@
 import role from '../entity/role';
 import orm from '../entity/orm';
-import { eq, asc, inArray, and } from 'drizzle-orm';
+import { eq, asc, inArray, and, sql } from 'drizzle-orm';
 import BizError from '../error/biz-error';
 import rolePerm from '../entity/role-perm';
 import perm from '../entity/perm';
 import { permConst, roleConst } from '../const/entity-const';
 import userService from './user-service';
+import userContext from '../security/user-context';
+import { normalizeScope } from './scope-service';
 import user from '../entity/user';
 import verifyUtils from '../utils/verify-utils';
 import { t } from '../i18n/i18n.js';
@@ -13,9 +15,24 @@ import emailUtils from '../utils/email-utils';
 
 const roleService = {
 
+	// Access changes are recorded append-only: a role edit rewrites role_perm in
+	// place, so without this the "who changed what" trail is lost immediately.
+	async recordAudit(c, { roleId, roleName, actorId, action, summary, detail }) {
+		try {
+			await c.env.db.prepare(
+				`INSERT INTO role_audit (role_id, role_name, actor_id, action, summary, detail, create_time)
+				 VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+			).bind(roleId ?? null, roleName ?? null, actorId ?? null, action, summary, detail ?? null).run();
+		} catch (e) {
+			// History must never block a permission change.
+		}
+	},
+
+
 	async add(c, params, userId) {
 
 		let { name, permIds, banEmail, availDomain } = params;
+		permIds = Array.isArray(permIds) ? permIds : [];
 
 		if (!name) {
 			throw new BizError(t('emptyRoleName'));
@@ -34,6 +51,10 @@ const roleService = {
 		availDomain = availDomain.join(',');
 
 		roleRow = await orm(c).insert(role).values({...params, banEmail, availDomain, userId}).returning().get();
+		const teamView = await c.env.db.prepare(
+			`SELECT perm_id FROM perm WHERE perm_key = 'team:query' LIMIT 1`
+		).first();
+		if (teamView?.perm_id && !permIds.includes(teamView.perm_id)) permIds.push(teamView.perm_id);
 
 		if (permIds.length === 0) {
 			return;
@@ -42,6 +63,15 @@ const roleService = {
 		const rolePermList = permIds.map(permId => ({ permId, roleId: roleRow.roleId }));
 
 		await orm(c).insert(rolePerm).values(rolePermList).run();
+
+		await roleService.recordAudit(c, {
+			roleId: roleRow.roleId,
+			roleName: roleRow.name,
+			actorId: userId,
+			action: 'create',
+			summary: `Created role "${roleRow.name}"`,
+			detail: `${permIds.length} permissions granted`
+		});
 
 
 	},
@@ -53,13 +83,41 @@ const roleService = {
 			.leftJoin(perm, eq(perm.permId, rolePerm.permId))
 			.where(eq(perm.type, permConst.type.BUTTON)).all();
 
+		// Members per role, so the role list can show real headcount instead of a
+		// guessed number.
+		const memberRows = await c.env.db.prepare(
+			`SELECT type, COUNT(*) AS count FROM user WHERE COALESCE(is_del, 0) = 0 GROUP BY type`
+		).all();
+		const memberCount = new Map((memberRows.results || []).map(row => [row.type, Number(row.count) || 0]));
+
 		roleList.forEach(role => {
 			role.banEmail = role.banEmail.split(",").filter(item => item !== "");
 			role.availDomain = role.availDomain.split(",").filter(item => item !== "");
 			role.permIds = permList.filter(perm => perm.roleId === role.roleId).map(perm => perm.permId);
+			role.memberCount = memberCount.get(role.roleId) || 0;
+			role.dataScope = role.dataScope || 'own';
 		});
 
 		return roleList;
+	},
+
+	// The people-and-access screen used to make one request per baseline and
+	// wait for them serially. That becomes painfully slow as soon as a company
+	// has more than a few baselines. This compact projection provides the whole
+	// directory in one indexed query without exposing credentials or raw keys.
+	async peopleWithAccess(c) {
+		const { results } = await c.env.db.prepare(`
+			SELECT u.user_id, u.email, u.display_name, u.username, u.job_title,
+			       u.type AS role_id, r.name AS role_name,
+			       COALESCE(u.data_scope, r.data_scope, 'own') AS data_scope,
+			       (SELECT COUNT(*) FROM role_perm rp WHERE rp.role_id = u.type) AS baseline_permission_count,
+			       (SELECT COUNT(*) FROM user_perm_override o WHERE o.user_id = u.user_id) AS direct_override_count
+			FROM user u
+			LEFT JOIN role r ON r.role_id = u.type
+			WHERE COALESCE(u.is_del, 0) = 0
+			ORDER BY COALESCE(u.display_name, u.email) COLLATE NOCASE
+		`).all();
+		return results || [];
 	},
 
 	async setRole(c, params) {
@@ -70,7 +128,15 @@ const roleService = {
 			throw new BizError(t('emptyRoleName'));
 		}
 
+		// Partial updates (for example a scope-only change) are legitimate: a missing
+		// list means "leave as is", never "clear it". Checked before params is stripped.
+		const permIdsProvided = Array.isArray(permIds);
 		delete params.isDefault
+		delete params.permIds
+		delete params.roleId
+
+		banEmail = Array.isArray(banEmail) ? banEmail : [];
+		availDomain = Array.isArray(availDomain) ? availDomain : [];
 
 		const notEmailIndex = banEmail.findIndex(item => (!verifyUtils.isEmail(item) && !verifyUtils.isDomain(item)) && item !== "*")
 
@@ -82,13 +148,66 @@ const roleService = {
 
 		availDomain = availDomain.join(',')
 
-		await orm(c).update(role).set({...params, banEmail, availDomain}).where(eq(role.roleId, roleId)).run();
-		await orm(c).delete(rolePerm).where(eq(rolePerm.roleId, roleId)).run();
-
-		if (permIds.length > 0) {
-			const rolePermList = permIds.map(permId => ({ permId, roleId: roleId }));
-			await orm(c).insert(rolePerm).values(rolePermList).run();
+		// Only known role fields are written; unknown keys from the client must not
+		// silently reach the row.
+		const writable = {};
+		for (const field of ['name', 'key', 'description', 'sort', 'sendType', 'sendCount', 'accountCount', 'dataScope', 'banEmailType']) {
+			if (params[field] !== undefined) writable[field] = params[field];
 		}
+		if (writable.dataScope !== undefined) {
+			writable.dataScope = normalizeScope(writable.dataScope);
+		}
+
+		const existingRole = await orm(c).select().from(role).where(eq(role.roleId, roleId)).get();
+		const scopeChanged = existingRole && writable.dataScope && writable.dataScope !== (existingRole.dataScope || 'own');
+
+		await orm(c).update(role).set({...writable, banEmail, availDomain}).where(eq(role.roleId, roleId)).run();
+
+		let previousIds = [];
+		let nextIds = [];
+		if (permIdsProvided) {
+			const previous = await orm(c).select({ permId: rolePerm.permId }).from(rolePerm).where(eq(rolePerm.roleId, roleId)).all();
+			previousIds = (previous || []).map(row => row.permId).sort((a, b) => a - b);
+			nextIds = [...new Set(permIds)].sort((a, b) => a - b);
+			const teamView = await c.env.db.prepare(
+				`SELECT perm_id FROM perm WHERE perm_key = 'team:query' LIMIT 1`
+			).first();
+			if (teamView?.perm_id && !nextIds.includes(teamView.perm_id)) {
+				nextIds.push(teamView.perm_id);
+				nextIds.sort((a, b) => a - b);
+			}
+
+			await orm(c).delete(rolePerm).where(eq(rolePerm.roleId, roleId)).run();
+
+			if (nextIds.length > 0) {
+				const rolePermList = nextIds.map(permId => ({ permId, roleId: roleId }));
+				await orm(c).insert(rolePerm).values(rolePermList).run();
+			}
+		}
+
+		const added = nextIds.filter(id => !previousIds.includes(id));
+		const removed = previousIds.filter(id => !nextIds.includes(id));
+		if (scopeChanged) {
+			await roleService.recordAudit(c, {
+				roleId,
+				roleName: writable.name || name,
+				actorId: userContext.getUserId(c),
+				action: 'scope',
+				summary: `Changed record scope for "${writable.name || name}"`,
+				detail: `${existingRole.dataScope || 'own'} -> ${writable.dataScope}`
+			});
+		}
+
+		await roleService.recordAudit(c, {
+			roleId,
+			roleName: name,
+			actorId: userContext.getUserId(c),
+			action: added.length || removed.length ? 'permissions' : 'edit',
+			summary: added.length || removed.length ? `Updated access for "${name}"` : `Updated role "${name}"`,
+			detail: added.length || removed.length
+				? `+${added.length} / -${removed.length} permissions (total ${nextIds.length})`
+				: 'No permission change'
+		});
 
 	},
 
@@ -113,6 +232,15 @@ const roleService = {
 		await orm(c).delete(rolePerm).where(eq(rolePerm.roleId, roleId)).run();
 		await orm(c).delete(role).where(eq(role.roleId, roleId)).run();
 
+		await roleService.recordAudit(c, {
+			roleId,
+			roleName: roleRow.name,
+			actorId: userContext.getUserId(c),
+			action: 'delete',
+			summary: `Deleted role "${roleRow.name}"`,
+			detail: `Members moved to "${defRoleRow.name}"`
+		});
+
 	},
 
 	roleSelectUse(c) {
@@ -130,10 +258,35 @@ const roleService = {
 		}
 		await orm(c).update(role).set({ isDefault: 0 }).run();
 		await orm(c).update(role).set({ isDefault: 1 }).where(eq(role.roleId, params.roleId)).run();
+
+		await roleService.recordAudit(c, {
+			roleId: roleRow.roleId,
+			roleName: roleRow.name,
+			actorId: userContext.getUserId(c),
+			action: 'default',
+			summary: `Set "${roleRow.name}" as the default role`
+		});
 	},
 
 	selectById(c, roleId) {
 		return orm(c).select().from(role).where(eq(role.roleId, roleId)).get();
+	},
+
+	// Role configuration for a set of mailboxes. Incoming delivery needs the
+	// domain and ban rules that belong to each receiving mailbox's owner.
+	async selectByUserIds(c, userIds) {
+		const ids = [...new Set((userIds || []).map(Number).filter(id => Number.isSafeInteger(id) && id > 0))];
+		if (!ids.length) return [];
+		const placeholders = ids.map(() => '?').join(',');
+		const { results } = await c.env.db.prepare(`
+			SELECT u.user_id, r.ban_email, r.avail_domain, r.data_scope
+			FROM user u LEFT JOIN role r ON r.role_id = u.type
+			WHERE u.user_id IN (${placeholders})
+		`).bind(...ids).all();
+		return results.map(row => ({
+			userId: row.user_id,
+			role: { banEmail: row.ban_email, availDomain: row.avail_domain, dataScope: row.data_scope }
+		}));
 	},
 
 	selectByIdsHasPermKey(c, types, permKey) {
@@ -171,18 +324,56 @@ const roleService = {
 		return availIndex > -1
 	},
 
-	selectByName(c, roleName) {
-		return orm(c).select().from(role).where(eq(role.name, roleName)).get();
-	},
 
-	selectByUserIds(c, userIds) {
+	// Newest-first access history for the role builder's History tab.
+	async history(c, roleId) {
+		const conditions = [];
+		const params = [];
+		if (roleId) { conditions.push('role_id = ?'); params.push(roleId); }
+		const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+		const rows = await c.env.db.prepare(
+			`SELECT id, role_id, role_name, actor_id, action, summary, detail, create_time
+			 FROM role_audit ${where}
+			 ORDER BY id DESC LIMIT 100`
+		).bind(...params).all();
 
-		if (!userIds || userIds.length === 0) {
-			return [];
+		const actorIds = [...new Set((rows.results || []).map(row => row.actor_id).filter(Boolean))];
+		const actorNames = new Map();
+		if (actorIds.length) {
+			const placeholders = actorIds.map(() => '?').join(',');
+			const actors = await c.env.db.prepare(
+				`SELECT user_id, display_name, username, email FROM user WHERE user_id IN (${placeholders})`
+			).bind(...actorIds).all();
+			(actors.results || []).forEach(row => {
+				actorNames.set(row.user_id, row.username ? `${row.display_name || row.email} (@${row.username})` : (row.display_name || row.email));
+			});
 		}
 
-		return orm(c).select({ ...role, userId: user.userId }).from(user).leftJoin(role, eq(role.roleId, user.type)).where(inArray(user.userId, userIds)).all();
+		return (rows.results || []).map(row => ({ ...row, actor: actorNames.get(row.actor_id) || null }));
+	},
 
+	// Members currently holding a role, with the identity fields the builder needs.
+	async members(c, roleId) {
+		const rows = await c.env.db.prepare(
+			`SELECT u.user_id, u.display_name, u.username, u.email, u.status, u.last_seen_at,
+				u.avatar_key
+			 FROM user u
+			 WHERE u.type = ? AND COALESCE(u.is_del, 0) = 0
+			 ORDER BY COALESCE(NULLIF(u.display_name, ''), u.email) ASC`
+		).bind(roleId).all();
+
+		return (rows.results || []).map(row => ({
+			userId: row.user_id,
+			displayName: row.display_name || (row.email ? row.email.split('@')[0] : ''),
+			username: row.username,
+			email: row.email,
+			status: row.status,
+			lastSeenAt: row.last_seen_at
+		}));
+	},
+
+	selectByName(c, roleName) {
+		return orm(c).select().from(role).where(eq(role.name, roleName)).get();
 	},
 
 	isBanEmail(banEmail, fromEmail) {

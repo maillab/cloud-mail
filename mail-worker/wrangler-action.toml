@@ -1,6 +1,7 @@
 name = "${NAME}"
 main = "src/index.js"
 compatibility_date = "2025-06-04"
+workers_dev = true
 
 [observability]
 enabled = true
@@ -34,6 +35,7 @@ directory = "./dist"
 not_found_handling = "single-page-application"
 # Only these paths invoke the Worker; /assets/ and other frontend files are served directly
 run_worker_first = [ "/api/*", "/oss/*", "/static/*", "/attachments/*", "/proxy", "/realtime" ]
+
 
 [triggers]
 crons = ["0 * * * *"]	# Hourly cron; resetDaySendCount only runs at UTC 0

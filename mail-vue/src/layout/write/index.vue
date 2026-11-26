@@ -7,103 +7,95 @@
             <Icon icon="hugeicons:quill-write-01" width="28" height="28"/>
           </span>
           <span class="sender">{{ $t('sender') }}:</span>
-          <span class="sender-name">{{ form.name }}</span>
-          <span class="send-email"><{{ form.sendEmail }}></span>
+          <el-dropdown v-if="senderAccounts.length > 1" trigger="click" @command="handleSenderChange">
+            <button type="button" class="sender-switch-btn">
+              <span class="sender-name">{{ form.name }}</span>
+              <span class="send-email">&lt;{{ form.sendEmail }}&gt;</span>
+              <Icon icon="mingcute:down-small-fill" width="16" height="16" />
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item
+                  v-for="acc in senderAccounts"
+                  :key="acc.accountId"
+                  :command="acc.accountId"
+                  :class="{ 'is-active': acc.accountId === form.accountId }"
+                >
+                  {{ acc.email }} ({{ acc.name || 'Account' }})
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <template v-else>
+            <span class="sender-name">{{ form.name }}</span>
+            <span class="send-email">&lt;{{ form.sendEmail }}&gt;</span>
+          </template>
         </div>
         <div @click="close" style="cursor: pointer;">
           <Icon icon="material-symbols-light:close-rounded" width="22" height="22"/>
         </div>
       </div>
       <div class="container">
-        <div class="address-fields">
-          <el-input-tag  @add-tag="addTagChange" tag-type="primary" @input="value => updateSuggest('receive', value)" size="large" v-model="form.receiveEmail" >
-            <template #prefix>
-              <div class="item-title" >{{ $t('recipient') }}</div>
-              <el-select
-                  ref="mySelect"
-                  class="write-select"
-                  popper-class="write-select"
-                  :show-arrow="false"
-                  :no-match-text="' '"
-                  :no-data-text="' '"
-                  @visible-change="status => suggestStatusChange('receive', status)"
-                  @change="value => suggestChange('receive', value)"
-              >
-                <el-option
-                    v-for="item in selectRecipientList"
-                    :key="item"
-                    :label="item"
-                    :value="item"
-                    style="color: #999896;"
-                />
-              </el-select>
+        <el-input-tag  @add-tag="addTagChange" tag-type="primary" @input="inputChange" size="default" v-model="form.receiveEmail" >
+          <template #prefix>
+            <div class="item-title" >{{ $t('recipient') }}</div>
+            <el-select
+                ref="mySelect"
+                class="write-select"
+                popper-class="write-select"
+                :show-arrow="false"
+                :no-match-text="' '"
+                :no-data-text="' '"
+                @visible-change="selectStatusChange"
+                @change="selectChange"
+            >
+              <el-option
+                  v-for="item in selectRecipientList"
+                  :key="item"
+                  :label="item"
+                  :value="item"
+                  style="color: #999896;"
+              />
+            </el-select>
+          </template>
+          <template #suffix>
+            <div style="display: flex;margin-right: 3px;">
+              <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts" />
+            </div>
+          </template>
+        </el-input-tag>
+        <div class="subject-row">
+          <el-input v-model="form.subject" :placeholder="t('subject')" />
+          <el-select
+            v-if="templates.length"
+            v-model="selectedTemplateId"
+            placeholder="Insert template"
+            clearable
+            @change="applyTemplate"
+          >
+            <el-option v-for="template in templates" :key="template.templateId"
+                       :label="template.name" :value="template.templateId" />
+          </el-select>
+          <el-dropdown trigger="click" @command="applySignatureChoice">
+            <el-button plain size="default" class="sig-picker-btn">
+              <Icon icon="hugeicons:quill-write-01" width="16" height="16" />
+              <span>{{ activeSignatureLabel }}</span>
+              <Icon icon="mingcute:down-small-fill" width="14" height="14" />
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="default">
+                  <Icon icon="fluent:checkmark-20-regular" width="16" height="16" v-if="currentSignatureChoice === 'default'" />
+                  <span>Insert signature</span>
+                </el-dropdown-item>
+                <el-dropdown-item command="none">
+                  <Icon icon="fluent:checkmark-20-regular" width="16" height="16" v-if="currentSignatureChoice === 'none'" />
+                  <span>No signature</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
             </template>
-            <template #suffix>
-              <div class="address-actions">
-                <button type="button" class="address-toggle" v-if="form.manyType !== 'divide' && !showCc" @click.stop="openCc">CC</button>
-                <button type="button" class="address-toggle" v-if="form.manyType !== 'divide' && !showBcc" @click.stop="openBcc">BCC</button>
-                <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts('receive')" />
-              </div>
-            </template>
-          </el-input-tag>
-          <el-input-tag v-if="form.manyType !== 'divide' && showCc" ref="ccInputRef" tag-type="primary" size="large" v-model="form.ccEmail" @input="value => updateSuggest('cc', value)" @add-tag="addCcTag">
-            <template #prefix>
-              <div class="item-title">{{ $t('cc') }}</div>
-              <el-select
-                  ref="ccSelectRef"
-                  class="write-select"
-                  popper-class="write-select"
-                  :show-arrow="false"
-                  :no-match-text="' '"
-                  :no-data-text="' '"
-                  @visible-change="status => suggestStatusChange('cc', status)"
-                  @change="value => suggestChange('cc', value)"
-              >
-                <el-option
-                    v-for="item in ccSuggestList"
-                    :key="item"
-                    :label="item"
-                    :value="item"
-                    style="color: #999896;"
-                />
-              </el-select>
-            </template>
-            <template #suffix>
-              <div class="address-actions">
-                <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts('cc')" />
-              </div>
-            </template>
-          </el-input-tag>
-          <el-input-tag v-if="form.manyType !== 'divide' && showBcc" ref="bccInputRef" tag-type="primary" size="large" v-model="form.bccEmail" @input="value => updateSuggest('bcc', value)" @add-tag="addBccTag">
-            <template #prefix>
-              <div class="item-title">{{ $t('bcc') }}</div>
-              <el-select
-                  ref="bccSelectRef"
-                  class="write-select"
-                  popper-class="write-select"
-                  :show-arrow="false"
-                  :no-match-text="' '"
-                  :no-data-text="' '"
-                  @visible-change="status => suggestStatusChange('bcc', status)"
-                  @change="value => suggestChange('bcc', value)"
-              >
-                <el-option
-                    v-for="item in bccSuggestList"
-                    :key="item"
-                    :label="item"
-                    :value="item"
-                    style="color: #999896;"
-                />
-              </el-select>
-            </template>
-            <template #suffix>
-              <div class="address-actions">
-                <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts('bcc')" />
-              </div>
-            </template>
-          </el-input-tag>
+          </el-dropdown>
         </div>
-        <el-input v-model="form.subject" :placeholder="t('subject')" size="large"  @focus="hideEmptyCcBcc" style="padding-bottom: 4px" />
         <tinyEditor :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
         <div class="button-item">
           <div class="att-add" @click="chooseFile">
@@ -112,6 +104,7 @@
           <div class="att-clear" @click="clearContent">
             <Icon icon="icon-park-outline:clear-format" width="24" height="24 "/>
           </div>
+          <el-button plain @click="saveCurrentAsTemplate">Save as template</el-button>
           <div class="att-list">
             <div class="att-item" v-for="(item,index) in form.attachments" :key="index">
               <Icon v-bind="getIconByName(item.filename)"/>
@@ -121,6 +114,7 @@
                     width="22" height="22"/>
             </div>
           </div>
+          <span v-if="draftStatus" class="draft-status" role="status">{{ draftStatus }}</span>
           <div>
             <el-dropdown split-button type="primary" trigger="click" @click="sendEmail" @command="selectSendMode">
               {{ sendButtonLabel }}
@@ -164,12 +158,13 @@
 </template>
 <script setup>
 import tinyEditor from '@/components/tiny-editor/index.vue'
-import {h, nextTick, onMounted, onUnmounted, reactive, ref, toRaw, computed} from "vue";
+import {h, nextTick, onMounted, onUnmounted, reactive, ref, toRaw, computed, watch} from "vue";
 import {Icon} from "@iconify/vue";
 import {useUserStore} from "@/store/user.js";
 import {emailSend} from "@/request/email.js";
 import {isEmail} from "@/utils/verify-utils.js";
 import {useAccountStore} from "@/store/account.js";
+import {useMailboxStore} from "@/store/mailbox.js";
 import {useEmailStore} from "@/store/email.js";
 import {fileToBase64, formatBytes} from "@/utils/file-utils.js";
 import {getIconByName} from "@/utils/icon-utils.js";
@@ -184,6 +179,9 @@ import dayjs from "dayjs";
 import {useI18n} from "vue-i18n";
 import router from "@/router/index.js";
 import {ElMessageBox} from "element-plus";
+import {ElMessage} from "element-plus";
+import {mailboxTemplates, mailboxTemplateSave} from "@/request/mailbox.js";
+import {sanitizeSignatureHtml} from "@/utils/email-html.js";
 
 defineExpose({
   open,
@@ -198,6 +196,7 @@ const draftStore = userDraftStore()
 const settingStore = useSettingStore()
 const emailStore = useEmailStore();
 const accountStore = useAccountStore()
+const mailboxStore = useMailboxStore()
 const editor = ref({})
 const userStore = useUserStore();
 const show = ref(false);
@@ -206,12 +205,13 @@ let percentMessage = null
 let sending = false
 const defValue = ref('')
 const contactsTabRef = ref({})
+const draftStatus = ref('')
+let draftSaveTimer = null
+let draftStatusTimer = null
 const showContacts = ref(false)
-const contactTarget = ref('receive')
-const showCc = ref(false)
-const showBcc = ref(false)
-const ccInputRef = ref()
-const bccInputRef = ref()
+const templates = ref([])
+const selectedTemplateId = ref(null)
+const quotedContent = ref('')
 const mySelect = ref()
 const ccSelectRef = ref()
 const bccSelectRef = ref()
@@ -276,14 +276,164 @@ function selectSendMode(mode) {
   }
 }
 
-function targetAddressKey() {
-  if (contactTarget.value === 'cc') return 'ccEmail'
-  if (contactTarget.value === 'bcc') return 'bccEmail'
-  return 'receiveEmail'
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character])
 }
 
-function openContacts(target = 'receive') {
-  contactTarget.value = target
+const senderAccounts = ref([])
+const currentSignatureChoice = ref('default')
+const activeSignatureLabel = computed(() => {
+  return currentSignatureChoice.value === 'none' ? 'No signature' : 'Signature: On'
+})
+
+// The From list is the set of addresses this member may actually send from:
+// their own mailbox plus every shared inbox they hold send rights in. It is
+// read from stored membership, so an address the member has no access to can
+// never appear here or be chosen.
+function loadSenderAccounts(force = false) {
+  return mailboxStore.load(force).then(() => {
+    senderAccounts.value = mailboxStore.sendableMailboxes.map(box => {
+      const isPersonal = box.mailbox_type === 'personal'
+      // A shared address sends as the company: a member's personal sign-off
+      // must never travel with it. Only the personal mailbox carries a signature.
+      const local = isPersonal ? (accountStore.currentAccount || {}) : {}
+      return {
+        ...local,
+        accountId: box.account_id,
+        email: box.email,
+        name: box.display_name || box.email,
+        mailboxType: box.mailbox_type,
+        signature: isPersonal ? local.signature : '',
+        signatureText: isPersonal ? local.signatureText : '',
+        signatureEnabled: isPersonal ? local.signatureEnabled : 0,
+      }
+    })
+    return senderAccounts.value
+  }).catch(error => {
+    console.error('Sender accounts failed:', error)
+    return senderAccounts.value
+  })
+}
+
+function handleSenderChange(accountId) {
+  const acc = senderAccounts.value.find(a => a.accountId === accountId)
+  if (!acc) return
+  form.accountId = acc.accountId
+  form.sendEmail = acc.email
+  form.name = acc.name || userStore.user.name || ''
+
+  if (currentSignatureChoice.value !== 'none') {
+    const currentContent = editor.value?.getContent?.() || ''
+    const newSig = getComposeSignatureHtml(acc.accountId)
+    const updatedContent = replaceOrAppendSignature(currentContent, newSig)
+    defValue.value = updatedContent
+    editor.value?.setContent?.(updatedContent)
+  }
+}
+
+function applySignatureChoice(choice) {
+  currentSignatureChoice.value = choice
+  const currentContent = editor.value?.getContent?.() || ''
+  const newSig = choice === 'none' ? '' : getComposeSignatureHtml(form.accountId)
+  const updatedContent = replaceOrAppendSignature(currentContent, newSig)
+  defValue.value = updatedContent
+  editor.value?.setContent?.(updatedContent)
+}
+
+function replaceOrAppendSignature(content = '', newSig = '') {
+  const sigRegex = /<div class="xpass-user-signature"[^>]*>[\s\S]*?<\/div>/i
+  if (sigRegex.test(content)) {
+    if (newSig) {
+      return content.replace(sigRegex, newSig)
+    } else {
+      return content.replace(sigRegex, '').replace(/<div><br><br><\/div>\s*$/, '').replace(/(<br\s*\/?>\s*){1,2}$/, '')
+    }
+  } else if (newSig) {
+    if (quotedContent.value && content.includes(quotedContent.value)) {
+      return content.replace(quotedContent.value, `${newSig}<br><br>${quotedContent.value}`)
+    } else {
+      return `${content ? content + '<br><br>' : '<div><br><br></div>'}${newSig}`
+    }
+  }
+  return content
+}
+
+function getComposeSignatureHtml(accountId = form.accountId) {
+  if (currentSignatureChoice.value === 'none') {
+    return ''
+  }
+
+  const user = userStore.user || {}
+  const userSettings = user.signature_settings || {}
+  const accounts = senderAccounts.value || []
+  const acc = (accountId ? accounts.find(a => a.accountId === accountId) : null) || accountStore.currentAccount || user.account || {}
+
+  const isEnabled = (acc.signatureEnabled ?? 1) === 1 && (userSettings.enabled !== false)
+  const isReply = form.sendType === 'reply' || form.sendType === 'forward'
+  const isReplyAllowed = !isReply || ((acc.signatureReplyEnabled ?? 1) === 1 && (userSettings.replyForward !== false))
+
+  if (!isEnabled || !isReplyAllowed) {
+    return ''
+  }
+
+  // Account custom HTML signature
+  if (acc.signature && acc.signature.trim()) {
+    const sanitized = sanitizeSignatureHtml(acc.signature.trim())
+    if (sanitized.includes('xpass-user-signature')) return sanitized
+    return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--hq-border); font-family: sans-serif;">${sanitized}</div>`
+  }
+
+  // Account text or image
+  const accText = acc.signatureText || ''
+  const accImg = acc.signatureImageUrl || ''
+  if (accText || accImg) {
+    const textHtml = accText ? `<div style="font-size: 13px; color: var(--hq-text); line-height: 1.5; margin-bottom: 6px;">${escapeHtml(accText).replace(/\r\n?|\n/g, '<br>')}</div>` : ''
+    const imgHtml = accImg ? `<img src="${escapeHtml(accImg)}" width="250" alt="Signature" style="max-width: 250px; height: auto; display: block; border: 0; border-radius: 4px;" />` : ''
+    return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--hq-border); font-family: sans-serif;">${textHtml}${imgHtml}</div>`
+  }
+
+  // Fallback to user default HTML signature
+  if (user.signature && user.signature.trim()) {
+    const sanitized = sanitizeSignatureHtml(user.signature.trim())
+    if (sanitized.includes('xpass-user-signature')) return sanitized
+    return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--hq-border); font-family: sans-serif;">${sanitized}</div>`
+  }
+
+  // Fallback to user default text or image
+  const userText = user.signature_text || ''
+  const userImg = user.signature_image_url || ''
+  if (userText || userImg) {
+    const textHtml = userText ? `<div style="font-size: 13px; color: var(--hq-text); line-height: 1.5; margin-bottom: 6px;">${escapeHtml(userText).replace(/\r\n?|\n/g, '<br>')}</div>` : ''
+    const imgHtml = userImg ? `<img src="${escapeHtml(userImg)}" width="250" alt="Signature" style="max-width: 250px; height: auto; display: block; border: 0; border-radius: 4px;" />` : ''
+    return `<div class="xpass-user-signature" style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--hq-border); font-family: sans-serif;">${textHtml}${imgHtml}</div>`
+  }
+
+  return ''
+}
+
+function composeWithSignature(bodyContent = '', quote = '') {
+  const signature = getComposeSignatureHtml()
+  let content = bodyContent || ''
+  if (signature) {
+    content += `${content ? '<br><br>' : '<div><br><br></div>'}${signature}`
+  }
+  if (quote) {
+    content += `${content ? '<br><br>' : ''}${quote}`
+  }
+  return content
+}
+
+function newDraftContent() {
+  return composeWithSignature()
+}
+
+function openContacts() {
   showContacts.value = true
   nextTick(() => {
     form[targetAddressKey()].forEach(item => {
@@ -322,6 +472,60 @@ function chooseContact() {
   });
 
   showContacts.value = false
+}
+
+async function applyTemplate(templateId) {
+  const template = templates.value.find(item => item.templateId === templateId)
+  if (!template) return
+  const source = `${template.subject || ''}\n${template.content || ''}`
+  const variables = [...new Set([...source.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)].map(match => match[1]))]
+  const recipient = form.receiveEmail[0] || ''
+  const values = {
+    sender_name: form.name,
+    recipient_name: recipient
+      ? recipient.split('@')[0].replace(/[._+-]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())
+      : undefined
+  }
+  try {
+    for (const variable of variables) {
+      if (values[variable] !== undefined) continue
+      const {value} = await ElMessageBox.prompt(`Enter a value for ${variable}.`, 'Template variable', {
+        inputValue: '',
+        confirmButtonText: 'Insert',
+        cancelButtonText: 'Cancel'
+      })
+      values[variable] = value
+    }
+  } catch (action) {
+    if (action === 'cancel' || action === 'close') return
+    throw action
+  }
+  const substitute = value => value.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => values[key] || '')
+  form.subject = substitute(template.subject || '')
+  defValue.value = composeWithSignature(substitute(template.content || ''), quotedContent.value)
+  selectedTemplateId.value = null
+}
+
+async function saveCurrentAsTemplate() {
+  const content = editor.value.getContent()
+  if (!form.subject.trim() && !content.trim()) {
+    ElMessage({message: 'Add a subject or message before saving a template.', type: 'warning'})
+    return
+  }
+  try {
+    const {value: name} = await ElMessageBox.prompt('Name this reusable template.', 'Save as template', {
+      inputValue: form.subject || '',
+      confirmButtonText: 'Save',
+      cancelButtonText: 'Cancel',
+      inputValidator: value => !!value?.trim() || 'Enter a template name.'
+    })
+    await mailboxTemplateSave({name: name.trim(), subject: form.subject, content})
+    templates.value = await mailboxTemplates()
+    ElMessage({message: 'Template saved.', type: 'success'})
+  } catch (action) {
+    if (action === 'cancel' || action === 'close') return
+    ElMessage({message: action?.message || 'Could not save the template.', type: 'error'})
+  }
 }
 
 function clearSelectContact() {
@@ -420,7 +624,7 @@ function clearContent() {
     cancelButtonText: t('cancel'),
     type: 'warning'
   }).then(() => {
-    resetForm()
+    resetForm(newDraftContent())
   })
 
 }
@@ -475,6 +679,8 @@ async function sendEmail() {
   }
 
   form.content = editor.value.getContent();
+  form.text = editor.value.getText();
+  const signatureIncluded = currentSignatureChoice.value === 'none' || Boolean(form.content && form.content.includes('xpass-user-signature'));
 
   if (!form.content) {
     ElMessage({
@@ -506,7 +712,7 @@ async function sendEmail() {
 
   show.value = false
 
-  emailSend(form, (e) => {
+  emailSend({...toRaw(form), signatureIncluded}, (e) => {
     percent.value = Math.round((e.loaded * 98) / e.total)
   }).then(result => {
     const emailList = Array.isArray(result) ? result : result.emails
@@ -584,7 +790,10 @@ function addRecipientRecord() {
   writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.slice(0, 500);
 }
 
-function resetForm() {
+function resetForm(initialContent = '') {
+  window.clearTimeout(draftSaveTimer)
+  window.clearTimeout(draftStatusTimer)
+  draftStatus.value = ''
   form.receiveEmail = []
   form.ccEmail = []
   form.bccEmail = []
@@ -592,17 +801,69 @@ function resetForm() {
   showBcc.value = false
   form.subject = ''
   form.content = ''
+  form.text = ''
   form.manyType = 'together'
   form.attachments = []
   form.sendType = ''
   form.emailId = 0
   form.draftId = null
+  defValue.value = initialContent
+  selectedTemplateId.value = null
+  quotedContent.value = ''
   backReply.content = ''
   backReply.subject = ''
   backReply.receiveEmail = []
   backReply.sendType = ''
-  editor.value.clearEditor()
+  editor.value.setContent(initialContent)
 }
+
+function hasDraftContent() {
+  const body = form.content || editor.value?.getContent?.() || ''
+  return Boolean(body || form.subject || (form.receiveEmail && form.receiveEmail.length))
+}
+
+async function persistDraft() {
+  if (!show.value || !hasDraftContent() || !db.value?.draft) return
+  draftStatus.value = t('draftSaving')
+  try {
+    if (!form.content && editor.value?.getContent) {
+      form.content = editor.value.getContent()
+    }
+    const payload = {...toRaw(form)}
+    delete payload.attachments
+    if (form.draftId) {
+      await db.value.draft.update(form.draftId, payload)
+    } else {
+      const createPayload = {...payload}
+      delete createPayload.draftId
+      createPayload.createTime = dayjs().utc().format('YYYY-MM-DD HH:mm:ss')
+      form.draftId = await db.value.draft.add(createPayload)
+      await db.value.att.add({draftId: form.draftId, attachments: toRaw(form.attachments || [])})
+      draftStore.refreshList++
+    }
+    draftStatus.value = t('draftSaved')
+  } catch (error) {
+    console.error('Draft autosave failed:', error)
+    draftStatus.value = t('draftSaveFailed')
+  } finally {
+    window.clearTimeout(draftStatusTimer)
+    draftStatusTimer = window.setTimeout(() => { draftStatus.value = '' }, 2500)
+  }
+}
+
+function scheduleDraftSave() {
+  if (!show.value) return
+  window.clearTimeout(draftSaveTimer)
+  draftSaveTimer = window.setTimeout(persistDraft, 1500)
+}
+
+watch(
+  () => [form.subject, form.content, form.receiveEmail, form.accountId],
+  () => {
+    if (show.value) scheduleDraftSave()
+  },
+  {deep: true}
+)
 
 function change(content, text) {
   form.content = content;
@@ -622,12 +883,11 @@ function openForward(email) {
   form.subject = email.subject
   form.sendType = 'forward'
 
-  defValue.value = ''
-
   setTimeout(() => {
-    defValue.value = `
+    quotedContent.value = `
       ${formatImage(email.content) || `<pre style="font-family: inherit;word-break: break-word;white-space: pre-wrap;margin: 0">${email.text}</pre>`}
     `
+    defValue.value = composeWithSignature('', quotedContent.value)
     open()
 
     nextTick(() => {
@@ -655,20 +915,18 @@ function openReply(email) {
   form.sendType = 'reply'
   form.emailId = email.emailId
 
-  defValue.value = ''
-
   setTimeout(() => {
-    defValue.value = `
-    <div></div>
+    quotedContent.value = `
     <div>
     <br>
         ${formatDetailDate(email.createTime)} ${email.name} &lt${email.sendEmail}&gt ${t('wrote')}:
     </div>
     <blockquote class="mceNonEditable" style="margin: 0 0 0 0.8ex;border-left: 1px solid rgb(204,204,204);padding-left: 1ex;">
-      <articl>
+      <article>
           ${formatImage(email.content) || `<pre style="font-family: inherit;word-break: break-word;white-space: pre-wrap;margin: 0">${email.text}</pre>`}
       </article>
     </blockquote>`
+    defValue.value = composeWithSignature('', quotedContent.value)
     open()
 
     nextTick(() => {
@@ -684,34 +942,59 @@ function openReply(email) {
 function formatImage(content) {
   content = content || '';
   const domain = settingStore.settings.r2Domain;
-  return content.replace(/{{domain}}/g, toOssDomain(domain) + '/');
+  const ossDomain = toOssDomain(domain);
+  return content.replace(/{{domain}}/g, ossDomain ? ossDomain + '/' : '/oss/');
 }
 
-function open() {
-  if (!accountStore.currentAccount.email) {
-    form.sendEmail = userStore.user.email;
-    form.accountId = userStore.user.account.accountId;
-    form.name = userStore.user.name;
-  } else {
-    form.sendEmail = accountStore.currentAccount.email;
-    form.accountId = accountStore.currentAccount.accountId;
-    form.name = accountStore.currentAccount.name;
+async function open(options = {}) {
+  // Always re-read the list: a shared inbox granted after the page loaded has
+  // to be selectable as From without a reload.
+  await loadSenderAccounts(true)
+  if (!form.sendType) {
+    resetForm(newDraftContent())
   }
-  show.value = true;
-  editor.value.focus()
+  mailboxTemplates()
+    .then(templateRows => templates.value = templateRows)
+    .catch(error => console.error(error))
+  // The sender defaults to the mailbox the member opened the composer from,
+  // and to their own mailbox everywhere else. It is always visible before send.
+  const preferredId = Number(options.mailboxId) || 0
+  let chosen = preferredId
+    ? senderAccounts.value.find(item => Number(item.accountId) === preferredId)
+    : null
+  if (!chosen) chosen = senderAccounts.value.find(item => item.mailboxType === 'personal')
+  if (!chosen && senderAccounts.value.length) chosen = senderAccounts.value[0]
+  if (!chosen && accountStore.currentAccount?.email) {
+    chosen = {
+      accountId: accountStore.currentAccount.accountId,
+      email: accountStore.currentAccount.email,
+      name: accountStore.currentAccount.name,
+    }
+  }
+  if (chosen) {
+    form.sendEmail = chosen.email
+    form.accountId = chosen.accountId
+    form.name = chosen.name || userStore.user.name || ''
+  } else {
+    form.sendEmail = userStore.user.email
+    form.accountId = userStore.user.account?.accountId || -1
+    form.name = userStore.user.name
+  }
+  show.value = true
+  editor.value?.focus?.()
 }
 
 function openDraft(draft) {
   Object.assign(form, {...draft, manyType: draft.manyType || 'together'})
-  form.ccEmail = draft.ccEmail || []
-  form.bccEmail = draft.bccEmail || []
-  if (form.manyType === 'divide') {
-    clearCcBcc()
+  quotedContent.value = ''
+  if (!form.content) {
+    form.content = newDraftContent()
   }
-  showCc.value = form.ccEmail.length > 0
-  showBcc.value = form.bccEmail.length > 0
   defValue.value = ''
-  setTimeout(() => defValue.value = form.content)
+  setTimeout(() => {
+    defValue.value = form.content
+    editor.value.setContent(form.content)
+  })
   show.value = true;
   editor.value.focus()
 }
@@ -724,6 +1007,9 @@ const handleKeyDown = (event) => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
+  mailboxTemplates()
+    .then(templateRows => templates.value = templateRows)
+    .catch(error => console.error(error))
 });
 
 onUnmounted(() => {
@@ -843,8 +1129,27 @@ function close() {
       justify-content: space-between;
       .title-left {
         align-items: center;
-        display: grid;
-        grid-template-columns: auto auto auto 1fr;
+        display: flex;
+        gap: 4px;
+
+        .sender-switch-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: var(--hq-page);
+          border: 1px solid var(--hq-border);
+          border-radius: 4px;
+          padding: 2px 8px;
+          margin-left: 6px;
+          cursor: pointer;
+          color: var(--el-text-color-primary);
+          font-size: 12.5px;
+          font-family: inherit;
+
+          &:hover {
+            background: var(--hq-hover);
+          }
+        }
       }
 
       .title-text {
@@ -855,13 +1160,13 @@ function close() {
       }
 
       .sender-name {
-        margin-left: 8px;
+        margin-left: 4px;
         font-weight: bold;
       }
 
       .send-email {
         color: #999896;
-        margin-left: 5px;
+        margin-left: 4px;
         white-space: nowrap;
         text-overflow: ellipsis;
         overflow: hidden;
@@ -936,13 +1241,38 @@ function close() {
         }
       }
 
+      .subject-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        .el-input {
+          flex: 1;
+        }
+
+        .sig-picker-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 13px;
+          white-space: nowrap;
+        }
+      }
+
       .item-title {
       }
 
-      .button-item {
-        display: grid;
-        grid-template-columns: auto auto 1fr auto;
+.button-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 
+  .draft-status {
+    margin-left: auto;
+    color: var(--hq-muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
         .att-add {
           cursor: pointer;
         }

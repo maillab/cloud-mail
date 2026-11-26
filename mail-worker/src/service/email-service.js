@@ -23,11 +23,23 @@ import domainUtils from '../utils/domain-uitls';
 import account from "../entity/account";
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
+import signatureService from './signature-service';
 import webhookService from './webhook-service';
 import forwardMime from '../utils/forward-mime';
-import verifyUtils from '../utils/verify-utils';
-import { notifyMailWsFromContext } from '../websocket/notify';
-import proxyService from './proxy-service';
+import sharedMailboxService from './shared-mailbox-service';
+import { isPersonalMailbox, isSharedMailbox } from './mailbox-identity';
+
+// A signature belongs to the member's personal mailbox. Shared addresses send as
+// the company, so a member's personal sign-off must never appear there.
+function isPersonalSender(accountRow, userRow) {
+	if (!accountRow || !userRow) return false;
+	if (!isPersonalMailbox(accountRow.mailboxType ?? accountRow.mailbox_type)) return false;
+	return String(accountRow.email || '').toLowerCase() === String(userRow.email || '').toLowerCase();
+}
+
+function mailboxTypeOf(accountRow) {
+	return String(accountRow?.mailboxType ?? accountRow?.mailbox_type ?? 'personal').trim().toLowerCase();
+}
 
 const emailService = {
 
@@ -45,6 +57,11 @@ const emailService = {
 			searchType,
 			startDate,
 			endDate,
+			folderKey,
+			customFolderId,
+			unreadOnly,
+			starredOnly,
+			hasAttachments,
 		} = params;
 
 		size = Number(size);
@@ -61,6 +78,11 @@ const emailService = {
 
 		if (isNaN(accountId)) {
 			throw new BizError(t('emptyAccountId'));
+		}
+
+		if (folderKey === 'custom'
+			&& (!Number.isSafeInteger(Number(customFolderId)) || Number(customFolderId) <= 0)) {
+			throw new BizError('Invalid folder.', 400);
 		}
 
 		if (isNaN(size)) {
@@ -93,6 +115,11 @@ const emailService = {
 			searchType,
 			startDate,
 			endDate,
+			folderKey,
+			customFolderId,
+			unreadOnly,
+			starredOnly,
+			hasAttachments,
 		});
 		const countFilters = this.emailListFilters({
 			userId,
@@ -104,6 +131,11 @@ const emailService = {
 			searchType,
 			startDate,
 			endDate,
+			folderKey,
+			customFolderId,
+			unreadOnly,
+			starredOnly,
+			hasAttachments,
 		});
 		const columns = full ? emailListColumns : emailBriefColumns;
 
@@ -146,13 +178,9 @@ const emailService = {
 			emailId: email.emailId,
 			accountId: email.accountId,
 			userId: email.userId,
-		}).from(email).where(
-			and(
-				eq(email.userId, userId),
-				eq(email.type, type),
-				eq(email.isDel, isDel.NORMAL),
-				allReceive ? undefined : eq(email.accountId, accountId)
-			))
+		}).from(email)
+			.innerJoin(account, eq(account.accountId, email.accountId))
+			.where(and(...countFilters))
 			.orderBy(desc(email.emailId)).limit(1).get();
 
 		let [list, totalRow, latestEmail] = await Promise.all([listQuery, totalQuery, latestEmailQuery]);
@@ -225,15 +253,68 @@ const emailService = {
 		searchType,
 		startDate,
 		endDate,
+		folderKey,
+		customFolderId,
+		unreadOnly,
+		starredOnly,
+		hasAttachments,
 	}) {
 		const conditions = [
 			eq(email.userId, userId),
-			eq(email.type, type),
-			eq(email.isDel, isDel.NORMAL),
 			eq(account.isDel, isDel.NORMAL),
 		];
+		const folder = folderKey || (type === emailConst.type.SEND ? 'sent' : 'inbox');
+		if (folder === 'trash') {
+			conditions.push(or(eq(email.mailboxFolder, 'trash'), eq(email.isDel, isDel.DELETE)));
+		} else {
+			conditions.push(eq(email.isDel, isDel.NORMAL));
+		}
+		if (folder === 'sent') {
+			conditions.push(eq(email.type, emailConst.type.SEND), eq(email.mailboxFolder, 'sent'));
+		} else if (folder === 'all-unread') {
+			conditions.push(eq(email.type, emailConst.type.RECEIVE), eq(email.unread, emailConst.unread.UNREAD));
+			conditions.push(ne(email.mailboxFolder, 'trash'));
+		} else if (folder === 'archive' || folder === 'spam' || folder === 'trash') {
+			conditions.push(eq(email.mailboxFolder, folder));
+		} else if (folder === 'snoozed') {
+			conditions.push(sql`${email.snoozedUntil} IS NOT NULL AND julianday(${email.snoozedUntil}) > julianday('now')`);
+		} else if (folder === 'newsletter' || folder === 'notification') {
+			conditions.push(eq(email.type, emailConst.type.RECEIVE), eq(email.category, folder));
+			conditions.push(ne(email.mailboxFolder, 'trash'));
+		} else if (folder === 'outbox') {
+			conditions.push(eq(email.type, emailConst.type.SEND), inArray(email.status, [emailConst.status.DELAYED, emailConst.status.SAVING]));
+		} else if (customFolderId) {
+			conditions.push(ne(email.mailboxFolder, 'trash'));
+			conditions.push(sql`EXISTS (
+				SELECT 1 FROM email_folder
+				WHERE email_folder.email_id = ${email.emailId}
+					AND email_folder.user_id = ${userId}
+					AND email_folder.folder_id = ${Number(customFolderId)}
+			)`);
+		} else {
+			conditions.push(eq(email.type, emailConst.type.RECEIVE), eq(email.mailboxFolder, 'inbox'));
+			conditions.push(sql`(${email.snoozedUntil} IS NULL OR julianday(${email.snoozedUntil}) <= julianday('now'))`);
+		}
 		if (!allReceive) {
 			conditions.push(eq(email.accountId, accountId));
+		}
+		if (unreadOnly === 'true' || unreadOnly === true) {
+			conditions.push(eq(email.type, emailConst.type.RECEIVE), eq(email.unread, emailConst.unread.UNREAD));
+		}
+		if (starredOnly === 'true' || starredOnly === true) {
+			conditions.push(sql`EXISTS (
+				SELECT 1 FROM star
+				WHERE star.email_id = ${email.emailId}
+					AND star.user_id = ${userId}
+			)`);
+		}
+		if (hasAttachments === 'true' || hasAttachments === true) {
+			conditions.push(sql`EXISTS (
+				SELECT 1 FROM attachments
+				WHERE attachments.email_id = ${email.emailId}
+					AND attachments.user_id = ${userId}
+					AND attachments.type = ${attConst.type.ATT}
+			)`);
 		}
 		if (withCursor && emailId) {
 			conditions.push(timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId));
@@ -350,7 +431,7 @@ const emailService = {
 		const emailIdList = emailIds.split(',').map(Number);
 		const { syncDelete } = await settingService.query(c);
 
-		if (syncDelete === settingConst.syncDelete.OPEN) {
+		if (params.permanent === 'true' || syncDelete === settingConst.syncDelete.OPEN) {
 			const owned = await orm(c).select({ emailId: email.emailId }).from(email)
 				.where(and(eq(email.userId, userId), inArray(email.emailId, emailIdList)))
 				.all();
@@ -361,11 +442,15 @@ const emailService = {
 			return;
 		}
 
-		await orm(c).update(email).set({ isDel: isDel.DELETE }).where(
+		await orm(c).update(email).set({ mailboxFolder: 'trash', snoozedUntil: null }).where(
 			and(
 				eq(email.userId, userId),
 				inArray(email.emailId, emailIdList)))
 			.run();
+		const placeholders = emailIdList.map(() => '?').join(',');
+		await c.env.db.prepare(
+			`DELETE FROM email_folder WHERE user_id = ? AND email_id IN (${placeholders})`
+		).bind(userId, ...emailIdList).run();
 	},
 
 	receive(c, params, cidAttList, r2domain) {
@@ -373,45 +458,19 @@ const emailService = {
 		return orm(c).insert(email).values({ ...params }).returning().get();
 	},
 
-	normalizeAddressList(value) {
-		if (value == null || value === '') {
-			return [];
-		}
-		const list = Array.isArray(value) ? value : [value];
-		const result = [];
-		const seen = new Set();
-		for (const item of list) {
-			const address = String(item ?? '').trim();
-			if (!address) {
-				continue;
-			}
-			if (!verifyUtils.isEmail(address)) {
-				throw new BizError(t('notEmail'));
-			}
-			const key = address.toLowerCase();
-			if (seen.has(key)) {
-				continue;
-			}
-			seen.add(key);
-			result.push(address);
-		}
-		return result;
-	},
-
-	// 发送入口：公共校验、参数准备、渠道选择和结果汇总。
+	// å‘é€å…¥å£ï¼šå…¬å…±æ ¡éªŒã€å‚æ•°å‡†å¤‡ã€æ¸ é“é€‰æ‹©å’Œç»“æžœæ±‡æ€»ã€‚
 	async send(c, params, userId) {
 		let {
-			accountId, //发送账号id
-			name, //发件人名字
-			sendType, //发件类型
-			emailId, //邮件id，如果是回复邮件会带
-			receiveEmail, //收件人邮箱
-			ccEmail, //抄送
-			bccEmail, //密送
-			text, //邮件纯文本
-			content, //邮件内容
-			subject, //邮件标题
-			attachments = [] //附件
+			accountId, //å‘é€è´¦å·id
+			name, //å‘ä»¶äººåå­—
+			sendType, //å‘ä»¶ç±»åž‹
+			emailId, //é‚®ä»¶idï¼Œå¦‚æžœæ˜¯å›žå¤é‚®ä»¶ä¼šå¸¦
+			receiveEmail, //æ”¶ä»¶äººé‚®ç®±
+			text, //é‚®ä»¶çº¯æ–‡æœ¬
+			content, //é‚®ä»¶å†…å®¹
+			subject, //é‚®ä»¶æ ‡é¢˜
+			attachments = [], //é™„ä»¶
+			signatureIncluded = false
 		} = params;
 
 		ccEmail = this.normalizeAddressList(ccEmail);
@@ -423,48 +482,101 @@ const emailService = {
 
 		const { resendTokens, r2Domain, send, domainList } = await settingService.query(c);
 
-		// 引用正文里的 /proxy?url= 还原成原始外链再发。
-		content = proxyService.restoreHtml(content);
-		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
-
-		//判断是否关闭发件功能
+		//åˆ¤æ–­æ˜¯å¦å…³é—­å‘ä»¶åŠŸèƒ½
 		if (send === settingConst.send.CLOSE) {
 			throw new BizError(t('disabledSend'), 403);
 		}
 
 		const userRow = await userService.selectById(c, userId);
+		const accountRow = await accountService.selectById(c, accountId);
+		if (!accountRow) {
+			throw new BizError(t('senderAccountNotExist'));
+		}
+		// Two legitimate senders: your own address, or a shared mailbox you are an
+		// active member of with send rights. Nothing else — the sender is derived
+		// from stored membership, never from what the client asks for.
+		const ownsAccount = accountRow.userId === userId;
+		let mailboxAccess = null;
+		if (!ownsAccount) {
+			mailboxAccess = await sharedMailboxService.assertAccess(c, userId, accountId, 'send');
+		}
+		if (sendType === 'reply' && params.emailId) {
+			// Replying to a message must not let a member pull the conversation
+			// into a mailbox they cannot see.
+			const source = await c.env.db.prepare(
+				`SELECT e.account_id, a.mailbox_type FROM email e JOIN account a ON a.account_id = e.account_id WHERE e.email_id = ? AND e.is_del = 0`
+			).bind(Number(params.emailId)).first();
+			if (!source) throw new BizError(t('notExistEmailReply'));
+			if (!isPersonalMailbox(source.mailbox_type)) {
+				await sharedMailboxService.assertAccess(c, userId, source.account_id, 'view');
+			}
+		}
+		const senderEmail = accountRow.email;
+
+		let userSigSettings = {};
+		try {
+			userSigSettings = userRow.signatureSettings ? JSON.parse(userRow.signatureSettings) : {};
+		} catch {
+			userSigSettings = {};
+		}
+		// A personal signature belongs to the member's own mailbox only. A shared
+		// company address sends under the mailbox identity, so the personal
+		// signature is never applied there — sending "Kind regards, Rodney" from
+		// support@ is exactly the leak this prevents.
+		const sendingFromPersonal = isPersonalSender(accountRow, userRow);
+		const accountHasSignature = sendingFromPersonal
+			&& Boolean(accountRow.signature || accountRow.signatureText || accountRow.signatureImageKey);
+		const signatureProfile = accountHasSignature ? accountRow : (sendingFromPersonal ? userRow : null);
+		const isSigEnabled = Boolean(signatureProfile)
+			&& (accountRow.signatureEnabled ?? 1) === 1
+			&& (userSigSettings.enabled !== false);
+		const isReply = sendType === 'reply' || sendType === 'forward';
+		const isReplyAllowed = !isReply || (Boolean(signatureProfile)
+			&& (accountRow.signatureReplyEnabled ?? 1) === 1
+			&& (userSigSettings.replyForward !== false));
+
+		const alreadyHasSignature = Boolean(content && content.includes('xpass-user-signature'));
+		if (isSigEnabled && isReplyAllowed && !alreadyHasSignature && signatureIncluded !== true) {
+			const signatureHtml = signatureService.html(signatureProfile, c.req.url);
+			if (signatureHtml) {
+				content = `${content || ''}${signatureHtml}`;
+				const plainSig = signatureService.plainText(signatureProfile);
+				if (plainSig && (!text || !text.includes(plainSig))) {
+					text = `${text || ''}\n\n--\n${plainSig}`;
+				}
+			}
+		}
+		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
 		const roleRow = await roleService.selectById(c, userRow.type);
 
-		// 分开发送不带抄送和密送。
-		const separate = params.manyType === 'divide';
-		if (separate) {
-			ccEmail = [];
-			bccEmail = [];
+		const recipientList = Array.isArray(receiveEmail)
+			? receiveEmail
+			: (typeof receiveEmail === 'string' && receiveEmail ? [receiveEmail] : []);
+		if (!recipientList.length) {
+			throw new BizError(t('noRecipient'), 400);
 		}
-		const copyCount = ccEmail.length + bccEmail.length;
-		const quotaCount = receiveEmail.length + copyCount;
 
-		//判断接收方是不是全部为站内邮箱
-		const allInternal = [...receiveEmail, ...ccEmail, ...bccEmail].every(email => {
+		//åˆ¤æ–­æŽ¥æ”¶æ–¹æ˜¯ä¸æ˜¯å…¨éƒ¨ä¸ºç«™å†…é‚®ç®±
+		const allInternal = recipientList.every(email => {
 			const domain = '@' + emailUtils.getDomain(email);
 			return domainList.includes(domain);
 		});
 
 		if (c.env.admin !== userRow.email) {
 
-			//发件被禁用
+			//å‘ä»¶è¢«ç¦ç”¨
 			if (roleRow.sendType === 'ban') {
 				throw new BizError(t('bannedSend'), 403);
 			}
 
-			//发件被禁用
+			//å‘ä»¶è¢«ç¦ç”¨
 			if (roleRow.sendType === 'internal' && !allInternal) {
 				throw new BizError(t('onlyInternalSend'), 403);
 			}
 
 		}
 
-		//如果不是管理员，权限设置了发送次数
+		//å¦‚æžœä¸æ˜¯ç®¡ç†å‘˜ï¼Œæƒé™è®¾ç½®äº†å‘é€æ¬¡æ•°
 		if (c.env.admin !== userRow.email && roleRow.sendCount) {
 
 			if (userRow.sendCount >= roleRow.sendCount) {
@@ -472,25 +584,15 @@ const emailService = {
 				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLimit'), 403);
 			}
 
-			if (userRow.sendCount + quotaCount > roleRow.sendCount) {
+			if (userRow.sendCount + recipientList.length > roleRow.sendCount) {
 				if (roleRow.sendType === 'day') throw new BizError(t('daySendLack'), 403);
 				if (roleRow.sendType === 'count') throw new BizError(t('totalSendLack'), 403);
 			}
 
 		}
 
-		const accountRow = await accountService.selectById(c, accountId);
-
-		if (!accountRow) {
-			throw new BizError(t('senderAccountNotExist'));
-		}
-
-		if (accountRow.userId !== userId) {
-			throw new BizError(t('sendEmailNotCurUser'));
-		}
-
 		if (c.env.admin !== userRow.email) {
-			//用户没有这个域名的使用权限
+			//ç”¨æˆ·æ²¡æœ‰è¿™ä¸ªåŸŸåçš„ä½¿ç”¨æƒé™
 			if(!roleService.hasAvailDomainPerm(roleRow.availDomain, accountRow.email)) {
 				throw new BizError(t('noDomainPermSend'),403)
 			}
@@ -501,12 +603,12 @@ const emailService = {
 		const resendToken = resendTokens[domain];
 		const useCloudflareEmail = !!c.env.email;
 
-		//如果接收方存在站外邮箱，又没有发信服务
+		//å¦‚æžœæŽ¥æ”¶æ–¹å­˜åœ¨ç«™å¤–é‚®ç®±ï¼Œåˆæ²¡æœ‰å‘ä¿¡æœåŠ¡
 		if (!useCloudflareEmail && !resendToken && !allInternal) {
 			throw new BizError(t('noSendProvider'));
 		}
 
-		//没有发件人名字自动截取
+		//æ²¡æœ‰å‘ä»¶äººåå­—è‡ªåŠ¨æˆªå–
 		if (!name) {
 			name = emailUtils.getName(accountRow.email);
 		}
@@ -515,7 +617,7 @@ const emailService = {
 			messageId: null
 		};
 
-		//如果是回复邮件
+		//å¦‚æžœæ˜¯å›žå¤é‚®ä»¶
 		if (sendType === 'reply') {
 
 			emailRow = await this.selectById(c, emailId);
@@ -529,9 +631,7 @@ const emailService = {
 		const sendParams = {
 			name,
 			accountEmail: accountRow.email,
-			receiveEmail,
-			ccEmail,
-			bccEmail,
+			receiveEmail: recipientList,
 			subject,
 			text,
 			html,
@@ -547,14 +647,8 @@ const emailService = {
 			throw new BizError(t('attLimit'));
 		}
 
-		if (!allInternal) {
-			const perMessageCount = (separate ? 1 : receiveEmail.length) + copyCount;
-			if (perMessageCount > 50) {
-				throw new BizError(t('recipientLimit'));
-			}
-		}
-
-		// sendParams 用于渠道请求，saveParams 保留保存记录所需的账号、权限和附件数据。
+		const separate = params.manyType === 'divide';
+		// sendParams ç”¨äºŽæ¸ é“è¯·æ±‚ï¼ŒsaveParams ä¿ç•™ä¿å­˜è®°å½•æ‰€éœ€çš„è´¦å·ã€æƒé™å’Œé™„ä»¶æ•°æ®ã€‚
 		const context = {
 			separate, allInternal, useCloudflareEmail, resendToken, sendParams,
 			saveParams: {
@@ -563,11 +657,15 @@ const emailService = {
 				ccEmail, bccEmail,
 				messageId: emailRow.messageId,
 				sendType, useCloudflareEmail, roleRow, r2Domain,
-				imageDataList, attachments
+				imageDataList, attachments,
+				// The message this send answers, so the shared conversation it
+				// belongs to can be updated instead of opened twice.
+				parentEmailId: sendType === 'reply' ? Number(params.emailId) || null : null,
+				mailboxType: mailboxTypeOf(accountRow)
 			}
 		};
 
-		// 全部站内收件人走本地投递；存在站外收件人时优先 CF，其次 Resend。
+		// å…¨éƒ¨ç«™å†…æ”¶ä»¶äººèµ°æœ¬åœ°æŠ•é€’ï¼›å­˜åœ¨ç«™å¤–æ”¶ä»¶äººæ—¶ä¼˜å…ˆ CFï¼Œå…¶æ¬¡ Resendã€‚
 		let deliveries;
 		if (allInternal) {
 			deliveries = this.sendInternal(c, context);
@@ -580,7 +678,7 @@ const emailService = {
 		const emailResults = [];
 		let sendError = '';
 
-		// 渠道每完成一组发送并保存记录后返回结果，后续发送失败仍保留已完成部分。
+		// æ¸ é“æ¯å®Œæˆä¸€ç»„å‘é€å¹¶ä¿å­˜è®°å½•åŽè¿”å›žç»“æžœï¼ŒåŽç»­å‘é€å¤±è´¥ä»ä¿ç•™å·²å®Œæˆéƒ¨åˆ†ã€‚
 		for await (const delivery of deliveries) {
 			if (delivery.error) {
 				sendError = delivery.error.message;
@@ -595,7 +693,7 @@ const emailService = {
 			return emailResults;
 		}
 
-		// 分开发送只返回尚未完成的收件人，供前端保留并重试。
+		// åˆ†å¼€å‘é€åªè¿”å›žå°šæœªå®Œæˆçš„æ”¶ä»¶äººï¼Œä¾›å‰ç«¯ä¿ç•™å¹¶é‡è¯•ã€‚
 		const sentRecipients = emailResults.flatMap(item =>
 			JSON.parse(item.recipient).map(recipient => recipient.address)
 		);
@@ -606,7 +704,7 @@ const emailService = {
 		};
 	},
 
-	// 站内发送：普通发送共用一条发件记录，分开发送则每人一条，再写入站内收件箱。
+	// ç«™å†…å‘é€ï¼šæ™®é€šå‘é€å…±ç”¨ä¸€æ¡å‘ä»¶è®°å½•ï¼Œåˆ†å¼€å‘é€åˆ™æ¯äººä¸€æ¡ï¼Œå†å†™å…¥ç«™å†…æ”¶ä»¶ç®±ã€‚
 	async *sendInternal(c, { separate, sendParams, saveParams }) {
 		const recipientGroups = separate
 			? sendParams.receiveEmail.map(address => [address])
@@ -620,7 +718,7 @@ const emailService = {
 		}
 	},
 
-	// CF 发送：普通发送一次提交所有收件人，分开发送逐人调用并保存结果。
+	// CF å‘é€ï¼šæ™®é€šå‘é€ä¸€æ¬¡æäº¤æ‰€æœ‰æ”¶ä»¶äººï¼Œåˆ†å¼€å‘é€é€äººè°ƒç”¨å¹¶ä¿å­˜ç»“æžœã€‚
 	async *sendCloudflare(c, { separate, sendParams, saveParams }) {
 		const recipientGroups = separate
 			? sendParams.receiveEmail.map(address => [address])
@@ -631,7 +729,7 @@ const emailService = {
 				result = await this.sendByCloudflareEmail(c, { ...sendParams, receiveEmail });
 			} catch (error) {
 				if (!separate) throw error;
-				// 分开发送遇到渠道错误即停止，已成功的记录由入口汇总。
+				// åˆ†å¼€å‘é€é‡åˆ°æ¸ é“é”™è¯¯å³åœæ­¢ï¼Œå·²æˆåŠŸçš„è®°å½•ç”±å…¥å£æ±‡æ€»ã€‚
 				yield { error: { message: error.message } };
 				return;
 			}
@@ -642,12 +740,12 @@ const emailService = {
 		}
 	},
 
-	// Resend 分开发送一次最多提交 100 封独立邮件，普通发送仍调用单封接口。
+	// Resend åˆ†å¼€å‘é€ä¸€æ¬¡æœ€å¤šæäº¤ 100 å°ç‹¬ç«‹é‚®ä»¶ï¼Œæ™®é€šå‘é€ä»è°ƒç”¨å•å°æŽ¥å£ã€‚
 	async *sendResend(c, { separate, resendToken, sendParams, saveParams }) {
 		if (separate && sendParams.receiveEmail.length > 100) {
 			throw new BizError(t('resendRecipientLimit'));
 		}
-		// 批量接口不支持附件，包含正文转换得到的内嵌附件。
+		// æ‰¹é‡æŽ¥å£ä¸æ”¯æŒé™„ä»¶ï¼ŒåŒ…å«æ­£æ–‡è½¬æ¢å¾—åˆ°çš„å†…åµŒé™„ä»¶ã€‚
 		if (separate && sendParams.attachments.length > 0) {
 			throw new BizError(t('resendSeparateAttachments'));
 		}
@@ -665,7 +763,7 @@ const emailService = {
 			yield { error: result.error };
 			return;
 		}
-		// 严格校验模式下，批量返回的邮件 ID 按提交顺序对应各收件人。
+		// ä¸¥æ ¼æ ¡éªŒæ¨¡å¼ä¸‹ï¼Œæ‰¹é‡è¿”å›žçš„é‚®ä»¶ ID æŒ‰æäº¤é¡ºåºå¯¹åº”å„æ”¶ä»¶äººã€‚
 		const items = separate
 			? sendParams.receiveEmail.map((address, index) => ({
 				receiveEmail: [address], id: result.data.data[index].id
@@ -680,7 +778,7 @@ const emailService = {
 		yield { emails };
 	},
 
-	// 三个渠道共用的发件记录保存：恢复正文图片 URL、保存附件并更新发送计数。
+	// ä¸‰ä¸ªæ¸ é“å…±ç”¨çš„å‘ä»¶è®°å½•ä¿å­˜ï¼šæ¢å¤æ­£æ–‡å›¾ç‰‡ URLã€ä¿å­˜é™„ä»¶å¹¶æ›´æ–°å‘é€è®¡æ•°ã€‚
 	async saveSentEmail(c, params) {
 		const {
 			accountId, userId, name, subject, text, html, sendEmail, receiveEmail,
@@ -694,6 +792,7 @@ const emailService = {
 		const emailData = {
 			sendEmail, name, subject, text, accountId, userId,
 			content: this.imgReplace(html, imageDataList, r2Domain),
+			mailboxFolder: 'sent',
 			status: useCloudflareEmail ? emailConst.status.DELIVERED : emailConst.status.SENT,
 			type: emailConst.type.SEND,
 			resendEmailId: providerId,
@@ -712,6 +811,26 @@ const emailService = {
 
 		const emailResult = await orm(c).insert(email).values(emailData).returning().get();
 
+		// A send from a shared mailbox is recorded on the conversation it answers.
+		// The service decides whether this is a reply on an existing thread or
+		// the start of a new one; here we only pass the parent message so the
+		// assignee, tags and history of the thread are preserved.
+		if (isSharedMailbox(params.mailboxType)) {
+			try {
+				const parentEmailId = Number(params.parentEmailId) || null;
+				await sharedMailboxService.registerOutgoing(
+					c,
+					emailResult.emailId,
+					accountId,
+					parentEmailId,
+					userId,
+					emailResult.subject || ''
+				);
+			} catch (error) {
+				console.error('Shared mailbox conversation update failed:', error);
+			}
+		}
+
 		if (imageDataList.length > 0) {
 			await attService.saveArticleAtt(c, imageDataList, userId, accountId, emailResult.emailId);
 		}
@@ -726,7 +845,7 @@ const emailService = {
 		const dateStr = dayjs().format('YYYY-MM-DD');
 		let daySendTotal = await c.env.kv.get(kvConst.SEND_DAY_COUNT + dateStr);
 
-		//记录每天发件次数统计
+		//è®°å½•æ¯å¤©å‘ä»¶æ¬¡æ•°ç»Ÿè®¡
 		if (!daySendTotal) {
 			await c.env.kv.put(kvConst.SEND_DAY_COUNT + dateStr, JSON.stringify(deliveredCount), { expirationTtl: 60 * 60 * 24 });
 		} else  {
@@ -737,7 +856,7 @@ const emailService = {
 		return emailResult;
 	},
 
-	// 附件已在 Resend 处理器中校验，批量接口为每位收件人构造独立邮件。
+	// é™„ä»¶å·²åœ¨ Resend å¤„ç†å™¨ä¸­æ ¡éªŒï¼Œæ‰¹é‡æŽ¥å£ä¸ºæ¯ä½æ”¶ä»¶äººæž„é€ ç‹¬ç«‹é‚®ä»¶ã€‚
 	async sendBatchByResend(resendToken, params) {
 		const resend = new Resend(resendToken);
 		const sendForm = {
@@ -941,15 +1060,15 @@ const emailService = {
 		return content;
 	},
 
-	//处理站内邮件发送
+	//å¤„ç†ç«™å†…é‚®ä»¶å‘é€
 	async HandleOnSiteEmail(c, receiveEmail, sendEmailData, attList) {
 
 		const { noRecipient  } = await settingService.query(c);
 
-		//查询所有收件人账号信息
+		//æŸ¥è¯¢æ‰€æœ‰æ”¶ä»¶äººè´¦å·ä¿¡æ¯
 		let accountList = await orm(c).select().from(account).where(inArray(sql`${account.email} COLLATE NOCASE`, receiveEmail)).all();
 
-		// 对于含+未精确匹配的收件人，获取基础地址账号
+		// å¯¹äºŽå«+æœªç²¾ç¡®åŒ¹é…çš„æ”¶ä»¶äººï¼ŒèŽ·å–åŸºç¡€åœ°å€è´¦å·
 		const plusEmails = receiveEmail.filter(
 			e => e.includes('+') && !accountList.some(a => a.email.toLowerCase() === e.toLowerCase())
 		);
@@ -967,39 +1086,41 @@ const emailService = {
 			}
 		}
 
-		// 合并精确匹配和基础地址匹配的账号用于权限查询
+		// åˆå¹¶ç²¾ç¡®åŒ¹é…å’ŒåŸºç¡€åœ°å€åŒ¹é…çš„è´¦å·ç”¨äºŽæƒé™æŸ¥è¯¢
 		const allAccounts = [...accountList, ...baseAccounts];
 
-		//查询所有收件人权限身份
+		//æŸ¥è¯¢æ‰€æœ‰æ”¶ä»¶äººæƒé™èº«ä»½
 		const userIds = allAccounts.map(accountRow => accountRow.userId);
 		let roleList = await roleService.selectByUserIds(c, userIds);
 
-		//封装数据库准备保存到数据库
+		//å°è£…æ•°æ®åº“å‡†å¤‡ä¿å­˜åˆ°æ•°æ®åº“
 		const emailDataList = [];
 
 		for (const email of receiveEmail) {
 
-			//把发件人邮件改成收件
+			//æŠŠå‘ä»¶äººé‚®ä»¶æ”¹æˆæ”¶ä»¶
 			const emailValues = {...sendEmailData}
 			emailValues.bcc = '[]';
 			emailValues.status = emailConst.status.RECEIVE;
 			emailValues.type = emailConst.type.RECEIVE;
+			emailValues.mailboxFolder = 'inbox';
+			emailValues.category = emailUtils.classifyIncomingEmail(sendEmailData.sendEmail);
 			emailValues.toEmail = email;
 			emailValues.toName = emailUtils.getName(email);
 			emailValues.emailId = null;
 
 			let accountRow = allAccounts.find(accountRow => accountRow.email.toLowerCase() === email.toLowerCase());
 
-			// 精确匹配不到时回退到主地址（去掉 +tag）
+			// ç²¾ç¡®åŒ¹é…ä¸åˆ°æ—¶å›žé€€åˆ°ä¸»åœ°å€ï¼ˆåŽ»æŽ‰ +tagï¼‰
 			if (!accountRow && email.includes('+')) {
 				const baseEmail = emailUtils.getBaseEmail(email);
 				accountRow = allAccounts.find(accountRow => accountRow.email.toLowerCase() === baseEmail.toLowerCase());
 			}
 
-			//如果收件人存在就把邮件信息改成收件人的
+			//å¦‚æžœæ”¶ä»¶äººå­˜åœ¨å°±æŠŠé‚®ä»¶ä¿¡æ¯æ”¹æˆæ”¶ä»¶äººçš„
 			if (accountRow) {
 
-				//设置给收件人保存
+				//è®¾ç½®ç»™æ”¶ä»¶äººä¿å­˜
 				emailValues.userId = accountRow.userId;
 				emailValues.accountId = accountRow.accountId;
 				emailValues.type = emailConst.type.RECEIVE;
@@ -1009,7 +1130,7 @@ const emailService = {
 
 				let { banEmail, availDomain } = roleRow;
 
-				//如果收件人没有这个域名的使用权限和有邮件拦截，就把邮件改为拒收状态
+				//å¦‚æžœæ”¶ä»¶äººæ²¡æœ‰è¿™ä¸ªåŸŸåçš„ä½¿ç”¨æƒé™å’Œæœ‰é‚®ä»¶æ‹¦æˆªï¼Œå°±æŠŠé‚®ä»¶æ”¹ä¸ºæ‹’æ”¶çŠ¶æ€
 				if (email !== c.env.admin) {
 
 					if (!roleService.hasAvailDomainPerm(availDomain, email)) {
@@ -1026,13 +1147,13 @@ const emailService = {
 
 			} else {
 
-				//设置无收件人邮件信息
+				//è®¾ç½®æ— æ”¶ä»¶äººé‚®ä»¶ä¿¡æ¯
 				emailValues.userId = 0;
 				emailValues.accountId = 0;
 				emailValues.type = emailConst.type.RECEIVE;
 				emailValues.status = emailConst.status.NOONE;
 
-				//如果无人收件关闭改为拒收
+				//å¦‚æžœæ— äººæ”¶ä»¶å…³é—­æ”¹ä¸ºæ‹’æ”¶
 				if (noRecipient === settingConst.noRecipient.CLOSE) {
 					emailValues.status = emailConst.status.BOUNCED;
 					emailValues.message = `Recipient not found: <${email}>`;
@@ -1044,7 +1165,7 @@ const emailService = {
 
 		}
 
-		//保存邮件
+		//ä¿å­˜é‚®ä»¶
 		const receiveEmailList = emailDataList.filter(emailRow => emailRow.status === emailConst.status.RECEIVE || emailRow.status === emailConst.status.NOONE);
 		const emailRowList = [];
 
@@ -1055,7 +1176,7 @@ const emailService = {
 			// 站内信同样：有 userId 推收件箱，无人收件只推全部邮件。
 			notifyMailWsFromContext(c, emailRow);
 
-			//设置附件保存
+			//è®¾ç½®é™„ä»¶ä¿å­˜
 			for (const attRow of attList) {
 				const attValues = {...attRow};
 				attValues.emailId = emailRow.emailId;
@@ -1072,7 +1193,7 @@ const emailService = {
 
 		let status = emailConst.status.DELIVERED;
 		let message = ''
-		//如果有拒收邮件，就把发件人的邮件改成拒收
+		//å¦‚æžœæœ‰æ‹’æ”¶é‚®ä»¶ï¼Œå°±æŠŠå‘ä»¶äººçš„é‚®ä»¶æ”¹æˆæ‹’æ”¶
 		if (bouncedEmail) {
 			const messageJson = { message: bouncedEmail.message };
 			message = JSON.stringify(messageJson);
@@ -1084,13 +1205,7 @@ const emailService = {
 		return emailRowList;
 	},
 
-	// 规则转发：只按所属用户登录邮箱匹配，名单仍存在 rule_email。
-	matchForwardRule({ ruleEmail, userEmail }) {
-		const users = String(ruleEmail || '').split(',').map(item => item.trim().toLowerCase()).filter(Boolean);
-		return !!(userEmail && users.includes(String(userEmail).toLowerCase()));
-	},
-
-	//站内邮件不经过 email 事件，在这里按转发规则推送
+	//ç«™å†…é‚®ä»¶ä¸ç»è¿‡ email äº‹ä»¶ï¼Œåœ¨è¿™é‡ŒæŒ‰è½¬å‘è§„åˆ™æŽ¨é€
 	async forwardOnSiteEmail(c, emailRowList, { sendParams }) {
 
 		const { tgBotStatus, tgChatId, forwardStatus, forwardEmail, webhookStatus, webhookUrl, webhookRetry, webhookSecret, ruleEmail, ruleType } = await settingService.query(c);
@@ -1109,19 +1224,19 @@ const emailService = {
 
 		for (const emailRow of emailRowList) {
 
-			//转发到TG
+			//è½¬å‘åˆ°TG
 			if (tgBotStatus === settingConst.tgBotStatus.OPEN && tgChatId) {
 				await telegramService.sendEmailToBot(c, emailRow);
 			}
 
-			//转发到 Webhook
+			//è½¬å‘åˆ° Webhook
 			if (webhookStatus === settingConst.webhookStatus.OPEN && webhookUrl) {
 				await webhookService.sendEmail(c, emailRow, webhookUrl, webhookRetry, webhookSecret);
 			}
 
 		}
 
-		//转发到其他邮箱。发件人用站内实际发件人，信头收件人保留原收件人，信封送到已验证地址。
+		//è½¬å‘åˆ°å…¶ä»–é‚®ç®±ã€‚å‘ä»¶äººç”¨ç«™å†…å®žé™…å‘ä»¶äººï¼Œä¿¡å¤´æ”¶ä»¶äººä¿ç•™åŽŸæ”¶ä»¶äººï¼Œä¿¡å°é€åˆ°å·²éªŒè¯åœ°å€ã€‚
 		if (forwardStatus === settingConst.forwardStatus.OPEN && forwardEmail && emailRowList.length > 0) {
 
 			const addresses = forwardEmail.split(',').map(address => address.trim()).filter(Boolean);
@@ -1136,10 +1251,10 @@ const emailService = {
 				try {
 					const result = await forwardMime.send(c.env.forward, params, address);
 					if (result?.error) {
-						console.error(`转发邮箱 ${address} 失败：`, result.error);
+						console.error(`è½¬å‘é‚®ç®± ${address} å¤±è´¥ï¼š`, result.error);
 					}
 				} catch (e) {
-					console.error(`转发邮箱 ${address} 失败：`, e);
+					console.error(`è½¬å‘é‚®ç®± ${address} å¤±è´¥ï¼š`, e);
 				}
 
 			}));
@@ -1176,10 +1291,9 @@ const emailService = {
 
 			}
 
-			r2domain = domainUtils.toOssDomain(r2domain)
-
-			if (src && src.startsWith(r2domain + '/')) {
-				img.setAttribute('src', src.replace(r2domain + '/', '{{domain}}'));
+			const ossDomain = domainUtils.toOssDomain(r2domain);
+			if (ossDomain && src && src.startsWith(ossDomain + '/')) {
+				img.setAttribute('src', src.replace(ossDomain + '/', '{{domain}}'));
 			}
 
 		}
@@ -1219,7 +1333,9 @@ const emailService = {
 					eq(email.isDel, isDel.NORMAL),
 					eq(account.isDel, isDel.NORMAL),
 					allReceive ? undefined : eq(email.accountId, accountId),
-					eq(email.type, emailConst.type.RECEIVE)
+					eq(email.type, emailConst.type.RECEIVE),
+					eq(email.mailboxFolder, 'inbox'),
+					sql`(${email.snoozedUntil} IS NULL OR julianday(${email.snoozedUntil}) <= julianday('now'))`
 				))
 			.orderBy(desc(email.emailId))
 			.limit(50);
@@ -1236,11 +1352,17 @@ const emailService = {
 		emailIds = emailIds.split(',').map(Number);
 		await attService.removeByEmailIds(c, emailIds);
 		await starService.removeByEmailIds(c, emailIds);
+		const placeholders = emailIds.map(() => '?').join(',');
+		await c.env.db.prepare(`DELETE FROM email_folder WHERE email_id IN (${placeholders})`)
+			.bind(...emailIds).run();
 		await orm(c).delete(email).where(inArray(email.emailId, emailIds)).run();
 	},
 
 	async physicsDeleteUserIds(c, userIds) {
 		await attService.removeByUserIds(c, userIds);
+		const placeholders = userIds.map(() => '?').join(',');
+		await c.env.db.prepare(`DELETE FROM email_folder WHERE user_id IN (${placeholders})`)
+			.bind(...userIds).run();
 		await orm(c).delete(email).where(inArray(email.userId, userIds)).run();
 	},
 
@@ -1308,8 +1430,8 @@ const emailService = {
 			.leftJoin(user, eq(email.userId, user.userId));
 		if (listWhere) query.where(listWhere);
 
-		// count 不搜用户时无需 join user
-		const queryCount = userEmail || searchUser
+		// count ä¸æœç”¨æˆ·æ—¶æ— éœ€ join user
+		const queryCount = userEmail
 			? orm(c).select({ total: count() })
 				.from(email)
 				.leftJoin(user, eq(email.userId, user.userId))
@@ -1396,15 +1518,68 @@ const emailService = {
 		await orm(c).update(email).set({ isDel: isDel.NORMAL }).where(eq(email.userId, userId)).run();
 	},
 
+	// Finds the message this inbound mail answers, if it is one we already hold.
+	// Replies are threaded by the RFC headers; when the header is missing the
+	// subject is matched with its Re:/Fwd: prefix stripped, which is how mail
+	// clients that drop headers still group a thread.
+	async resolveThreadParent(c, row) {
+		const candidates = [];
+		if (row.inReplyTo) candidates.push(String(row.inReplyTo));
+		if (row.messageId) candidates.push(String(row.messageId));
+		if (row.relation) candidates.push(String(row.relation));
+		for (const value of candidates) {
+			if (!value) continue;
+			const match = await c.env.db.prepare(
+				`SELECT email_id FROM email
+				 WHERE account_id = ? AND is_del = 0 AND message_id = ? LIMIT 1`
+			).bind(row.accountId, value).first();
+			if (match) return match.email_id;
+		}
+		if (row.subject) {
+			const subject = String(row.subject).replace(/^((re|fw|fwd)\s*:\s*)+/i, '').trim();
+			if (subject) {
+				const match = await c.env.db.prepare(
+					`SELECT email_id FROM email
+					 WHERE account_id = ? AND is_del = 0 AND email_id <> ? AND subject LIKE ? AND type = 1
+					 ORDER BY email_id DESC LIMIT 1`
+				).bind(row.accountId, row.emailId, `%${subject}`).first();
+				if (match) return match.email_id;
+			}
+		}
+		return null;
+	},
+
 	async completeReceive(c, status, emailId) {
-		return await orm(c).update(email).set({
+		const row = await orm(c).update(email).set({
 			isDel: isDel.NORMAL,
 			status: status
 		}).where(eq(email.emailId, emailId)).returning().get();
+
+		// Inbound mail to a shared company address starts a workflow conversation:
+		// the message row stays the message, the conversation row is the work.
+		// A reply to a thread we already opened lands on that thread, so the
+		// member who owns it and the tags it carries survive the reply.
+		if (row && status === emailConst.status.RECEIVE) {
+			try {
+				const accountRow = await c.env.db.prepare(
+					`SELECT mailbox_type FROM account WHERE account_id = ?`
+				).bind(row.accountId).first();
+				if (accountRow && isSharedMailbox(accountRow.mailbox_type)) {
+					const parentEmailId = await this.resolveThreadParent(c, row);
+					await sharedMailboxService.registerIncoming(
+						c, row.emailId, row.accountId, parentEmailId, null, row.subject || ''
+					);
+				}
+			} catch (error) {
+				// A conversation failure must never lose the message itself.
+				console.error('Shared mailbox conversation registration failed:', error);
+			}
+		}
+		return row;
 	},
 
 	async completeReceiveAll(c) {
-		// 用 EXISTS 走 status=6 部分索引 + account 主键；避免 IN (SELECT account_id FROM account) 触发全盘扫描
+		// ç”¨ EXISTS èµ° status=6 éƒ¨åˆ†ç´¢å¼• + account ä¸»é”®ï¼›é¿å… IN (SELECT account_id FROM account) è§¦å‘å…¨ç›˜æ‰«æ
 		await c.env.db.prepare(
 			`UPDATE email
 			 SET status = ${emailConst.status.RECEIVE}
@@ -1428,7 +1603,7 @@ const emailService = {
 
 		const cutoff = dayjs().subtract(days, 'day').format('YYYY-MM-DD HH:mm:ss');
 		const excludeEmails = String(autoCleanExclude || '')
-			.split(/[,，]/)
+			.split(/[,ï¼Œ]/)
 			.map(item => item.trim())
 			.filter(Boolean);
 

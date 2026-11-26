@@ -27,9 +27,11 @@
     "path": "^0.12.7",
     "pinia": "^3.0.2",
     "pinia-plugin-persistedstate": "^4.2.0",
+    "qrcode": "1.5.4",
     "vue": "^3.5.13",
     "vue-i18n": "^11.1.10",
-    "vue-router": "^4.5.0"
+    "vue-router": "^4.5.0",
+    "xlsx": "0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",

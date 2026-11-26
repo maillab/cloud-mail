@@ -3,7 +3,13 @@ const constant = {
 	JWT_UID: 'user_id:',
 	JWT_TOKEN: 'token:',
 	TOKEN_EXPIRE: 60 * 60 * 24 * 30,
-	// Bump this number to invalidate every existing login token.
+	// Pre-authentication challenge: issued after the password stage succeeds
+	// but before MFA is verified. Short-lived (5 min), single-use, and cannot
+	// reach any business API. It carries only the user identity so the MFA
+	// verify endpoint never needs the email/password again.
+	PREAUTH_EXPIRE: 60 * 5,
+	PREAUTH_CHALLENGE: 'mfa',
+	// Bump to revoke every active application and WebSocket session.
 	AUTH_GEN: 1,
 	ATTACHMENT_PREFIX: 'attachments/',
 	BACKGROUND_PREFIX: 'static/background/',

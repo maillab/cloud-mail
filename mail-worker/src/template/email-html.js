@@ -22,7 +22,8 @@ export default function emailHtmlTemplate(html) {
 		}
 	});
 	html = document.toString();
-	html = html.replace(/{{domain}}/g, '/');
+	const ossDomain = domainUtils.toOssDomain(domain);
+	html = html.replace(/{{domain}}/g, ossDomain ? ossDomain + '/' : '/oss/');
 	const safeHtmlJson = JSON.stringify(html).replace(/</g, '\\u003C');
 
 	return `<!DOCTYPE html>

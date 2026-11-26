@@ -1,0 +1,567 @@
+<template>
+  <el-scrollbar class="module-scroll">
+    <div class="module-container">
+      <div class="module-header">
+        <div class="module-title">
+          <div class="module-eyebrow">XPASS HQ / XPASS TEAM</div>
+          <h1>XPass Team</h1>
+          <p class="module-subtitle">
+            Everyone with an XPass account, the teams they belong to, and the access their role grants.
+          </p>
+        </div>
+        <div class="module-actions">
+          <el-button v-perm="'user:add'" type="primary" icon="plus" @click="openAddMember">Add member</el-button>
+          <el-button @click="reload" text circle icon="refresh" :aria-label="$t('refresh')" :title="$t('refresh')" />
+        </div>
+      </div>
+
+      <el-tabs v-model="activeTab" class="people-tabs" @tab-change="loadTab">
+        <el-tab-pane name="members">
+          <template #label>
+            <span>Members</span>
+            <span v-if="directoryTotal" class="tab-count">{{ directoryTotal }}</span>
+          </template>
+
+          <div class="directory-toolbar">
+            <el-input
+              v-model="search"
+              placeholder="Search by name, @username, email, position or team"
+              clearable
+              style="max-width: 420px"
+              @update:model-value="debouncedSearch"
+            />
+            <el-select v-model="teamFilter" placeholder="All teams" clearable style="width: 200px" @change="loadDirectory">
+              <el-option v-for="team in teams" :key="team.team_id" :label="team.name" :value="team.team_id" />
+            </el-select>
+            <span class="directory-count">{{ directoryTotal }} {{ directoryTotal === 1 ? 'member' : 'members' }}</span>
+          </div>
+
+          <div v-if="members.length" class="member-cards" v-loading="directoryLoading">
+            <article v-for="member in members" :key="member.userId" class="member-card">
+              <div class="member-card-top">
+                <hq-avatar
+                  :src="member.avatarUrl"
+                  :name="member.displayName"
+                  :username="member.username"
+                  :size="38"
+                  :show-presence="true"
+                  :presence="member.isOnline ? 'online' : 'offline'"
+                />
+                <div class="person-copy">
+                  <span class="person-name">{{ member.displayName }}</span>
+                  <span class="person-handle">{{ member.username ? '@' + member.username : member.email }}</span>
+                </div>
+                <span class="presence" :class="member.isOnline ? 'is-online' : 'is-offline'">{{ member.isOnline ? 'Online' : 'Offline' }}</span>
+              </div>
+              <div class="member-card-details">
+                <span>{{ member.email }}</span>
+                <span v-if="member.jobTitle || member.team">{{ [member.jobTitle, member.team?.name].filter(Boolean).join(' · ') }}</span>
+                <span>{{ presenceLabel(member) }}</span>
+              </div>
+              <div class="member-card-actions">
+                <el-button v-perm="'role:set'" size="small" @click="openMemberAccess(member)">Permissions</el-button>
+                <el-button v-perm="'user:reset-mfa'" size="small" @click="openMemberSecurity(member)">Security</el-button>
+              </div>
+            </article>
+          </div>
+
+          <el-table v-if="members.length" v-loading="directoryLoading" class="members-table" :data="members" style="width: 100%">
+            <el-table-column label="Member" min-width="240">
+              <template #default="scope">
+                <div class="person-cell">
+                  <hq-avatar
+                    :src="scope.row.avatarUrl"
+                    :name="scope.row.displayName"
+                    :username="scope.row.username"
+                    :size="32"
+                    :show-presence="true"
+                    :presence="scope.row.isOnline ? 'online' : 'offline'"
+                  />
+                  <div class="person-copy">
+                    <span class="person-name">{{ scope.row.displayName }}</span>
+                    <span class="person-handle">{{ scope.row.username ? '@' + scope.row.username : '—' }}</span>
+                    <span v-if="scope.row.jobTitle || scope.row.team" class="person-meta">{{ [scope.row.jobTitle, scope.row.team?.name].filter(Boolean).join(' · ') }}</span>
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="email" :label="$t('crmEmail')" min-width="190" />
+            <el-table-column label="Presence" min-width="120">
+              <template #default="scope">
+                <span class="presence" :class="scope.row.isOnline ? 'is-online' : 'is-offline'">
+                  {{ presenceLabel(scope.row) }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="Access" width="165">
+              <template #default="scope">
+                <el-button
+                  v-perm="'role:set'"
+                  type="text"
+                  size="small"
+                  @click="openMemberAccess(scope.row)"
+                >Permissions</el-button>
+                <el-button
+                  v-perm="'user:reset-mfa'"
+                  type="text"
+                  size="small"
+                  @click="openMemberSecurity(scope.row)"
+                >Security</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div v-else-if="!directoryLoading" class="empty-state">
+            <div class="empty-title">{{ search || teamFilter ? 'No matching members' : 'No members yet' }}</div>
+            <p>{{ search || teamFilter
+              ? 'Try a different name, @username, team or position.'
+              : 'Members appear here once they have an XPass Team account.' }}</p>
+            <div v-if="!(search || teamFilter)" class="empty-actions">
+              <el-button v-perm="'user:add'" type="primary" icon="plus" @click="openAddMember">Add member</el-button>
+            </div>
+          </div>
+          <div v-else class="loading-state">Loading members…</div>
+
+          <div v-if="directoryTotal > members.length" class="directory-more">
+            <el-button text type="primary" @click="loadMore">Load more</el-button>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane name="teams">
+          <template #label>
+            <span>Teams</span>
+            <span v-if="teams.length" class="tab-count">{{ teams.length }}</span>
+          </template>
+
+          <div class="section-toolbar">
+            <p class="section-hint">Teams group members for ownership and assignment. They never grant access on their own.</p>
+            <el-button v-perm="'setting:set'" type="primary" icon="plus" @click="openTeamDialog()">Add team</el-button>
+          </div>
+
+          <el-table v-if="teams.length" :data="teams" style="width: 100%">
+            <el-table-column prop="name" label="Team" min-width="180" />
+            <el-table-column prop="description" label="Purpose" min-width="240">
+              <template #default="scope">{{ scope.row.description || '—' }}</template>
+            </el-table-column>
+            <el-table-column label="Members" min-width="110">
+              <template #default="scope">{{ scope.row.member_count || 0 }}</template>
+            </el-table-column>
+            <el-table-column label="State" min-width="110">
+              <template #default="scope">
+                <span class="presence" :class="scope.row.is_active ? 'is-online' : 'is-offline'">
+                  {{ scope.row.is_active ? 'Active' : 'Archived' }}
+                </span>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div v-else class="empty-state">
+            <div class="empty-title">No teams yet</div>
+            <p>Teams keep ownership clear when work is assigned or shared.</p>
+            <div class="empty-actions">
+              <el-button v-perm="'setting:set'" type="primary" icon="plus" @click="openTeamDialog()">Add team</el-button>
+            </div>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane v-if="canSeeAccessControl" name="roles">
+          <template #label>
+            <span>Roles &amp; permissions</span>
+            <span v-if="roles.length" class="tab-count">{{ roles.length }}</span>
+          </template>
+
+          <div class="section-toolbar">
+            <p class="section-hint">
+              A role is the only thing that grants access. Position and team are labels, never permissions.
+            </p>
+            <el-button v-perm="'role:query'" @click="openRoleBuilder">Open Role Builder</el-button>
+          </div>
+
+          <el-table v-if="roles.length" :data="roles" style="width: 100%">
+            <el-table-column prop="name" label="Role" min-width="180" />
+            <el-table-column prop="description" label="Purpose" min-width="240">
+              <template #default="scope">{{ scope.row.description || '—' }}</template>
+            </el-table-column>
+            <el-table-column label="Members" min-width="110">
+              <template #default="scope">{{ scope.row.accountCount || 0 }}</template>
+            </el-table-column>
+            <el-table-column label="Permissions" min-width="120">
+              <template #default="scope">
+                {{ (scope.row.permIds || []).length === 0 ? 'None' : (scope.row.permIds || []).length }}
+                <span v-if="scope.row.isDefault" class="muted"> · default</span>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div v-else class="empty-state">
+            <div class="empty-title">No roles yet</div>
+            <p>Roles are created and edited in the Role Builder.</p>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+    </div>
+
+    <el-dialog v-model="addMemberVisible" title="Add XPass Team member" width="640px">
+      <div class="member-setup-note">
+        Their access plan is only a starting point. After creating the account, you will choose the exact areas they can view or manage. On their first sign-in, they must set a new password, their signature, and their authenticator.
+      </div>
+      <el-form label-position="top" class="member-create-form">
+        <el-form-item label="Work email">
+          <el-input v-model="addForm.email" placeholder="name@company.com" autocomplete="off" />
+        </el-form-item>
+        <div class="member-form-grid">
+          <el-form-item label="Full name">
+            <el-input v-model="addForm.displayName" placeholder="e.g. Amina Wanjiku" autocomplete="off" />
+          </el-form-item>
+          <el-form-item label="Username">
+            <el-input v-model="addForm.username" placeholder="e.g. amina" autocomplete="off" />
+          </el-form-item>
+          <el-form-item label="Position">
+            <el-input v-model="addForm.jobTitle" placeholder="e.g. Customer Experience Lead" autocomplete="off" />
+          </el-form-item>
+          <el-form-item label="Phone number">
+            <el-input v-model="addForm.phone" placeholder="e.g. +254 7XX XXX XXX" autocomplete="tel" />
+          </el-form-item>
+        </div>
+        <el-form-item label="Teams">
+          <el-select v-model="addForm.teamIds" multiple filterable placeholder="Choose one or more teams" style="width: 100%">
+            <el-option v-for="team in teams" :key="team.team_id" :label="team.name" :value="team.team_id" />
+          </el-select>
+          <div class="member-form-hint">The first team is their primary team for the directory. Teams organise work; they never grant access by themselves.</div>
+        </el-form-item>
+        <el-form-item v-if="canSeeAccessControl" label="Starting access plan">
+          <el-select v-model="addForm.roleId" clearable placeholder="Use the default starter access" style="width: 100%">
+            <el-option v-for="role in roles" :key="role.roleId" :label="role.name" :value="role.roleId" />
+          </el-select>
+          <div class="member-form-hint">This is the baseline. You will choose their individual view and manage permissions immediately after creation.</div>
+        </el-form-item>
+        <el-form-item label="Temporary password">
+          <el-input v-model="addForm.password" type="password" placeholder="Optional — generate a secure password for me" show-password autocomplete="new-password" />
+          <div class="member-form-hint">Leave this blank to generate one. It is shown once after you create the account and must be changed on first sign-in.</div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="addMemberVisible = false">Cancel</el-button>
+        <el-button type="primary" :loading="addingMember" @click="submitMember">Add member</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="teamDialogVisible" title="Add team" width="460px">
+      <el-form label-width="80px">
+        <el-form-item label="Name">
+          <el-input v-model="teamForm.name" maxlength="60" show-word-limit placeholder="e.g. Partnerships" />
+        </el-form-item>
+        <el-form-item label="Purpose">
+          <el-input v-model="teamForm.description" type="textarea" :rows="3" maxlength="200" show-word-limit
+                    placeholder="What this team is responsible for" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="teamDialogVisible = false">Cancel</el-button>
+        <el-button type="primary" :loading="savingTeam" @click="submitTeam">Create team</el-button>
+      </template>
+    </el-dialog>
+
+    <member-access
+      v-model="accessVisible"
+      :user-id="accessTarget?.userId ?? accessTarget?.user_id ?? null"
+      :user-name="accessTarget?.displayName || accessTarget?.email || 'Member'"
+    />
+
+    <member-security
+      v-model="securityVisible"
+      :user-id="securityTarget?.userId ?? securityTarget?.user_id ?? null"
+      :user-name="securityTarget?.displayName || securityTarget?.email || 'Member'"
+    />
+  </el-scrollbar>
+</template>
+
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { directoryList, teamList, teamCreate } from '@/request/profile.js'
+import { roleRoleList } from '@/request/role.js'
+import { addMemberTeam, createTeamMember } from '@/request/team.js'
+import HqAvatar from '@/components/hq-avatar/index.vue'
+import MemberAccess from '@/components/member-access/index.vue'
+import MemberSecurity from '@/components/member-security/index.vue'
+import { useSettingStore } from '@/store/setting.js'
+import router from '@/router/index.js'
+import { hasPerm } from '@/perm/perm.js'
+
+const settingStore = useSettingStore()
+
+const activeTab = ref('members')
+const members = ref([])
+const directoryTotal = ref(0)
+const directoryLoading = ref(false)
+const search = ref('')
+const teamFilter = ref('')
+const page = ref(1)
+const teams = ref([])
+const roles = ref([])
+const canSeeAccessControl = computed(() => hasPerm('role:query'))
+
+const addMemberVisible = ref(false)
+const addingMember = ref(false)
+const addForm = ref({ email: '', displayName: '', username: '', jobTitle: '', phone: '', password: '', roleId: null, teamIds: [] })
+
+const accessVisible = ref(false)
+const accessTarget = ref(null)
+
+function openMemberAccess(row) {
+  accessTarget.value = row
+  accessVisible.value = true
+}
+
+const securityVisible = ref(false)
+const securityTarget = ref(null)
+
+function openMemberSecurity(row) {
+  securityTarget.value = row
+  securityVisible.value = true
+}
+
+const teamDialogVisible = ref(false)
+const savingTeam = ref(false)
+const teamForm = ref({ name: '', description: '' })
+
+let searchTimer = null
+
+function debouncedSearch() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    loadDirectory()
+  }, 300)
+}
+
+function presenceLabel(row) {
+  if (row.isOnline) return 'Online now'
+  if (row.lastSeenAt) {
+    const then = new Date(String(row.lastSeenAt).replace(' ', 'T') + (String(row.lastSeenAt).endsWith('Z') ? '' : 'Z')).getTime()
+    if (!Number.isNaN(then)) {
+      const mins = Math.max(0, Math.round((Date.now() - then) / 60000))
+      if (mins < 1) return 'Last seen just now'
+      if (mins < 60) return `Last seen ${mins}m ago`
+      if (mins < 1440) return `Last seen ${Math.round(mins / 60)}h ago`
+      return `Last seen ${Math.round(mins / 1440)}d ago`
+    }
+  }
+  return 'Offline'
+}
+
+async function loadDirectory(reset = true) {
+  if (reset) {
+    page.value = 1
+    members.value = []
+  }
+  directoryLoading.value = true
+  try {
+    const resp = await directoryList({
+      page: page.value,
+      pageSize: 50,
+      search: search.value || undefined,
+      team_id: teamFilter.value || undefined
+    })
+    const list = resp.list || []
+    members.value = reset ? list : [...members.value, ...list]
+    directoryTotal.value = resp.total ?? members.value.length
+  } catch (error) {
+    ElMessage({ message: error.message || 'Could not load members.', type: 'error', plain: true })
+  } finally {
+    directoryLoading.value = false
+  }
+}
+
+async function loadMore() {
+  page.value += 1
+  await loadDirectory(false)
+}
+
+async function loadTeams() {
+  try {
+    teams.value = await teamList()
+  } catch {
+    teams.value = []
+  }
+}
+
+async function loadRoles() {
+  if (!canSeeAccessControl.value) {
+    roles.value = []
+    return
+  }
+  try {
+    roles.value = await roleRoleList()
+  } catch {
+    roles.value = []
+  }
+}
+
+function reload() {
+  loadDirectory()
+  loadTeams()
+  if (canSeeAccessControl.value && activeTab.value === 'roles') loadRoles()
+}
+
+function loadTab(name) {
+  // Roles are a separate, heavier administration payload. Do not make every
+  // visit to XPass Team wait for it when the member directory is all that is
+  // being viewed.
+  if (name === 'roles' && !roles.value.length) loadRoles()
+}
+
+function openRoleBuilder() {
+  router.push({ name: 'role' })
+}
+
+function openTeamDialog() {
+  teamForm.value = { name: '', description: '' }
+  teamDialogVisible.value = true
+}
+
+async function submitTeam() {
+  const name = teamForm.value.name.trim()
+  if (!name) {
+    ElMessage({ message: 'Team name is required.', type: 'warning', plain: true })
+    return
+  }
+  savingTeam.value = true
+  try {
+    await teamCreate({ name, description: teamForm.value.description.trim() })
+    teamDialogVisible.value = false
+    await loadTeams()
+    ElMessage({ message: 'Team created.', type: 'success', plain: true })
+  } catch (error) {
+    ElMessage({ message: error.message || 'Could not create this team.', type: 'error', plain: true })
+  } finally {
+    savingTeam.value = false
+  }
+}
+
+function openAddMember() {
+  const defaultRole = roles.value.find(role => role.isDefault) || roles.value[0] || null
+  addForm.value = {
+    email: '',
+    displayName: '',
+    username: '',
+    jobTitle: '',
+    phone: '',
+    password: '',
+    roleId: defaultRole ? defaultRole.roleId : null,
+    teamIds: teamFilter.value ? [teamFilter.value] : [],
+  }
+  addMemberVisible.value = true
+}
+
+// A new member needs an account first, then the company fields (team, position)
+// that belong to administration rather than to the account itself. Both calls
+// are made here so one action creates a usable member.
+async function submitMember() {
+  const email = addForm.value.email.trim()
+  const password = addForm.value.password
+  if (!email) {
+    ElMessage({ message: 'Work email is required.', type: 'warning', plain: true })
+    return
+  }
+  if (settingStore.domainList.length && !settingStore.domainList.includes(email.split('@')[1] || '')) {
+    ElMessage({ message: 'That email domain is not one of the company domains.', type: 'error', plain: true })
+    return
+  }
+  if (password && password.length < 12) {
+    ElMessage({ message: 'Use at least 12 characters, or leave it blank for a secure generated password.', type: 'warning', plain: true })
+    return
+  }
+  addingMember.value = true
+  try {
+    const teamIds = [...new Set(addForm.value.teamIds.map(Number).filter(Boolean))]
+    const created = await createTeamMember({
+      email,
+      password: password || undefined,
+      displayName: addForm.value.displayName.trim() || undefined,
+      username: addForm.value.username.trim() || undefined,
+      jobTitle: addForm.value.jobTitle.trim() || undefined,
+      phone: addForm.value.phone.trim() || undefined,
+      roleId: addForm.value.roleId ?? undefined,
+      teamId: teamIds[0] || undefined,
+    })
+    const newId = Number(created?.userId || created?.user_id || created?.user?.userId) || 0
+    if (newId) {
+      for (const teamId of teamIds.slice(1)) await addMemberTeam(newId, teamId)
+    }
+    addMemberVisible.value = false
+    await loadDirectory()
+    await loadTeams()
+    ElMessage({ message: 'Member added.', type: 'success', plain: true })
+    if (created?.temporaryPassword) {
+      await ElMessageBox.alert(
+        `Give this temporary password to ${created.displayName || email} now. It will not be shown again: ${created.temporaryPassword}`,
+        'Temporary password — save it now',
+        { confirmButtonText: 'I have saved it', type: 'warning' }
+      )
+    }
+    if (newId) {
+      // Take the admin straight into the new member's permissions so specific
+      // access can be granted, edited or removed as part of account creation.
+      accessTarget.value = { userId: newId, displayName: email }
+      accessVisible.value = true
+    }
+  } catch (error) {
+    ElMessage({ message: error.message || 'Could not add this member.', type: 'error', plain: true })
+  } finally {
+    addingMember.value = false
+  }
+}
+
+onMounted(() => {
+  loadDirectory()
+  loadTeams()
+})
+</script>
+
+<style scoped>
+.module-scroll { height: 100%; background: var(--hq-page); }
+.module-container { width: min(1240px, 100%); margin: 0 auto; padding: 28px clamp(20px, 3vw, 42px) 36px; color: var(--hq-text); }
+.module-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
+.module-title h1 { margin: 4px 0 0; font-size: clamp(24px, 2.4vw, 30px); font-weight: 650; letter-spacing: -.035em; line-height: 1.2; }
+.module-eyebrow { color: var(--hq-muted); font-size: 11px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+.module-subtitle { margin: 6px 0 0; max-width: 560px; color: var(--hq-muted); font-size: 13px; line-height: 1.5; }
+.module-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.people-tabs { margin-top: 4px; }
+.tab-count { display: inline-grid; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 5px; place-items: center; border-radius: 9px; background: var(--hq-hover); color: var(--hq-muted); font-size: 11px; font-weight: 600; }
+.directory-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.directory-count { color: var(--hq-muted); font-size: 12.5px; }
+.directory-more { display: flex; justify-content: center; padding-top: 12px; }
+.section-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.section-hint { margin: 0; max-width: 640px; color: var(--hq-muted); font-size: 12.5px; line-height: 1.5; }
+.member-setup-note { margin: 0 0 16px; padding: 11px 12px; border: 1px solid var(--hq-border); border-radius: 9px; background: var(--hq-selected); color: var(--hq-text-secondary); font-size: 12.5px; line-height: 1.5; }
+.member-create-form { display: grid; gap: 2px; }
+.member-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.member-form-hint { margin-top: 5px; color: var(--hq-muted); font-size: 11.5px; line-height: 1.4; }
+.person-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.person-copy { display: grid; min-width: 0; }
+.person-name { color: var(--hq-text); font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-handle { color: var(--hq-muted); font-size: 12px; }
+.person-meta { color: var(--hq-muted); font-size: 11.5px; margin-top: 2px; }
+.presence { font-size: 12px; font-weight: 550; }
+.presence.is-online { color: var(--hq-success); }
+.presence.is-offline { color: var(--hq-muted); }
+.muted { color: var(--hq-muted); }
+.loading-state { padding: 48px 0; text-align: center; color: var(--hq-muted); font-size: 13px; }
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; max-width: 540px; margin: 0 auto; padding: 56px 20px; text-align: center; color: var(--hq-text-secondary); }
+.empty-title { color: var(--hq-text); font-size: 15px; font-weight: 650; }
+.empty-state p { margin: 0; font-size: 13px; line-height: 1.55; }
+.empty-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+.member-cards { display: none; }
+@media (max-width: 640px) {
+  .module-container { padding: 20px 16px 28px; }
+  .module-header { flex-direction: column; }
+  .member-form-grid { grid-template-columns: 1fr; gap: 0; }
+  .members-table { display: none; }
+  .member-cards { display: grid; gap: 10px; }
+  .member-card { padding: 13px; border: 1px solid var(--hq-border); border-radius: 12px; background: var(--hq-surface); }
+  .member-card-top { display: flex; align-items: center; gap: 10px; }
+  .member-card-top .person-copy { flex: 1; }
+  .member-card-details { display: grid; gap: 4px; margin: 12px 0; color: var(--hq-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+  .member-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .directory-toolbar > * { width: 100% !important; max-width: none !important; }
+}
+</style>

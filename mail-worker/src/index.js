@@ -6,9 +6,10 @@ import emailService from './service/email-service';
 import r2Service from './service/r2-service';
 import oauthService from './service/oauth-service';
 import analysisService from './service/analysis-service';
+import reminderService from './service/reminder-service';
 import { handleWsUpgrade } from './websocket/connect';
 import proxyService from './service/proxy-service';
-export { MailHub } from './websocket/hub'; // Durable Object 必须从 Worker 入口导出
+export { MailHub } from './websocket/hub';
 export default {
 	 async fetch(req, env, ctx) {
 
@@ -32,6 +33,9 @@ export default {
 
 		if (url.pathname.startsWith('/oss/')) {
 			const key = url.pathname.slice('/oss/'.length);
+			if (key.includes('..') || !/^(?:signatures|avatars|static|public)\//.test(key)) {
+				return new Response('Forbidden: private storage object', { status: 403 });
+			}
 			const resp = await r2Service.toObjResp({ env }, key);
 			return resp || new Response('Not Found', { status: 404 });
 		}
@@ -55,6 +59,8 @@ export default {
 		await emailService.completeReceiveAll({ env })
 		await emailService.autoClean({ env })
 		await analysisService.refreshEchartsCache({ env })
+		await reminderService.scanDue({ env })
 		await oauthService.clearNoBindOathUser({ env })
 	},
 };
+

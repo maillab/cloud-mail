@@ -99,7 +99,6 @@
 import {defineOptions, nextTick, reactive, ref, watch} from "vue"
 import {Icon} from "@iconify/vue";
 import loading from "@/components/loading/index.vue";
-import {useSettingStore} from "@/store/setting.js";
 import {roleSelectUse} from "@/request/role.js";
 import {useRoleStore} from "@/store/role.js";
 import {regKeyAdd, regKeyList, regKeyClearNotUse, regKeyDelete, regKeyHistory} from "@/request/reg-key.js";
@@ -113,7 +112,6 @@ defineOptions({
 })
 
 const roleStore = useRoleStore();
-const settingStore = useSettingStore();
 const params = reactive({
   code: '',
 })
@@ -195,23 +193,9 @@ function formatUserCreateTime(regKey) {
   const currentYear = dayjs().year();
   const expireYear = createTime.year();
 
-  if (settingStore.lang === 'en') {
-
-    if (expireYear === currentYear) {
-      return createTime.format('MMM D, HH:mm');
-    } else {
-      return createTime.format('MMM D, YYYY HH:mm');
-    }
-
-  } else {
-
-    if (expireYear === currentYear) {
-      return createTime.format('M月D日 HH:mm');
-    } else {
-      return createTime.format('YYYY年M月D日 HH:mm');
-    }
-
-  }
+  return expireYear === currentYear
+    ? createTime.format('MMM D, HH:mm')
+    : createTime.format('MMM D, YYYY HH:mm');
 
 }
 
@@ -224,19 +208,9 @@ function formatExpireTime(expireTime) {
   const currentYear = dayjs().year();
   const expireYear = expireDate.year();
 
-  if (settingStore.lang === 'en') {
-
-    return expireYear === currentYear
-        ? expireDate.format('MMM D')
-        : expireDate.format('MMM D, YYYY');
-
-  } else {
-
-    return expireYear === currentYear
-        ? expireDate.format('M月D日')
-        : expireDate.format('YYYY年M月D日');
-
-  }
+  return expireYear === currentYear
+    ? expireDate.format('MMM D')
+    : expireDate.format('MMM D, YYYY');
 }
 
 function refresh() {
@@ -271,9 +245,9 @@ async function copyCode(code) {
       plain: true,
     })
   } catch (err) {
-    console.error('复制失败:', err);
+    console.error('Copy failed:', err);
     ElMessage({
-      message: '复制失败',
+      message: 'Copy failed',
       type: 'error',
       plain: true,
     })
