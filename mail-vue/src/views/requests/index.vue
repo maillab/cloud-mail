@@ -99,8 +99,9 @@
           </div>
 
           <section v-if="canTakeRequestAction(detail) || canCancelRequest(detail) || canCommitRequest(detail)" class="request-decision">
-            <div>
-              <strong>{{ detail.kind === 'approval' ? 'Decision needed' : 'Next step' }}</strong>
+            <div class="request-decision-copy">
+              <span>{{ detail.kind === 'approval' ? 'Decision needed' : 'Next step' }}</span>
+              <strong>{{ nextStepTitle(detail) }}</strong>
               <p>{{ actionGuidance(detail) }}</p>
             </div>
             <div class="request-decision-actions">
@@ -397,9 +398,9 @@ function attachmentLinks(row) {
 function actionAvailable(row, action) {
   const allowed = {
     accept: ['pending', 'needs_clarification'],
-    start: ['pending', 'accepted'],
+    start: ['accepted'],
     clarify: ['pending', 'accepted', 'in_progress'],
-    complete: ['pending', 'accepted', 'in_progress', 'needs_clarification'],
+    complete: ['in_progress'],
     decline: ['pending', 'accepted'],
     approve: ['pending_approval'],
     reject: ['pending_approval'],
@@ -410,6 +411,13 @@ function actionAvailable(row, action) {
 function canTakeRequestAction(row) { return canActRequests.value && isRecipient(row) && (openAction(row.status) || row.status === 'pending_approval') }
 function canCancelRequest(row) { return isSender(row) && canCancel(row.status) }
 function canCommitRequest(row) { return row?.category === 'finance' && row.status === 'approved' && hasPerm('finance.budgets:create') }
+function nextStepTitle(row) {
+  if (row.kind === 'approval') return 'Review and decide'
+  if (row.status === 'pending' || row.status === 'needs_clarification') return 'Accept this request to take ownership'
+  if (row.status === 'accepted') return 'Start work when you begin'
+  if (row.status === 'in_progress') return 'Mark it complete once the outcome is delivered'
+  return 'Review the request history'
+}
 function actionGuidance(row) {
   if (row.kind === 'approval') return 'Review the information, then approve, reject, or ask the sender to make changes.'
   if (row.status === 'pending') return 'Accept this request when you are ready to take ownership.'
@@ -617,10 +625,12 @@ onMounted(async () => {
 .request-description p { margin: 0; color: var(--hq-text-secondary); line-height: 1.6; white-space: pre-wrap; }
 .request-links { padding: 12px 14px; border-radius: 10px; background: var(--hq-hover); }
 .request-links a { width: fit-content; max-width: 100%; color: var(--hq-accent); overflow-wrap: anywhere; }
-.request-decision { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px; border: 1px solid color-mix(in srgb, var(--hq-accent) 34%, var(--hq-border)); border-radius: 10px; background: color-mix(in srgb, var(--hq-accent) 6%, var(--hq-surface)); }
-.request-decision strong { color: var(--hq-text); font-size: 13px; }
-.request-decision p { margin: 3px 0 0; color: var(--hq-text-secondary); font-size: 12px; line-height: 1.45; }
-.request-decision-actions { display: flex; justify-content: flex-end; gap: 7px; flex-wrap: wrap; flex: 0 0 auto; }
+.request-decision { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--hq-border); border-radius: 10px; background: var(--hq-surface); }
+.request-decision-copy { display: grid; gap: 4px; }
+.request-decision-copy > span { color: var(--hq-muted); font-size: 11px; font-weight: 650; letter-spacing: .03em; text-transform: uppercase; }
+.request-decision strong { color: var(--hq-text); font-size: 14px; }
+.request-decision p { max-width: 580px; margin: 0; color: var(--hq-text-secondary); font-size: 12.5px; line-height: 1.5; }
+.request-decision-actions { display: flex; justify-content: flex-start; gap: 7px; flex-wrap: wrap; }
 .request-form-intro { margin: -4px 0 18px; color: var(--hq-text-secondary); font-size: 13px; line-height: 1.55; }
 .request-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
 .request-form-grid--three { grid-template-columns: 1fr 1fr 1fr; }
@@ -674,7 +684,6 @@ onMounted(async () => {
   .related-row > * { width: 100% !important; }
   .request-form-grid, .request-form-grid--three, .request-detail-grid { grid-template-columns: 1fr; }
   .request-form-section { align-items: flex-start; flex-direction: column; gap: 2px; }
-  .request-decision { align-items: flex-start; flex-direction: column; }
   .request-decision-actions { justify-content: flex-start; }
   :deep(.request-dialog) { width: calc(100vw - 24px) !important; margin-top: 5vh !important; }
   :deep(.request-detail-dialog) { width: calc(100vw - 24px) !important; margin-top: 5vh !important; }
